@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/array_extensions.hpp>
+#include <exception>
 #include <FreeRTOS.h>
 
 #include "concepts.hpp"
