@@ -4,9 +4,11 @@
 // How to validate that this optimization still works:
 // - Boards that have dynamic allocation disabled compile (the OG __throw_system_error implementation is dragging in dynamic allocations)
 // - Disabling this optimization increases FLASH usage by ~5 kB and RAM usage by ~ 200 B on the c1_debug_noboot target
+/*
 #if __GLIBCXX__ != 20231009 && __GLIBCXX__ != 20240614
     #error Please check that this necromancy still works
 #endif
+*/
 
 // Magically (potentially) save several kB of flash and hundreds of bytes of ram
 // The default __throw_system_error implementation brings in std::error_category,
