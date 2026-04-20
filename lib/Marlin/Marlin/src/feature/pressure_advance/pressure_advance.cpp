@@ -38,7 +38,7 @@ FORCE_INLINE void pressure_advance_precalculate_parameters(pressure_advance_step
         state.half_accel = float(get_move_half_accel(current_move, step_generator.axis));
 
         if (is_pressure_advance_active(current_move)) {
-            state.start_v += (2.f * state.half_accel * params.pressure_advance_value);
+            state.start_v += (2.f * state.half_accel * current_move.pressure_advance);
         }
     } else {
         state.start_v = 0.f;
@@ -419,7 +419,7 @@ step_event_info_t pressure_advance_step_generator_next_step_event(pressure_advan
             // We have to update start_post before we reset the pressure advance position because
             // we are using it during the resetting position.
             if (is_pressure_advance_active(*next_move)) {
-                step_generator.pa_state->start_pos = float(get_move_start_pos(*next_move, step_generator.axis)) + float(get_move_start_v(*next_move, step_generator.axis)) * PressureAdvance::pressure_advance_params.pressure_advance_value;
+                step_generator.pa_state->start_pos = float(get_move_start_pos(*next_move, step_generator.axis)) + float(get_move_start_v(*next_move, step_generator.axis)) * next_move->pressure_advance;
             } else {
                 step_generator.pa_state->start_pos = float(get_move_start_pos(*next_move, step_generator.axis));
             }

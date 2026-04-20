@@ -37,6 +37,8 @@ typedef struct pressure_advance_window_filter_t {
 } pressure_advance_window_filter_t;
 
 struct pressure_advance_params_t {
+    // Runtime K is read from move_t::pressure_advance.
+    // This cached value is only refreshed on full config apply / idle sync.
     float pressure_advance_value;
     float sampling_rate_float;
     double sampling_rate;

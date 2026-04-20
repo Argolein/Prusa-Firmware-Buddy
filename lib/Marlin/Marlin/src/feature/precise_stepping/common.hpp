@@ -74,6 +74,7 @@ typedef struct move_t {
     double half_accel;
     double move_time;
     double print_time;
+    float pressure_advance;
 
     xyze_double_t axes_r;
     xyze_double_t start_pos;

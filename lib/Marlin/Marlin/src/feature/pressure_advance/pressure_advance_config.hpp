@@ -18,6 +18,8 @@ void init();
 // configure e axis
 void set_axis_e_config(const Config &config);
 const Config &get_axis_e_config();
+bool axis_e_config_supports_runtime_update(const Config &config);
+void sync_axis_e_config_if_idle();
 
 // Guard to globally disable PA
 class PressureAdvanceDisabler {

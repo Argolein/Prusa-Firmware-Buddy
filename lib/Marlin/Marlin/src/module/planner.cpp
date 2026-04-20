@@ -73,6 +73,7 @@
 #include "../core/language.h"
 #include "../gcode/parser.h"
 #include "../feature/motordriver_util.h"
+#include "../feature/pressure_advance/pressure_advance_config.hpp"
 
 #include "../Marlin.h"
 
@@ -1292,6 +1293,7 @@ bool Planner::_populate_block(block_t * const block,
   // Clear all flags, including the "busy" bit
   block->flag.clear();
   block->busy = false;
+  block->pressure_advance = pressure_advance::get_axis_e_config().pressure_advance;
 
   // TODO: raw_block (no_discard) = hints.last_segment
   // Don't discard last segment even if it's shorted than MIN_MSTEPS_PER_SEGMENT
@@ -2863,4 +2865,3 @@ void Motion_Parameters::load() const {
 void Motion_Parameters::reset(const bool no_limits) {
   MarlinSettings::reset_motion(no_limits);
 }
-

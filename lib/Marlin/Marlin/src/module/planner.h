@@ -133,7 +133,8 @@ typedef struct PlannerBlock {
         entry_speed_sqr,                    // Entry speed at previous-current junction in (mm/sec)^2
         max_entry_speed_sqr,                // Maximum allowable junction entry speed in (mm/sec)^2
         millimeters,                        // The total travel of this block in mm
-        acceleration;                       // acceleration mm/sec^2
+        acceleration,                       // acceleration mm/sec^2
+        pressure_advance;                   // Pressure advance snapshot valid when this block was queued
 
   union {
     abce_ulong_t msteps;                    // Mini-step count along each axis

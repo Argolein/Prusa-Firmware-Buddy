@@ -95,7 +95,7 @@ STEPPING_INLINE MoveFlag_t get_active_axis_flags_from_block(const block_t &block
 }
 
 STEPPING_INLINE bool append_move_segment_to_queue(const double move_time, const double start_v, const double half_accel, const double print_time,
-    const xyze_double_t axes_r, const xyze_double_t start_pos, const MoveFlag_t flags) {
+    const float pressure_advance, const xyze_double_t axes_r, const xyze_double_t start_pos, const MoveFlag_t flags) {
     assert(PreciseStepping::total_print_time > 0 && PreciseStepping::total_print_time < MAX_PRINT_TIME);
     uint8_t next_move_segment_queue_head;
     if (move_t *m = PreciseStepping::get_next_free_move_segment(next_move_segment_queue_head); m != nullptr) {
@@ -103,6 +103,7 @@ STEPPING_INLINE bool append_move_segment_to_queue(const double move_time, const 
         m->start_v = start_v;
         m->half_accel = half_accel;
         m->print_time = print_time;
+        m->pressure_advance = pressure_advance;
         m->axes_r = axes_r;
         m->start_pos = start_pos;
         m->flags = flags;
@@ -201,6 +202,7 @@ bool append_move_segments_to_queue(const block_t &block) {
     const MoveFlag_t active_axis = get_active_axis_flags_from_block(block);
     const xyze_double_t axes_r = calc_axes_r_from_block(block);
     const double half_accel = .5 * accel;
+    const float pressure_advance = block.pressure_advance;
 
     // Reset position.
     // Because all step event generators accumulate the position in steps, we need to preserve the remaining mini steps
@@ -222,7 +224,7 @@ bool append_move_segments_to_queue(const block_t &block) {
             | (uint16_t(block.direction_bits & 0x0F) << MOVE_FLAG_DIR_SHIFT)
             | active_axis
             | (uint32_t(old_ps_flags) << MOVE_FLAG_RESET_POSITION_SHIFT);
-        if (!append_move_segment_to_queue(accel_t, start_v, half_accel, print_time, axes_r, start_pos, flags)) {
+        if (!append_move_segment_to_queue(accel_t, start_v, half_accel, print_time, pressure_advance, axes_r, start_pos, flags)) {
             bsod("Acceleration move segment wasn't append into the queue.");
         }
 
@@ -238,7 +240,7 @@ bool append_move_segments_to_queue(const block_t &block) {
             | (uint16_t(block.direction_bits & 0x0F) << MOVE_FLAG_DIR_SHIFT)
             | active_axis
             | ((accel_dist != 0.) ? 0x00 : (uint32_t(old_ps_flags) << MOVE_FLAG_RESET_POSITION_SHIFT));
-        if (!append_move_segment_to_queue(cruise_t, cruise_v, 0., print_time, axes_r, start_pos, flags)) {
+        if (!append_move_segment_to_queue(cruise_t, cruise_v, 0., print_time, pressure_advance, axes_r, start_pos, flags)) {
             bsod("Cruise move segment wasn't append into the queue.");
         }
 
@@ -254,7 +256,7 @@ bool append_move_segments_to_queue(const block_t &block) {
             | (uint16_t(block.direction_bits & 0x0F) << MOVE_FLAG_DIR_SHIFT)
             | active_axis
             | ((accel_dist != 0. || cruise_dist != 0.) ? 0x00 : (uint32_t(old_ps_flags) << MOVE_FLAG_RESET_POSITION_SHIFT));
-        if (!append_move_segment_to_queue(decel_t, cruise_v, -half_accel, print_time, axes_r, start_pos, flags)) {
+        if (!append_move_segment_to_queue(decel_t, cruise_v, -half_accel, print_time, pressure_advance, axes_r, start_pos, flags)) {
             bsod("Deceleration move segment wasn't append into the queue.");
         }
 
@@ -840,6 +842,7 @@ STEPPING_INLINE move_t *append_beginning_empty_move() {
         move->flags = MOVE_FLAG_BEGINNING_EMPTY_MOVE;
         move->start_v = 0.;
         move->half_accel = 0.;
+        move->pressure_advance = 0.f;
         move->axes_r = { 0., 0., 0., 0. };
 
         // Ensure move_time to be much bigger than max_lookback_time
@@ -864,6 +867,7 @@ STEPPING_INLINE move_t *append_block_discarding_move() {
         move->flags = MOVE_FLAG_FIRST_MOVE_SEGMENT_OF_BLOCK | MOVE_FLAG_LAST_MOVE_SEGMENT_OF_BLOCK;
         move->start_v = 0.;
         move->half_accel = 0.;
+        move->pressure_advance = 0.f;
         move->axes_r = { 0., 0., 0., 0. };
         move->move_time = 0.;
         move->start_pos = PreciseStepping::total_start_pos;
@@ -883,6 +887,7 @@ STEPPING_INLINE move_t *append_ending_empty_move() {
         move->flags = MOVE_FLAG_ENDING_EMPTY_MOVE;
         move->start_v = 0.;
         move->half_accel = 0.;
+        move->pressure_advance = 0.f;
         move->axes_r = { 0., 0., 0., 0. };
         move->move_time = MAX_PRINT_TIME;
         move->start_pos = PreciseStepping::total_start_pos;
@@ -1042,6 +1047,7 @@ bool PreciseStepping::process_queue_of_blocks() {
             // motion reset has completed and there is no pending block to process, we're now free
             assert(!has_blocks_queued() && !phase_stepping::processing());
             busy = false;
+            pressure_advance::sync_axis_e_config_if_idle();
         }
         return processed;
     }
@@ -1515,6 +1521,7 @@ void PreciseStepping::reset_queues() {
     Stepper::axis_did_move = 0;
     stop_pending = false;
     busy = false;
+    pressure_advance::sync_axis_e_config_if_idle();
 }
 
 void mark_ownership(move_t &move) {
