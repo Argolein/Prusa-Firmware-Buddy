@@ -2497,6 +2497,10 @@ void Planner::refresh_positioning() {
   }
   set_position_mm(current_position);
   refresh_acceleration_rates();
+
+  #if HAS_PHASE_STEPPING()
+    phase_stepping::update_axis_motor_params();
+  #endif
 }
 
 #if ENABLED(DISTINCT_E_FACTORS)
@@ -2598,6 +2602,8 @@ void Motion_Parameters::save() {
 
   for (int i = 0; i < XYZE_N; ++i) {
     mp.max_acceleration_mm_per_s2[i] = src.max_acceleration_mm_per_s2[i];
+    mp.axis_steps_per_mm[i] = src.axis_steps_per_mm[i];
+    mp.axis_msteps_per_mm[i] = src.axis_msteps_per_mm[i];
     mp.max_feedrate_mm_s[i] = src.max_feedrate_mm_s[i];
   }
 
@@ -2621,6 +2627,8 @@ void Motion_Parameters::load() const {
 
   for (int i = 0; i < XYZE_N; ++i) {
     s.max_acceleration_mm_per_s2[i] = mp.max_acceleration_mm_per_s2[i];
+    s.axis_steps_per_mm[i] = mp.axis_steps_per_mm[i];
+    s.axis_msteps_per_mm[i] = mp.axis_msteps_per_mm[i];
     s.max_feedrate_mm_s[i] = mp.max_feedrate_mm_s[i];
   }
 
@@ -2639,6 +2647,7 @@ void Motion_Parameters::load() const {
   #endif
 
   planner.apply_settings(s);
+  planner.refresh_positioning();
 }
 
 void Motion_Parameters::reset(const bool no_limits) {

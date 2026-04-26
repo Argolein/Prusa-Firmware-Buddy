@@ -45,6 +45,46 @@ Build the firmware for MINI using a custom version of gcc-arm-none-eabi (availab
 python utils/build.py --preset mini --toolchain cmake/AnyGccArmNoneEabi.cmake --generator 'Unix Makefiles'
 ```
 
+Build the firmware for CORE One in Docker with the locked Prusa GCC 13.3.1 toolchain:
+
+```bash
+docker build -f utils/holly/Dockerfile -t prusa-buddy-build:gcc13 .
+mkdir -p build/products-docker-gcc13-coreone
+
+docker run --rm \
+  -v "$PWD":/host:ro \
+  -v "$PWD/build/products-docker-gcc13-coreone":/out \
+  prusa-buddy-build:gcc13 \
+  bash -lc '
+set -euo pipefail
+mkdir -p /work/src
+tar -C /host \
+  --exclude="./.dependencies" \
+  --exclude="./.venv" \
+  --exclude="./build" \
+  --exclude="./build-*" \
+  -cf - . | tar -C /work/src -xf -
+
+cd /work/src
+ln -sfn /work/.dependencies .dependencies
+ln -sfn /work/.venv .venv
+
+# Only needed on local branches that changed GccArmNoneEabi.cmake to use a host compiler.
+git show refs/tags/v6.5.3:cmake/GccArmNoneEabi.cmake > cmake/GccArmNoneEabi.cmake
+
+. .venv/bin/activate
+python3 utils/build.py \
+  --preset coreone \
+  --bootloader yes \
+  --build-dir /work/build-coreone-docker-gcc13 \
+  --products-dir /out \
+  --skip-bootstrap \
+  -DCUSTOM_COMPILE_OPTIONS:STRING="-Werror"
+'
+```
+
+This avoids accidentally using a host `arm-none-eabi-gcc` from `PATH`. The firmware artifacts are written to `build/products-docker-gcc13-coreone`.
+
 #### Windows 10 troubleshooting
 
 If you have python installed and in your PATH but still getting cmake error `Python3 not found.` Try running python and python3 from cmd. If one of it opens Microsoft Store instead of either opening python interpreter or complaining `'python3' is not recognized as an internal or external command,
