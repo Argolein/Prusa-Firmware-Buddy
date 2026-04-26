@@ -50,7 +50,7 @@ void CSelftestPart_Axis::phaseMove(int8_t dir) {
     sync_plan_position();
     report_current_position();
 
-    m_StartPos_usteps = stepper.position((AxisEnum)config.axis);
+    m_StartPos_mm = planner.get_axis_position_mm((AxisEnum)config.axis);
 
     // Disable stealthChop if used. Enable diag1 pin on driver.
 #if ENABLED(SENSORLESS_HOMING)
@@ -93,16 +93,8 @@ LoopResult CSelftestPart_Axis::wait(int8_t dir) {
     axes_home_level[X_AXIS] = AxisHomeLevel::not_homed;
     axes_home_level[Y_AXIS] = AxisHomeLevel::not_homed;
 
-    int32_t endPos_usteps = stepper.position((AxisEnum)config.axis);
-    int32_t length_usteps = dir * (endPos_usteps - m_StartPos_usteps);
-    float length_mm = (length_usteps * planner.mm_per_step[(AxisEnum)config.axis]);
-
-// Core kinematic has inverted Y steps compared to axis move direction
-#if CORE_IS_XY || CORE_IS_YZ
-    if (static_cast<AxisEnum>(config.axis) == AxisEnum::Y_AXIS) {
-        length_mm *= -1;
-    }
-#endif
+    const float endPos_mm = planner.get_axis_position_mm((AxisEnum)config.axis);
+    float length_mm = dir * (endPos_mm - m_StartPos_mm);
 #if !PRINTER_IS_PRUSA_XL()
     length_mm += unmeasured_distance;
 #endif

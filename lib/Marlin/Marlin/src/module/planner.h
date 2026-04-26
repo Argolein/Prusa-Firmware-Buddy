@@ -191,6 +191,8 @@ struct user_planner_settings_t : public planner_settings_t {};
 typedef struct {
    uint32_t max_acceleration_mm_per_s2[XYZE_N], // (mm/s^2) M201 XYZE
             min_segment_time_us;                // (µs) M205 B
+      float axis_steps_per_mm[XYZE_N];          // (steps) M92 XYZE - Steps per millimeter
+      float axis_msteps_per_mm[XYZE_N];         // (mini-steps) Steps per millimeter multiplied PLANNER_STEPS_MULTIPLIER to increase the Planner resolution.
  feedRate_t max_feedrate_mm_s[XYZE_N];          // (mm/s) M203 XYZE - Max speeds
       float acceleration,                       // (mm/s^2) M204 S - Normal acceleration. DEFAULT ACCELERATION for all printing moves.
             retract_acceleration,               // (mm/s^2) M204 R - Retract acceleration. Filament pull-back and push-forward while standing still in the other axes
