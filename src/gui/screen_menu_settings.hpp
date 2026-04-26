@@ -80,6 +80,7 @@ using ScreenMenuSettingsBase = BasicScreenMenu<
     MI_CRASH_DETECTION,
     MI_GCODE_INTERRUPTS,
 #endif
+    MI_ADVANCED_SETTINGS,
     MI_LANG_AND_TIME,
     MI_HARDWARE,
 #if DEVELOPMENT_ITEMS()
