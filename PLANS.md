@@ -1,17 +1,18 @@
 # PLANS.md
 
 ## Objective
-Fix CORE One 1.5GT X/Y steps-per-mm handling so homing and selftest axis calibration use consistent logical motion parameters when X/Y differs from stock 100.
+Expose Core One steps-per-mm editing in the normal Settings menu through a new "Advanced Settings" screen. X/Y/Z/E values should be editable with two decimals, stored directly in Prusa `config_store`, and applied immediately to the running planner without requiring `M500`, a separate save action, or a reboot.
 
 ## Open questions
 - none
 
 ## Approved plan
-- Port the relevant PR #5062 fixes locally without changing unrelated behavior.
-- Preserve the existing junction-deviation handling while extending temporary motion-parameter save/load to include axis steps.
-- Update phase-stepping motor parameters whenever planner positioning is refreshed.
-- Use logical planner axis positions for selftest axis length measurement instead of raw stepper motor positions, which are A/B motor positions on CoreXY.
-- Build COREONE with the known-good Docker/GCC13 toolchain and `-Werror`.
+- Add a normal visible `Settings > Advanced Settings` menu entry.
+- Add an Advanced Settings screen containing X/Y/Z/E steps-per-mm controls.
+- Reuse Prusa `config_store` steps-per-unit storage as the persistent source of truth.
+- When a value changes, write it to `config_store` and update `planner.user_settings`/`planner.apply_settings()`/`planner.refresh_positioning()` immediately.
+- Keep the accepted UI value range at `1.00` to `1000.00` and display two decimals.
+- Do not implement or change `M500`/`M501` for this work.
 
 ## Implementation status
 - [ ] Not started
@@ -19,27 +20,32 @@ Fix CORE One 1.5GT X/Y steps-per-mm handling so homing and selftest axis calibra
 - [x] Done
 
 ## Decisions
-- Use a local, minimal port of PR #5062 instead of applying the full patch verbatim, because this branch keeps `junction_deviation_mm` separate from `planner_settings_t`.
-- Treat the observed Y homing calibration failure with X/Y = 101.5873 as the concrete symptom of the scaling/cache inconsistency fixed by PR #5062.
-- Treat the remaining Y217 selftest failure as a CoreXY logical-vs-raw-axis measurement bug: raw `stepper.position(Y_AXIS)` is motor B on CoreXY, while the selftest acceptance range is in logical Y millimeters.
+- Do not implement `M500`; persistence is handled through the display menu.
+- Do not add a "Save to EEPROM" menu item.
+- The display menu stores changes directly and persistently.
+- Changed steps-per-mm apply immediately without reboot.
+- The new menu should be normally visible as `Settings > Advanced Settings`.
+- The steps-per-mm UI should display and edit values with two decimal places, e.g. `101.59`.
+- The accepted UI range is `1.00` to `1000.00`.
 
 ## Handoff
 - Agent: Codex
 - Date: 2026-04-26
 - Completed this session:
-  - Identified PR #5062 as matching the 1.5GT/M92/Core One scaling and calibration bug.
-  - Ported the motion-parameter and phase-stepping consistency fixes locally.
-  - Changed selftest axis length measurement to use logical planner axis positions for CoreXY correctness.
-  - Built COREONE with Docker/GCC13, bootloader enabled, and -Werror.
+  - Added a visible `Settings > Advanced Settings` menu entry.
+  - Added X/Y/Z/E steps-per-mm controls with two-decimal editing and range `1.00` to `1000.00`.
+  - Wired the controls to store directly into Prusa `config_store` and immediately update planner settings.
+  - Built COREONE successfully with Docker/GCC13 and `-Werror`.
 - Stopped at:
-  - Build artifact generated in build/products-docker-gcc13-pr5062-selftest-logical-axis/.
+  - Build artifact generated in `build/products-docker-gcc13-advanced-settings/coreone_release_boot.bbf`.
 - Next step:
-  - Flash coreone_release_boot.bbf and run Y homing calibration on the printer.
+  - Flash the BBF and verify that X/Y/Z/E values can be changed under `Settings > Advanced Settings`, survive reboot, and are reflected by `M92` output.
 - Open blockers:
   - none
 - Decisions made this session:
-  - Use a local minimal port preserving branch-specific junction-deviation handling.
-  - Measure selftest axis travel in logical mm through Planner instead of raw motor steps.
+  - No M500/M501 work; direct persistent UI storage with immediate planner apply.
 
 ## Notes
-- Build with the Docker/GCC13 workflow documented in README.md.
+- Existing Prusa storage paths found so far include direct `config_store` writes for Input Shaper and existing steps-per-unit setters in `store_c_api.cpp`.
+- `WiSpin` already supports float values and fixed decimal rendering through `NumericInputConfig::max_decimal_places`.
+- The earlier Core One 1.5GT homing/selftest fix is complete and separate from this Advanced Settings work.

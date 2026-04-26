@@ -111,6 +111,9 @@ using MI_PRUSALINK
 using MI_FOOTER_SETTINGS
     = MI_SCREEN<N_("Footer"), class ScreenMenuFooterSettings>;
 
+using MI_ADVANCED_SETTINGS
+    = MI_SCREEN<N_("Advanced Settings"), class ScreenMenuAdvancedSettings>;
+
 using MI_USER_INTERFACE
     = MI_SCREEN<N_("User Interface"), class ScreenMenuUserInterface>;
 
