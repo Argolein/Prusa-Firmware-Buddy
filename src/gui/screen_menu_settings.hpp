@@ -83,6 +83,7 @@ using ScreenMenuSettings__ = ScreenMenu<GuiDefaults::MenuFooter, MI_RETURN,
     MI_TOOLHEAD_SETTINGS,
 #endif
     MI_INPUT_SHAPER,
+    MI_ADVANCED_SETTINGS,
 #if HAS_PHASE_STEPPING()
     MI_PHASE_STEPPING_SCREEN,
 #endif

@@ -26,6 +26,7 @@
 #include "screen_menu_statistics.hpp"
 #include "screen_menu_error_test.hpp"
 #include "screen_menu_input_shaper.hpp"
+#include "screen_menu_advanced_settings.hpp"
 #include <screen_menu_languages.hpp>
 #include <screen_menu_info.hpp>
 #include <screen_menu_control.hpp>
@@ -116,6 +117,7 @@ template struct MI_SCREEN_CTOR<ScreenMenuPrusaLink>;
 template struct MI_SCREEN_CTOR<ScreenMenuFooterSettings>;
 template struct MI_SCREEN_CTOR<ScreenMenuFooterSettingsAdv>;
 template struct MI_SCREEN_CTOR<ScreenMenuExperimentalSettings>;
+template struct MI_SCREEN_CTOR<ScreenMenuAdvancedSettings>;
 template struct MI_SCREEN_CTOR<ScreenMenuUserInterface>;
 template struct MI_SCREEN_CTOR<ScreenMenuLangAndTime>;
 template struct MI_SCREEN_CTOR<ScreenMenuNetwork>;
