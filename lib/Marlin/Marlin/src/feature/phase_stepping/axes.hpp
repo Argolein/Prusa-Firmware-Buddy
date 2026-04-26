@@ -10,6 +10,11 @@ namespace phase_stepping {
 void initialize_axis_motor_params();
 
 /**
+ * Update the axis motor parameters after axis steps per unit changes.
+ **/
+void update_axis_motor_params();
+
+/**
  * Return a motor step count for given axis
  **/
 int get_motor_steps(AxisEnum motor);
