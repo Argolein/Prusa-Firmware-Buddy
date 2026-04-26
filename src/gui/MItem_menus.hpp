@@ -111,6 +111,9 @@ using MI_FOOTER_SETTINGS_ADV
 using MI_EXPERIMENTAL_SETTINGS
     = MI_SCREEN<N_("Experimental Settings"), class ScreenMenuExperimentalSettings, nullptr, is_hidden_t::dev>;
 
+using MI_ADVANCED_SETTINGS
+    = MI_SCREEN<N_("Advanced Settings"), class ScreenMenuAdvancedSettings>;
+
 using MI_USER_INTERFACE
     = MI_SCREEN<N_("User Interface"), class ScreenMenuUserInterface>;
 using MI_LANG_AND_TIME
