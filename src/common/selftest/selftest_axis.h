@@ -17,7 +17,7 @@ class CSelftestPart_Axis {
     SelftestSingleAxis_t &rResult;
     uint32_t time_progress_start = 0;
     uint32_t time_progress_estimated_end = 0;
-    uint32_t m_StartPos_usteps = 0;
+    float m_StartPos_mm = 0;
     uint8_t m_Step = 0;
 #if !PRINTER_IS_PRUSA_XL()
     float unmeasured_distance = 0; // Distance traveled before axis measuring is started
