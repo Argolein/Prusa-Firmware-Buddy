@@ -35,7 +35,9 @@
 #include <raii/scope_guard.hpp>
 #include <feature/phase_stepping/phase_stepping.hpp>
 #include <feature/input_shaper/input_shaper_config.hpp>
+#include <config_store/constants.hpp>
 #include <config_store/store_instance.hpp>
+#include <config_store/store_c_api.h>
 #include <metric.h>
 #include <cmath_ext.h>
 #include <option/has_toolchanger.h>
@@ -43,6 +45,8 @@
 #include <utility>
 using std::make_pair;
 using std::pair;
+
+#include <algorithm>
 
 #if HAS_TRINAMIC && defined(XY_HOMING_MEASURE_SENS_MIN)
     #include <configuration.hpp>
@@ -97,6 +101,77 @@ METRIC_DEF(metric_phxy_sens, "phxy_sens", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED
 METRIC_DEF(metric_phxy_home, "phxy_home", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
 METRIC_DEF(metric_phxy_orig, "phxy_orig", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
 
+#if HAS_TRINAMIC
+#if PRINTER_IS_PRUSA_COREONE()
+static constexpr uint16_t MIN_COREONE_HOMING_CURRENT_MA = 200;
+static constexpr uint16_t MAX_COREONE_HOMING_CURRENT_MA = 958;
+
+static uint16_t clamp_coreone_homing_current(const uint16_t current) {
+    if (current < MIN_COREONE_HOMING_CURRENT_MA) {
+        return MIN_COREONE_HOMING_CURRENT_MA;
+    }
+    if (current > MAX_COREONE_HOMING_CURRENT_MA) {
+        return MAX_COREONE_HOMING_CURRENT_MA;
+    }
+    return current;
+}
+
+static bool coreone_axis_current_is_default(const AxisEnum axis) {
+    return (axis == A_AXIS)
+        ? get_rms_current_ma_x() == get_default_rms_current_ma_x()
+        : get_rms_current_ma_y() == get_default_rms_current_ma_y();
+}
+
+static uint16_t coreone_axis_current(const AxisEnum axis) {
+    return clamp_coreone_homing_current((axis == A_AXIS) ? get_rms_current_ma_x() : get_rms_current_ma_y());
+}
+
+static bool coreone_axis_homing_sensitivity_is_custom(const AxisEnum axis) {
+    const int16_t sensitivity = (axis == A_AXIS) ? config_store().homing_sens_x.get() : config_store().homing_sens_y.get();
+    return sensitivity != config_store_ns::stallguard_sensitivity_unset;
+}
+
+static int8_t coreone_axis_homing_sensitivity(const AxisEnum axis) {
+    const int16_t sensitivity = (axis == A_AXIS) ? config_store().homing_sens_x.get() : config_store().homing_sens_y.get();
+    if (sensitivity != config_store_ns::stallguard_sensitivity_unset) {
+        return static_cast<int8_t>(std::clamp<int16_t>(sensitivity, TMCMarlin<TMC2130Stepper>::sgt_min, TMCMarlin<TMC2130Stepper>::sgt_max));
+    }
+    return static_cast<int8_t>(axis == A_AXIS ? X_STALL_SENSITIVITY : Y_STALL_SENSITIVITY);
+}
+
+static void coreone_axis_homing_sensitivity_range(const AxisEnum axis, int8_t &min_sensitivity, int8_t &max_sensitivity) {
+    if (!coreone_axis_homing_sensitivity_is_custom(axis)) {
+        return;
+    }
+
+    const int8_t center = coreone_axis_homing_sensitivity(axis);
+    min_sensitivity = static_cast<int8_t>(std::clamp<int16_t>(center - 2, TMCMarlin<TMC2130Stepper>::sgt_min, TMCMarlin<TMC2130Stepper>::sgt_max));
+    max_sensitivity = static_cast<int8_t>(std::clamp<int16_t>(center + 2, TMCMarlin<TMC2130Stepper>::sgt_min, TMCMarlin<TMC2130Stepper>::sgt_max));
+}
+#endif
+
+static uint16_t coreone_homing_measure_current(const AxisEnum axis, const uint16_t prusa_current) {
+#if PRINTER_IS_PRUSA_COREONE()
+    if (!coreone_axis_current_is_default(axis)) {
+        return coreone_axis_current(axis);
+    }
+#else
+    (void)axis;
+#endif
+    return prusa_current;
+}
+
+static uint16_t coreone_homing_holding_current(const AxisEnum axis, const uint16_t prusa_current) {
+#if PRINTER_IS_PRUSA_COREONE()
+    if (!coreone_axis_current_is_default(axis)) {
+        return std::max(coreone_axis_current(axis), clamp_coreone_homing_current(prusa_current));
+    }
+#else
+    (void)axis;
+#endif
+    return prusa_current;
+}
+#endif
 /// Convert raw AB steps to XY mm and position in mini-steps
 static void corexy_ab_to_xy(const ab_steps_t &steps, MachinePosXY &mm, xy_msteps_t &pos_msteps) {
     const float x = static_cast<float>(steps.a + steps.b) / 2.f;
@@ -215,10 +290,10 @@ public:
         assert(nesting == 1);
 
         planner.synchronize();
-        other_orig_cur = other_stepper.rms_current();
+        other_orig_cur = other_stepper.getMilliamps();
         other_orig_hold = other_stepper.hold_multiplier();
 #ifdef XY_HOMING_HOLDING_CURRENT
-        other_stepper.rms_current(XY_HOMING_HOLDING_CURRENT, 1.f);
+        other_stepper.rms_current(coreone_homing_holding_current(other_axis, XY_HOMING_HOLDING_CURRENT), 1.f);
 #endif
 
         is_config_orig[A_AXIS] = input_shaper::get_axis_config(A_AXIS);
@@ -300,7 +375,7 @@ static bool measure_axis_distance(const AxisEnum axis, const ab_steps_t origin_s
     assert(MeasurementGuard::is_active());
     const sensorless_t stealth_states = start_sensorless_homing_per_axis(axis);
     auto &axis_stepper = stepper_axis(axis);
-    const int32_t axis_orig_cur = axis_stepper.rms_current();
+    const int32_t axis_orig_cur = axis_stepper.getMilliamps();
     const float axis_orig_hold = axis_stepper.hold_multiplier();
     axis_stepper.rms_current(params.current, 1.f);
 #if HAS_TRINAMIC
@@ -367,7 +442,11 @@ static measure_axis_params measure_axis_defaults(const AxisEnum axis) {
     // #error dead code found by automatic analyses (see BFW-5461)
     params.sensitivity = XY_HOMING_MEASURE_SENS;
     #else
+#if PRINTER_IS_PRUSA_COREONE()
+    params.sensitivity = coreone_axis_homing_sensitivity(axis);
+#else
     params.sensitivity = (axis == A_AXIS ? X_STALL_SENSITIVITY : Y_STALL_SENSITIVITY);
+#endif
     #endif
 #endif
 #ifdef XY_HOMING_MEASURE_FR
@@ -376,9 +455,9 @@ static measure_axis_params measure_axis_defaults(const AxisEnum axis) {
     params.feedrate = homing_feedrate(axis);
 #endif
 #ifdef XY_HOMING_MEASURE_CURRENT
-    params.current = XY_HOMING_MEASURE_CURRENT;
+    params.current = coreone_homing_measure_current(axis, XY_HOMING_MEASURE_CURRENT);
 #else
-    params.current = (axis == A_AXIS ? X_CURRENT_HOME : Y_CURRENT_HOME);
+    params.current = coreone_homing_measure_current(axis, (axis == A_AXIS ? X_CURRENT_HOME : Y_CURRENT_HOME));
 #endif
 
     return params;
@@ -1086,13 +1165,16 @@ static bool measure_calibrate_sens(CoreXYHomeTMCSens &calibrated_sens,
     bool rehome = false; // initial home state
 
     // limits are inclusive
-    static_assert(XY_HOMING_MEASURE_SENS_MAX > XY_HOMING_MEASURE_SENS_MIN);
-    constexpr size_t slots = (XY_HOMING_MEASURE_SENS_MAX - XY_HOMING_MEASURE_SENS_MIN) + 1;
-    static_assert(slots > 1 && slots < 16);
-    pair<int8_t, float> scores[slots];
+    int8_t min_sensitivity = XY_HOMING_MEASURE_SENS_MIN;
+    int8_t max_sensitivity = XY_HOMING_MEASURE_SENS_MAX;
+#if PRINTER_IS_PRUSA_COREONE()
+    coreone_axis_homing_sensitivity_range(measured_axis, min_sensitivity, max_sensitivity);
+#endif
+    constexpr size_t max_slots = 16;
+    std::pair<int8_t, float> scores[max_slots];
     size_t score_cnt = 0;
 
-    for (int8_t sens = XY_HOMING_MEASURE_SENS_MIN; sens <= XY_HOMING_MEASURE_SENS_MAX; ++sens) {
+    for (int8_t sens = min_sensitivity; sens <= max_sensitivity && score_cnt < max_slots; ++sens) {
         MachinePosXYZE origin_pos;
         ab_steps_t origin_steps;
 
@@ -1367,4 +1449,7 @@ bool corexy_home_is_unstable() {
 
 void corexy_clear_homing_calibration() {
     config_store().corexy_grid_origin.set_to_default();
+#if HAS_TRINAMIC && defined(XY_HOMING_MEASURE_SENS_MIN)
+    config_store().corexy_home_tmc_sens.set_to_default();
+#endif
 }

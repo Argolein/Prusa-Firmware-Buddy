@@ -98,7 +98,9 @@ using ScreenMenuSettings__ = ScreenMenu<GuiDefaults::MenuFooter, MI_RETURN,
 #endif // ENABLED(CRASH_RECOVERY)
 
     MI_INPUT_SHAPER,
+#if PRINTER_IS_PRUSA_COREONE()
     MI_ADVANCED_SETTINGS,
+#endif
 #if HAS_PHASE_STEPPING()
     MI_PHASE_STEPPING_SCREEN,
 #endif

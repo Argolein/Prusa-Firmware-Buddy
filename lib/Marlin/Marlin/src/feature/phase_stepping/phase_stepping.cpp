@@ -498,7 +498,7 @@ static void enable_phase_stepping(AxisEnum axis_num) {
 
     // Set IHOLD to be the same as IRUN (as IHOLD is always used in XDIRECT)
     axis_state.initial_hold_multiplier = stepper.hold_multiplier();
-    stepper.rms_current(stepper.rms_current(), 1.);
+    stepper.rms_current(stepper.getMilliamps(), 1.);
 
     // Swapping coils isn't a mistake - TMC in Xdirect mode swaps coils
     stepper.coil_A(axis_state.last_currents.b);
@@ -580,7 +580,7 @@ static void disable_phase_stepping(AxisEnum axis_num) {
     assert(!planner.processing());
 
     // We know that PHASE_STEPPING is enabled only on TMC2130 boards
-    auto &stepper = static_cast<TMC2130Stepper &>(stepper_axis(axis_num));
+    TMCStepperType &stepper = stepper_axis(axis_num);
     auto &axis_state = axis_states[axis_num];
 
     axis_state.active.store(false, std::memory_order_seq_cst);
@@ -599,7 +599,7 @@ static void disable_phase_stepping(AxisEnum axis_num) {
     // Reset driver params to original state
     stepper.microsteps(axis_state.original_microsteps);
     stepper.intpol(axis_state.had_interpolation);
-    stepper.rms_current(stepper.rms_current(), axis_state.initial_hold_multiplier);
+    stepper.rms_current(stepper.getMilliamps(), axis_state.initial_hold_multiplier);
 
     // Resynchronize driver direction to last known direction
     switch (axis_num) {
