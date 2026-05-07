@@ -6,6 +6,11 @@
 
 #include "WindowMenuItems.hpp"
 
+enum class AdvancedSettingsClickCommand {
+    Reset_motor_currents,
+    Reset_homing_sensitivity,
+};
+
 class MI_ADV_STEPS_PER_UNIT_X : public WiSpin {
 public:
     MI_ADV_STEPS_PER_UNIT_X();
@@ -36,4 +41,80 @@ public:
 
 protected:
     void OnClick() override;
+};
+
+class MI_ADV_CURRENT_X : public WiSpin {
+public:
+    MI_ADV_CURRENT_X();
+
+    void Store();
+
+protected:
+    void OnClick() override;
+};
+
+class MI_ADV_CURRENT_Y : public WiSpin {
+public:
+    MI_ADV_CURRENT_Y();
+
+    void Store();
+
+protected:
+    void OnClick() override;
+};
+
+class MI_ADV_CURRENT_Z : public WiSpin {
+public:
+    MI_ADV_CURRENT_Z();
+
+    void Store();
+
+protected:
+    void OnClick() override;
+};
+
+class MI_ADV_CURRENT_E : public WiSpin {
+public:
+    MI_ADV_CURRENT_E();
+
+    void Store();
+
+protected:
+    void OnClick() override;
+};
+
+class MI_ADV_CURRENT_RESET_DEFAULTS : public IWindowMenuItem {
+public:
+    MI_ADV_CURRENT_RESET_DEFAULTS();
+
+protected:
+    void click(IWindowMenu &window_menu) override;
+};
+
+class MI_ADV_HOMING_SENS_X : public WiSpin {
+public:
+    MI_ADV_HOMING_SENS_X();
+
+    void Store();
+
+protected:
+    void OnClick() override;
+};
+
+class MI_ADV_HOMING_SENS_Y : public WiSpin {
+public:
+    MI_ADV_HOMING_SENS_Y();
+
+    void Store();
+
+protected:
+    void OnClick() override;
+};
+
+class MI_ADV_HOMING_SENS_RESET_DEFAULTS : public IWindowMenuItem {
+public:
+    MI_ADV_HOMING_SENS_RESET_DEFAULTS();
+
+protected:
+    void click(IWindowMenu &window_menu) override;
 };

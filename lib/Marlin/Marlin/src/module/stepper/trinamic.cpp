@@ -52,6 +52,14 @@ enum StealthIndex : uint8_t { STEALTH_AXIS_XY,
     STEALTH_AXIS_E };
 #define _TMC_INIT(ST, STEALTH_INDEX) tmc_init(stepper##ST, ST##_CURRENT, ST##_MICROSTEPS, ST##_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_INDEX])
 
+#if PRINTER_IS_PRUSA_COREONE()
+static constexpr uint16_t COREONE_TMC2130_RSENSE_022_MAX_CURRENT_MA = 958;
+
+static uint16_t clamp_coreone_tmc2130_current(const uint16_t current) {
+    return current > COREONE_TMC2130_RSENSE_022_MAX_CURRENT_MA ? COREONE_TMC2130_RSENSE_022_MAX_CURRENT_MA : current;
+}
+#endif
+
 //   IC = TMC model number
 //   ST = Stepper object letter
 //   L  = Label characters
@@ -757,6 +765,8 @@ void reset_trinamic_drivers() {
     #if DISABLED(USE_PRUSA_EEPROM_AS_SOURCE_OF_DEFAULT_VALUES)
     // #error dead code found by automatic analyses (see BFW-5461)
     _TMC_INIT(X, STEALTH_AXIS_XY);
+    #elif PRINTER_IS_PRUSA_COREONE()
+    tmc_init(stepperX, clamp_coreone_tmc2130_current(get_rms_current_ma_x()), get_microsteps_x(), X_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_XY]);
     #else
     tmc_init(stepperX, get_default_rms_current_ma_x(), get_microsteps_x(), X_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_XY]);
     #endif
@@ -765,6 +775,8 @@ void reset_trinamic_drivers() {
     #if DISABLED(USE_PRUSA_EEPROM_AS_SOURCE_OF_DEFAULT_VALUES)
     // #error dead code found by automatic analyses (see BFW-5461)
     _TMC_INIT(Y, STEALTH_AXIS_XY);
+    #elif PRINTER_IS_PRUSA_COREONE()
+    tmc_init(stepperY, clamp_coreone_tmc2130_current(get_rms_current_ma_y()), get_microsteps_y(), Y_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_XY]);
     #else
     tmc_init(stepperY, get_default_rms_current_ma_y(), get_microsteps_y(), Y_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_XY]);
     #endif
@@ -773,6 +785,8 @@ void reset_trinamic_drivers() {
     #if DISABLED(USE_PRUSA_EEPROM_AS_SOURCE_OF_DEFAULT_VALUES)
     // #error dead code found by automatic analyses (see BFW-5461)
     _TMC_INIT(Z, STEALTH_AXIS_Z);
+    #elif PRINTER_IS_PRUSA_COREONE()
+    tmc_init(stepperZ, clamp_coreone_tmc2130_current(get_rms_current_ma_z()), get_microsteps_z(), Z_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_Z]);
     #else
     tmc_init(stepperZ, get_default_rms_current_ma_z(), get_microsteps_z(), Z_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_Z]);
     #endif
@@ -788,6 +802,8 @@ void reset_trinamic_drivers() {
 #if AXIS_IS_TMC(E0)
     #if DISABLED(USE_PRUSA_EEPROM_AS_SOURCE_OF_DEFAULT_VALUES)
     _TMC_INIT(E0, STEALTH_AXIS_E);
+    #elif PRINTER_IS_PRUSA_COREONE()
+    tmc_init(stepperE0, clamp_coreone_tmc2130_current(get_rms_current_ma_e()), get_microsteps_e(), E0_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_E]);
     #else
     tmc_init(stepperE0, get_default_rms_current_ma_e(), get_microsteps_e(), E0_HYBRID_THRESHOLD, stealthchop_by_axis[STEALTH_AXIS_E]);
     #endif
