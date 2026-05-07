@@ -431,10 +431,21 @@ void Crash_s::set_homing_sensitivity(const AxisEnum axis) {
     };
     #endif /*defined(XY_STALL_SENSITIVITY_MIN)*/
 
+#if PRINTER_IS_PRUSA_COREONE()
+    auto configured_sensitivity = [](const AxisEnum axis, const int16_t current) {
+        const int16_t stored = (axis == X_AXIS) ? config_store().homing_sens_x.get() : config_store().homing_sens_y.get();
+        return stored == config_store_ns::stallguard_sensitivity_unset ? current : stored;
+    };
+#else
+    auto configured_sensitivity = [](const AxisEnum, const int16_t current) {
+        return current;
+    };
+#endif
+
     if (axis == X_AXIS) {
-        stepperX.stall_sensitivity(sensitivity_fallback(crash_s.home_sensitivity[0]));
+        stepperX.stall_sensitivity(sensitivity_fallback(configured_sensitivity(axis, crash_s.home_sensitivity[0])));
     } else if (axis == Y_AXIS) {
-        stepperY.stall_sensitivity(sensitivity_fallback(crash_s.home_sensitivity[1]));
+        stepperY.stall_sensitivity(sensitivity_fallback(configured_sensitivity(axis, crash_s.home_sensitivity[1])));
     }
 }
 

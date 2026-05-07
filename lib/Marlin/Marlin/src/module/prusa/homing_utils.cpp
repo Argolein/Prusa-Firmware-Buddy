@@ -7,7 +7,16 @@
 #include "../../feature/prusa/crash_recovery.hpp"
 #include "../../module/endstops.h"
 #include "../stepper.h"
+#include <config_store/store_c_api.h>
 #include <config_store/store_instance.hpp>
+
+#if PRINTER_IS_PRUSA_COREONE()
+static constexpr uint16_t COREONE_TMC2130_RSENSE_022_MAX_CURRENT_MA = 958;
+
+static uint16_t clamp_coreone_tmc2130_current(const uint16_t current) {
+    return current > COREONE_TMC2130_RSENSE_022_MAX_CURRENT_MA ? COREONE_TMC2130_RSENSE_022_MAX_CURRENT_MA : current;
+}
+#endif
 
 #if HAS_WORKSPACE_OFFSET
 static workspace_xyz_t disable_workspace(bool do_x, bool do_y, bool do_z) {
@@ -115,14 +124,20 @@ void restore_acceleration_if(bool condition, Motion_Parameters &mp) {
 }
 
 el_current_xyz_t reset_current_if(bool condition) {
-    el_current_xyz_t curr = { stepperX.rms_current(), stepperY.rms_current(), stepperZ.rms_current() };
+    el_current_xyz_t curr = { stepperX.getMilliamps(), stepperY.getMilliamps(), stepperZ.getMilliamps() };
     if (!condition) {
         return curr;
     }
 
+#if PRINTER_IS_PRUSA_COREONE()
+    stepperX.rms_current(clamp_coreone_tmc2130_current(get_rms_current_ma_x()));
+    stepperY.rms_current(clamp_coreone_tmc2130_current(get_rms_current_ma_y()));
+    stepperZ.rms_current(clamp_coreone_tmc2130_current(get_rms_current_ma_z()));
+#else
     stepperX.rms_current(get_default_rms_current_ma_x());
     stepperY.rms_current(get_default_rms_current_ma_y());
     stepperZ.rms_current(get_default_rms_current_ma_z());
+#endif
     return curr;
 }
 

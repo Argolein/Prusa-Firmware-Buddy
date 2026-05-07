@@ -112,6 +112,15 @@ using MI_EXPERIMENTAL_SETTINGS
 using MI_ADVANCED_SETTINGS
     = MI_SCREEN<N_("Advanced Settings"), class ScreenMenuAdvancedSettings>;
 
+using MI_ADVANCED_STEPS_PER_MM
+    = MI_SCREEN<N_("Steps/mm"), class ScreenMenuAdvancedStepsPerMm>;
+
+using MI_ADVANCED_MOTOR_CURRENTS
+    = MI_SCREEN<N_("Motor currents"), class ScreenMenuAdvancedMotorCurrents>;
+
+using MI_ADVANCED_HOMING_SENSITIVITY
+    = MI_SCREEN<N_("Homing sensitivity"), class ScreenMenuAdvancedHomingSensitivity>;
+
 using MI_USER_INTERFACE
     = MI_SCREEN<N_("User Interface"), class ScreenMenuUserInterface>;
 using MI_LANG_AND_TIME
