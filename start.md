@@ -19,12 +19,14 @@ M104 S{((filament_notes[0]=~/.*HT_MBL10.*/) ? (first_layer_temperature[0] - 10) 
 G28 ; home axes
 
 ; --- Fan & Chamber Logic ---
-{if first_layer_bed_temperature[initial_tool] <= 65}
-M141 S40    ; dynamic: keep chamber < 40C
+M148        ; disable UI filtration override
+M106 P4 S51 ; 20% fan floor (baseline for all temps)
+{if first_layer_bed_temperature[initial_tool] < 85}
+M141 S40    ; PLA/PETG: keep chamber cool (< 40C)
+M870 O      ; Open roof vents
 {else}
-M148        ; disable auto-filtration
-M141 S100   ; disable auto-cooling
-M106 P4 S51 ; fixed: exhaust fan 20%
+M141 S58    ; ABS/ASA/PC: start cooling at 58C
+M870 C      ; Close roof vents for Panda Breath heat
 {endif}
 
 ; --- Wait for Temperatures ---
