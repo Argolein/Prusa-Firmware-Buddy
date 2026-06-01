@@ -1,17 +1,23 @@
 # PLANS.md
 
 ## Objective
-Expose Core One steps-per-mm editing in the normal Settings menu through a new "Advanced Settings" screen. X/Y/Z/E values should be editable with two decimals, stored directly in Prusa `config_store`, and applied immediately to the running planner without requiring `M500`, a separate save action, or a reboot.
+Extend the existing `Settings > Advanced Settings` screen into submenus for `Steps/mm` and `Motor currents`. Keep the existing X/Y/Z/E steps-per-mm controls under `Steps/mm`. Add X/Y/Z/E motor current controls under `Motor currents`, showing the current firmware value, allowing user edits, persisting the confirmed value like the steps-per-mm controls, and enforcing the effective Core One TMC2130 upper limit of 958 mA.
 
 ## Open questions
 - none
 
 ## Approved plan
-- Add a normal visible `Settings > Advanced Settings` menu entry.
-- Add an Advanced Settings screen containing X/Y/Z/E steps-per-mm controls.
-- Reuse Prusa `config_store` steps-per-unit storage as the persistent source of truth.
-- When a value changes, write it to `config_store` and update `planner.user_settings`/`planner.apply_settings()`/`planner.refresh_positioning()` immediately.
-- Keep the accepted UI value range at `1.00` to `1000.00` and display two decimals.
+- Keep `Settings > Advanced Settings` visible only for Core One.
+- Change Advanced Settings into a submenu screen with `Steps/mm` and `Motor currents`.
+- Move the existing X/Y/Z/E steps-per-mm controls under `Steps/mm`.
+- Add `Motor currents` controls for X/Y/Z/E using 200 mA to the Core One effective TMC2130 limit of 958 mA in 1 mA steps.
+- Show live firmware TMC current values in the motor-current UI.
+- On current confirmation, write the value to Prusa `config_store` and apply it immediately to the live TMC driver.
+- Add `Reset to defaults` as the last item under `Motor currents`, restoring the firmware default current values and applying them immediately.
+- Make Core One TMC initialization use saved current values on boot.
+- Keep Prusa's fixed Precise CoreXY homing currents when X/Y motor currents are still at defaults.
+- When a custom X/Y current is configured, use that value for the Precise CoreXY measurement current and do not reduce the holding current below the configured value, clamped to the Core One effective TMC2130 limit.
+- Invalidate CoreXY precise homing and TMC sensitivity calibration when X or Y current changes.
 - Do not implement or change `M500`/`M501` for this work.
 
 ## Implementation status
@@ -27,25 +33,34 @@ Expose Core One steps-per-mm editing in the normal Settings menu through a new "
 - The new menu should be normally visible as `Settings > Advanced Settings`.
 - The steps-per-mm UI should display and edit values with two decimal places, e.g. `101.59`.
 - The accepted UI range is `1.00` to `1000.00`.
+- This Advanced Settings extension is Core One only.
+- Motor current values use 200 mA minimum, 958 mA maximum, and 1 mA increments on Core One.
+- Motor current edits are saved directly to `config_store` and applied immediately to the live TMC driver.
+- Motor current boot initialization must use the saved `config_store` value.
+- The `Motor currents` screen includes a `Reset to defaults` action.
+- Core One keeps stock Precise CoreXY homing behavior at default X/Y current: measure current `650` mA and holding current `900` mA.
+- Core One custom X/Y current overrides Precise CoreXY measurement current for that axis.
+- Core One custom X/Y current keeps Precise CoreXY holding current at least at the configured current, clamped to the same `200` to `958` mA range.
+- Changing X or Y current clears both CoreXY grid-origin calibration and CoreXY TMC sensitivity calibration so the next precise homing recalibrates for the new current.
+- Current save/restore paths should use Marlin's requested current setpoint via `getMilliamps()`, not TMC register readback via `rms_current()`, because register readback is quantized and can turn requested values like `550` into `539` or requested `1000` into `958`.
+- On stock Core One X/Y hardware with `RSENSE = 0.22`, the TMC2130 effective RMS current register tops out at about `958` mA even if the requested UI value is higher.
+- The Core One motor-current menu caps X/Y/Z/E at `958` mA because all four configured TMC2130 drivers use `RSENSE = 0.22`; boot-time TMC initialization also clamps saved values above `958` mA.
+- Core One homing/selftest reset paths should apply the user's configured X/Y/Z currents, clamped at `958` mA, instead of forcing firmware defaults such as `550` mA.
+- Core One exposes X/Y homing StallGuard sensitivity in Advanced Settings so custom motors can be tuned when stock `-2` or Precise CoreXY `-6..-4` false-trigger.
+- Higher TMC2130 StallGuard sensitivity values are less sensitive in this firmware; early false triggers should be tuned by increasing the value.
 
 ## Handoff
 - Agent: Codex
-- Date: 2026-04-26
+- Date: 2026-05-30
 - Completed this session:
-  - Added a visible `Settings > Advanced Settings` menu entry.
-  - Added X/Y/Z/E steps-per-mm controls with two-decimal editing and range `1.00` to `1000.00`.
-  - Wired the controls to store directly into Prusa `config_store` and immediately update planner settings.
-  - Built COREONE successfully with Docker/GCC13 and `-Werror`.
+  - Verified the 1.5GT 21T steps/mm calculation: `100 * (16 * 2.0) / (21 * 1.5) = 101.587301587`.
+  - Changed Core One default X/Y steps-per-mm to `101.5873`.
+  - Built the Core One firmware with the documented Docker/GCC13 toolchain and `-Werror`.
 - Stopped at:
-  - Build artifact generated in `build/products-docker-gcc13-advanced-settings/coreone_release_boot.bbf`.
+  - Build artifact generated at `build/products-docker-gcc13-coreone-1.5gt-1015873/coreone_release_boot.bbf` with SHA256 `5ae40782c5269f45b8db47fe372bb4dbced816ee42eba2b697a086549be947c2`.
 - Next step:
-  - Flash the BBF and verify that X/Y/Z/E values can be changed under `Settings > Advanced Settings`, survive reboot, and are reflected by `M92` output.
+  - Flash `build/products-docker-gcc13-coreone-1.5gt-1015873/coreone_release_boot.bbf` on the Core One and verify X/Y steps through `M92` or `Settings > Advanced Settings > Steps/mm`.
 - Open blockers:
   - none
 - Decisions made this session:
-  - No M500/M501 work; direct persistent UI storage with immediate planner apply.
-
-## Notes
-- Existing Prusa storage paths found so far include direct `config_store` writes for Input Shaper and existing steps-per-unit setters in `store_c_api.cpp`.
-- `WiSpin` already supports float values and fixed decimal rendering through `NumericInputConfig::max_decimal_places`.
-- The earlier Core One 1.5GT homing/selftest fix is complete and separate from this Advanced Settings work.
+  - Use `101.5873` for Core One X/Y defaults for the 1.5GT 21T conversion.
