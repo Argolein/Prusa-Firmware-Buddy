@@ -51,45 +51,16 @@ Extend the existing `Settings > Advanced Settings` screen into submenus for `Ste
 
 ## Handoff
 - Agent: Codex
-- Date: 2026-05-06
+- Date: 2026-05-30
 - Completed this session:
-  - Changed `Settings > Advanced Settings` into a Core-One-only menu entry with `Steps/mm` and `Motor currents` submenus.
-  - Moved the existing X/Y/Z/E steps-per-mm controls under `Steps/mm`.
-  - Added X/Y/Z/E motor current controls with range `200` to `958` mA.
-  - Added `Reset to defaults` under `Motor currents`.
-  - Wired motor-current edits and reset to store in Prusa `config_store` and apply immediately to the live TMC drivers.
-  - Changed Core One TMC initialization to use saved `config_store` current values on boot.
-  - Updated Precise CoreXY homing current handling so stock X/Y current keeps Prusa's `650` mA measurement and `900` mA holding overrides.
-  - Updated Precise CoreXY homing current handling so custom X/Y current is used for measurement and holding is not reduced below the configured current.
-  - Changed CoreXY calibration clearing to reset both grid-origin and TMC sensitivity calibration.
-  - Wired X/Y motor-current changes to clear CoreXY homing calibration.
-  - Changed CoreXY homing, generic homing current reset, and phase stepping restore paths to preserve requested current setpoints via `getMilliamps()` instead of quantized TMC readback.
-  - Capped the Core One motor-current menu and Core One boot-time TMC initialization at the effective `958` mA TMC2130 limit for `RSENSE = 0.22`.
-  - Changed Core One `homing_reset()` current handling so axis selftest/Y calibration applies configured X/Y/Z currents instead of resetting them to firmware defaults.
-  - Added `Homing sensitivity` under Core One `Advanced Settings` with X/Y controls and reset to firmware defaults.
-  - Wired Core One sensorless homing to use configured X/Y homing sensitivity from `config_store`.
-  - Changed Precise CoreXY sensitivity calibration to scan around configured X/Y homing sensitivity when a custom value is set.
-  - Ran `git diff --check` successfully.
-  - Built Core One successfully in Docker/GCC13 with `-Werror`.
+  - Verified the 1.5GT 21T steps/mm calculation: `100 * (16 * 2.0) / (21 * 1.5) = 101.587301587`.
+  - Changed Core One default X/Y steps-per-mm to `101.5873`.
+  - Built the Core One firmware with the documented Docker/GCC13 toolchain and `-Werror`.
 - Stopped at:
-  - Build artifact generated at `build/products-docker-gcc13-coreone-motor-currents/coreone_release_boot.bbf` with SHA256 `28a1b3acf1d5755d8b3ebd0c172ff39f332f49494cf834c510e98c18986a5abd`.
+  - Build artifact generated at `build/products-docker-gcc13-coreone-1.5gt-1015873/coreone_release_boot.bbf` with SHA256 `5ae40782c5269f45b8db47fe372bb4dbced816ee42eba2b697a086549be947c2`.
 - Next step:
-  - Flash the BBF and verify `Steps/mm`, `Motor currents`, and a fresh CoreXY homing calibration after changing X/Y current on device.
+  - Flash `build/products-docker-gcc13-coreone-1.5gt-1015873/coreone_release_boot.bbf` on the Core One and verify X/Y steps through `M92` or `Settings > Advanced Settings > Steps/mm`.
 - Open blockers:
   - none
 - Decisions made this session:
-  - Scope is Core One only.
-  - Motor-current UI range is 200 mA to 958 mA on Core One.
-  - Motor-current reset restores firmware defaults and applies them immediately.
-  - Custom X/Y currents should be respected by Precise CoreXY homing instead of forcing Prusa's fixed measurement current.
-  - X/Y current changes invalidate CoreXY homing calibration because StallGuard sensitivity is current-dependent.
-  - Preserve requested current setpoints during temporary current changes; do not persist quantized TMC register readbacks such as `539` or `958` as the user's configured value.
-  - Stock Core One X/Y/Z/E0 hardware cannot effectively deliver more than about `958` mA RMS with the configured TMC2130 sense resistor value.
-  - Core One axis selftest/homing-reset paths must respect configured X/Y/Z currents; default-current reset remains stock behavior for other printer models.
-  - Core One custom X/Y homing sensitivity is persisted in existing `homing_sens_x`/`homing_sens_y` config-store fields; reset stores the firmware-default/unset state.
-  - No M500/M501 work; direct persistent UI storage with immediate runtime apply.
-
-## Notes
-- Existing Prusa storage paths found so far include direct `config_store` writes for Input Shaper and existing steps-per-unit setters in `store_c_api.cpp`.
-- `WiSpin` already supports float values and fixed decimal rendering through `NumericInputConfig::max_decimal_places`.
-- The earlier Core One 1.5GT homing/selftest fix is complete and separate from this Advanced Settings work.
+  - Use `101.5873` for Core One X/Y defaults for the 1.5GT 21T conversion.
