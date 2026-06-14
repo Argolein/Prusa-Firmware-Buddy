@@ -135,6 +135,8 @@
 #include <freertos/critical_section.hpp>
 #include <feature/gcode_exception/gcode_exception.hpp>
 
+#include "../feature/pressure_advance/pressure_advance_config.hpp"
+
 #include <marlin_vars.hpp>
 #include "configuration_store.h"
 #include <raii/auto_restore.hpp>
@@ -1328,6 +1330,12 @@ bool Planner::_populate_block(block_t * const block,
 
   block->print_fan_speed = thermalManager.print_fan_speed;
   
+  // Snapshot the pressure-advance value that was queued at the moment this
+  // block was enqueued. Carries the per-move PA across the gcode-thread →
+  // motion-thread boundary so M572 S<x> can change PA without flushing the
+  // planner: blocks already queued keep their old value, future blocks pick
+  // up the new one.
+  block->pressure_advance_value = pressure_advance::get_queued_value();
   #if ENABLED(AUTO_POWER_CONTROL)
     if (block->msteps.x || block->msteps.y || block->msteps.z)
       powerManager.power_on();
@@ -1918,6 +1926,12 @@ bool Planner::populate_raw_block(block_t *const block, const xyze_msteps_t &targ
 
     block->print_fan_speed = Temperature::print_fan_speed;
 
+    #if EXTRUDERS > 1
+        block->extruder = extruder;
+    #endif
+
+    // Same per-move PA snapshot as in _populate_block (raw_block path).
+    block->pressure_advance_value = pressure_advance::get_queued_value();
     #if ENABLED(AUTO_POWER_CONTROL)
         if (block->msteps.x || block->msteps.y || block->msteps.z) {
             Power::power_on();

@@ -86,13 +86,31 @@ void GcodeSuite::M572() {
 
 void GcodeSuite::M572_internal(float pressure_advance, float smooth_time) {
     const pressure_advance::Config new_axis_e_config = { .pressure_advance = pressure_advance, .smooth_time = smooth_time };
-    if (pressure_advance::get_axis_e_config() != new_axis_e_config) {
-        // For now, we must ensure that all queues are empty before changing pressure advance parameters.
-        // But later, it could be possible to wait just for block and move quests.
-        planner.synchronize();
-        if (!planner.draining()) {
-            // Only set configuration when the current command isn't aborted
-            pressure_advance::set_axis_e_config(new_axis_e_config);
-        }
+    if (pressure_advance::get_axis_e_config() == new_axis_e_config) {
+        // Nothing to do.
+        return;
+    }
+
+    if (pressure_advance::can_use_queued_path(new_axis_e_config)) {
+        // Hot path: only the PA value changed (smooth_time unchanged), the
+        // step generator is already armed, and the new value is > 0. The new
+        // value becomes the queued snapshot used by subsequent block_t /
+        // move_t entries via _populate_block → append_move_segments_to_queue.
+        // Moves already in the queue keep their previously snapshotted value,
+        // so ordering across this M572 is preserved without a synchronize().
+        pressure_advance::set_queued_value(pressure_advance);
+        pressure_advance::update_reported_value(pressure_advance);
+        return;
+    }
+
+    // Structural path: smooth_time changed, the generator is being activated
+    // for the first time / re-activated after a disable, the new value is 0
+    // (explicit M572 S0 disable — clears the generator bit and FIR lookback),
+    // or PressureAdvanceDisabler is active. We must drain the entire pipeline
+    // before touching the FIR filter / generator wiring.
+    planner.synchronize();
+    if (!planner.draining()) {
+        // Only set configuration when the current command isn't aborted
+        pressure_advance::set_axis_e_config(new_axis_e_config);
     }
 }

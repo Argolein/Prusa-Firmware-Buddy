@@ -38,7 +38,11 @@ FORCE_INLINE void pressure_advance_precalculate_parameters(pressure_advance_step
         state.half_accel = float(get_move_half_accel(current_move, step_generator.axis));
 
         if (is_pressure_advance_active(current_move)) {
-            state.start_v += (2.f * state.half_accel * params.pressure_advance_value);
+            // Per-move PA value (set by M572 S<x> at the moment the parent
+            // block_t was enqueued). The FIR filter parameters (sampling_rate,
+            // window, lookback) remain global because they are tied to
+            // smooth_time, which only the structural M572 W path can change.
+            state.start_v += (2.f * state.half_accel * current_move.pressure_advance_value);
         }
     } else {
         state.start_v = 0.f;
@@ -107,7 +111,6 @@ pressure_advance_window_filter_t create_simple_window_filter(const uint16_t filt
 
 pressure_advance_params_t create_pressure_advance_params(const pressure_advance::Config &config) {
     pressure_advance_params_t params;
-    params.pressure_advance_value = config.pressure_advance;
 
     constexpr const uint16_t filter_length = PRESSURE_ADVANCE_MAX_FILTER_LENGTH;
     // Round sampling_rate to whole microseconds so integer division by sampling_rate_us is exact.
@@ -423,7 +426,8 @@ step_event_info_t pressure_advance_step_generator_next_step_event(pressure_advan
             // We have to update start_post before we reset the pressure advance position because
             // we are using it during the resetting position.
             if (is_pressure_advance_active(*next_move)) {
-                step_generator.pa_state->start_pos = float(get_move_start_pos(*next_move, step_generator.axis)) + float(get_move_start_v(*next_move, step_generator.axis)) * PressureAdvance::pressure_advance_params.pressure_advance_value;
+                // Per-move PA value (see pressure_advance_precalculate_parameters).
+                step_generator.pa_state->start_pos = float(get_move_start_pos(*next_move, step_generator.axis)) + float(get_move_start_v(*next_move, step_generator.axis)) * next_move->pressure_advance_value;
             } else {
                 step_generator.pa_state->start_pos = float(get_move_start_pos(*next_move, step_generator.axis));
             }
