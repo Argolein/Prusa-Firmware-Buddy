@@ -37,7 +37,9 @@ typedef struct pressure_advance_window_filter_t {
 } pressure_advance_window_filter_t;
 
 struct pressure_advance_params_t {
-    float pressure_advance_value;
+    // The PA amplitude is now carried per-move on move_t::pressure_advance_value,
+    // so this struct only holds the global FIR-filter shape, which is fixed by
+    // smooth_time.
     float sampling_rate_float;
     double sampling_rate;
     double filter_total_time;
