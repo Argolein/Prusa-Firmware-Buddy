@@ -1,7 +1,10 @@
 #include "prusa_link_api.h"
 #include "basic_gets.h"
+#include "mesh_renderer.hpp"
 #include "../nhttp/file_info.h"
 #include "../nhttp/file_command.h"
+#include "../nhttp/gcode_command.h"
+#include "../nhttp/gcode_reply.h"
 #include "../nhttp/headers.h"
 #include "../nhttp/gcode_upload.h"
 #include "../nhttp/job_command.h"
@@ -11,6 +14,7 @@
 #include <common/path_utils.h>
 #include <transfers/monitor.hpp>
 #include <transfers/changed_path.hpp>
+#include <charconv>
 #include <cstring>
 #include <cstdio>
 #include <cerrno>
@@ -45,6 +49,17 @@ namespace {
         }
 
         return input.substr(prefix.size());
+    }
+
+    optional<uint32_t> parse_uint32_suffix(string_view input) {
+        uint32_t value = 0;
+        const auto *begin = input.data();
+        const auto *end = input.data() + input.size();
+        const auto result = std::from_chars(begin, end, value);
+        if (result.ec != std::errc {} || result.ptr != end) {
+            return nullopt;
+        }
+        return value;
     }
 
     optional<ConnectionState> parse_file_url(const RequestParser &parser, const size_t prefix_len, char *filename, const size_t filename_len, RemapPolicy remapPolicy) {
@@ -184,6 +199,25 @@ optional<ConnectionState> PrusaLinkApi::accept(const RequestParser &parser) cons
         const auto v1_suffix = *v1_suffix_opt;
         if (v1_suffix == "storage") {
             return get_only(SendJson(EmptyRenderer(get_storage), parser.can_keep_alive()));
+        } else if (v1_suffix == "mesh") {
+            return get_only(SendJson(MeshRenderer(), parser.can_keep_alive()));
+        } else if (v1_suffix == "gcode") {
+            if (parser.method != Method::Post) {
+                return StatusPage(Status::MethodNotAllowed, StatusPage::CloseHandling::ErrorClose, parser.accepts_json);
+            } else if (parser.content_length.has_value()) {
+                return nhttp::printer::GcodeCommand(*parser.content_length, parser.can_keep_alive(), parser.accepts_json);
+            } else {
+                return StatusPage(Status::LengthRequired, StatusPage::CloseHandling::ErrorClose, parser.accepts_json);
+            }
+        } else if (auto gcode_response_id = remove_prefix(v1_suffix, "gcode/"); gcode_response_id.has_value()) {
+            if (parser.method != Method::Get) {
+                return StatusPage(Status::MethodNotAllowed, StatusPage::CloseHandling::ErrorClose, parser.accepts_json);
+            }
+            if (const auto id = parse_uint32_suffix(*gcode_response_id); id.has_value()) {
+                return nhttp::printer::GcodeReply::from_capture(*id, parser.can_keep_alive(), parser.accepts_json);
+            } else {
+                return StatusPage(Status::NotFound, parser);
+            }
         } else if (remove_prefix(v1_suffix, "files").has_value()) {
             static const auto prefix = "/api/v1/files";
             static const size_t prefix_len = strlen(prefix);

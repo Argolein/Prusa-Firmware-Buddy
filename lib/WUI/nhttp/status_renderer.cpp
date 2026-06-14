@@ -5,6 +5,9 @@
 #include <state/printer_state.hpp>
 #include <transfers/monitor.hpp>
 #include <segmented_json_macros.h>
+#include <printers.h>
+#include <option/xl_enclosure_support.h>
+#include <option/xbuddy_extension_variant.h>
 
 #include <option/buddy_enable_connect.h>
 #if BUDDY_ENABLE_CONNECT()
@@ -65,6 +68,27 @@ json::JsonResult StatusRenderer::renderState(size_t resume_point, json::JsonOutp
             JSON_FIELD_FFIXED("target_bed", marlin_vars().target_bed, 1) JSON_COMMA;
             JSON_FIELD_FFIXED("temp_nozzle", marlin_vars().active_hotend().temp_nozzle, 1) JSON_COMMA;
             JSON_FIELD_FFIXED("target_nozzle", marlin_vars().active_hotend().target_nozzle, 1) JSON_COMMA;
+            JSON_FIELD_FFIXED("temp_heatbreak", marlin_vars().active_hotend().temp_heatbreak, 1) JSON_COMMA;
+#if PRINTER_IS_PRUSA_iX()
+            JSON_FIELD_FFIXED("temp_psu", marlin_vars().temp_psu, 1) JSON_COMMA;
+            JSON_FIELD_FFIXED("temp_ambient", marlin_vars().temp_ambient, 1) JSON_COMMA;
+#endif
+#if XL_ENCLOSURE_SUPPORT()
+            JSON_FIELD_OBJ("enclosure");
+                JSON_FIELD_FFIXED("temp", marlin_vars().temp_enclosure, 1) JSON_COMMA;
+                JSON_FIELD_INT("fan_rpm", marlin_vars().fan_enclosure_rpm);
+            JSON_OBJ_END JSON_COMMA;
+#endif
+#if XBUDDY_EXTENSION_VARIANT_IS_STANDARD()
+            JSON_FIELD_OBJ("chamber");
+                JSON_FIELD_FFIXED("temp", marlin_vars().temp_chamber, 1) JSON_COMMA;
+                JSON_FIELD_INT("target_temp", marlin_vars().target_temp_chamber) JSON_COMMA;
+                JSON_FIELD_INT("fan_1_rpm", marlin_vars().fan_1_chamber_rpm) JSON_COMMA;
+                JSON_FIELD_INT("fan_2_rpm", marlin_vars().fan_2_chamber_rpm) JSON_COMMA;
+                JSON_FIELD_INT("fan_pwm_target", marlin_vars().fan_pwm_chamber_target) JSON_COMMA;
+                JSON_FIELD_INT("led_intensity", marlin_vars().chamber_led_intensity);
+            JSON_OBJ_END JSON_COMMA;
+#endif
             // XYZE, mm
             JSON_FIELD_FFIXED("axis_z", marlin_vars().logical_curr_pos[2], 1) JSON_COMMA;
             if (!marlin_client::is_printing()) {
@@ -74,7 +98,13 @@ json::JsonResult StatusRenderer::renderState(size_t resume_point, json::JsonOutp
             JSON_FIELD_INT("flow", marlin_vars().active_hotend().flow_factor) JSON_COMMA;
             JSON_FIELD_INT("speed", marlin_vars().print_speed) JSON_COMMA;
             JSON_FIELD_INT("fan_hotend", marlin_vars().active_hotend().heatbreak_fan_rpm) JSON_COMMA;
-            JSON_FIELD_INT("fan_print", marlin_vars().active_hotend().print_fan_rpm);
+            JSON_FIELD_INT("fan_print", marlin_vars().active_hotend().print_fan_rpm) JSON_COMMA;
+            JSON_FIELD_FFIXED("pressure_advance", marlin_vars().pressure_advance, 4) JSON_COMMA;
+            JSON_FIELD_FFIXED("pressure_advance_smooth_time", marlin_vars().pressure_advance_smooth_time, 4) JSON_COMMA;
+            if (marlin_vars().dialog_id != 0xFFFFFFFF) {
+                JSON_FIELD_INT_G(marlin_vars().dialog_id != 0xFFFFFFFF, "dialog_id", marlin_vars().dialog_id.get()) JSON_COMMA;
+            }
+            JSON_FIELD_FFIXED("filament", marlin_vars().filament_used, 1);
         JSON_OBJ_END;
     JSON_OBJ_END;
     JSON_END;

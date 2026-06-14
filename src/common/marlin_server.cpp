@@ -2,6 +2,7 @@
 
 #include <common/directory.hpp>
 #include <freertos/critical_section.hpp>
+#include <freertos/mutex.hpp>
 #include <marlin_stubs/skippable_gcode.hpp>
 #include <mapi/parking.hpp>
 #include "marlin_client_queue.hpp"
@@ -13,6 +14,8 @@
 #include <string.h> //strncmp
 #include <assert.h>
 #include <charconv>
+#include <mutex>
+#include <string_view>
 
 #include "adc.hpp"
 #include "marlin_events.h"
@@ -55,6 +58,8 @@
 #include "../Marlin/src/module/printcounter.h"
 #include "../Marlin/src/feature/babystep.h"
 #include "../Marlin/src/feature/bedlevel/bedlevel.h"
+#include "../Marlin/src/feature/bedlevel/ubl/ubl.h"
+#include <feature/pressure_advance/pressure_advance_config.hpp>
 #include "../Marlin/src/feature/input_shaper/input_shaper.hpp"
 #include "../Marlin/src/feature/pause.h"
 #include "../Marlin/src/feature/prusa/measure_axis.h"
@@ -233,7 +238,66 @@ static_assert(std::to_underlying(RequestFlag::_cnt) <= 32, "There are more flags
 /// FSM response to be processed by the server
 static MutexAtomic<EncodedFSMResponse, freertos::Mutex> fsm_response = empty_encoded_fsm_response;
 
+struct GcodeResponseCaptureRecord {
+    uint32_t id = 0;
+    bool in_use = false;
+    bool completed = false;
+    bool success = false;
+    bool overflowed = false;
+    size_t used = 0;
+    std::array<char, GCODE_RESPONSE_TEXT_MAX + 1> response {};
+};
+
+static freertos::Mutex gcode_response_capture_mutex;
+static std::array<GcodeResponseCaptureRecord, 4> gcode_response_capture_history {};
+static int gcode_response_capture_active_slot = -1;
+static size_t gcode_response_capture_next_slot = 0;
+static uint32_t gcode_response_capture_next_id = 1;
+
 namespace {
+
+    bool starts_with(std::string_view value, std::string_view prefix) {
+        return value.size() >= prefix.size() && value.substr(0, prefix.size()) == prefix;
+    }
+
+    void append_gcode_response_line(GcodeResponseCaptureRecord &record, std::string_view line) {
+        if (line.empty()) {
+            return;
+        }
+
+        const size_t max_used = GCODE_RESPONSE_TEXT_MAX;
+        if (record.used >= max_used) {
+            record.overflowed = true;
+            return;
+        }
+
+        if (record.used > 0) {
+            if (record.used < max_used) {
+                record.response[record.used++] = '\n';
+            } else {
+                record.overflowed = true;
+                return;
+            }
+        }
+
+        const size_t available = max_used - record.used;
+        const size_t copied = std::min(available, line.size());
+        memcpy(record.response.data() + record.used, line.data(), copied);
+        record.used += copied;
+        record.response[record.used] = '\0';
+        if (copied < line.size()) {
+            record.overflowed = true;
+        }
+    }
+
+    GcodeResponseCaptureRecord *find_gcode_response_capture_record(uint32_t id) {
+        for (auto &record : gcode_response_capture_history) {
+            if (record.in_use && record.id == id) {
+                return &record;
+            }
+        }
+        return nullptr;
+    }
 
     struct server_t {
         EventMask notify_events[MARLIN_MAX_CLIENTS]; // event notification mask - message filter
@@ -1126,6 +1190,113 @@ void enqueue_gcode(const char *gcode) {
 
 [[nodiscard]] bool enqueue_gcode_try(const char *gcode) {
     return queue.enqueue_one(gcode);
+}
+
+GcodeResponseCaptureStartResult start_gcode_response_capture(uint32_t &id) {
+#if !HAS_USB_DEVICE()
+    (void)id;
+    return GcodeResponseCaptureStartResult::Unsupported;
+#else
+    std::lock_guard lock { gcode_response_capture_mutex };
+    if (gcode_response_capture_active_slot >= 0) {
+        const auto &active = gcode_response_capture_history[gcode_response_capture_active_slot];
+        if (active.in_use && !active.completed) {
+            return GcodeResponseCaptureStartResult::Busy;
+        }
+    }
+
+    auto &record = gcode_response_capture_history[gcode_response_capture_next_slot];
+    record = {};
+    record.in_use = true;
+    record.id = gcode_response_capture_next_id++;
+    if (gcode_response_capture_next_id == 0) {
+        gcode_response_capture_next_id = 1;
+    }
+
+    id = record.id;
+    gcode_response_capture_active_slot = static_cast<int>(gcode_response_capture_next_slot);
+    gcode_response_capture_next_slot = (gcode_response_capture_next_slot + 1) % gcode_response_capture_history.size();
+    return GcodeResponseCaptureStartResult::Started;
+#endif
+}
+
+void cancel_gcode_response_capture(uint32_t id) {
+#if HAS_USB_DEVICE()
+    std::lock_guard lock { gcode_response_capture_mutex };
+    if (auto *record = find_gcode_response_capture_record(id); record != nullptr) {
+        *record = {};
+    }
+    if (gcode_response_capture_active_slot >= 0) {
+        const auto &active = gcode_response_capture_history[gcode_response_capture_active_slot];
+        if (!active.in_use || active.id == id) {
+            gcode_response_capture_active_slot = -1;
+        }
+    }
+#else
+    (void)id;
+#endif
+}
+
+bool get_gcode_response_capture(uint32_t id, GcodeResponseSnapshot &snapshot) {
+#if !HAS_USB_DEVICE()
+    (void)id;
+    (void)snapshot;
+    return false;
+#else
+    std::lock_guard lock { gcode_response_capture_mutex };
+    if (const auto *record = find_gcode_response_capture_record(id); record != nullptr) {
+        snapshot = {};
+        snapshot.id = record->id;
+        snapshot.completed = record->completed;
+        snapshot.success = record->success;
+        snapshot.overflowed = record->overflowed;
+        memcpy(snapshot.response.data(), record->response.data(), record->used + 1);
+        return true;
+    }
+    return false;
+#endif
+}
+
+void process_gcode_response_line(std::string_view line) {
+#if HAS_USB_DEVICE()
+    if (line.empty()) {
+        return;
+    }
+
+    std::lock_guard lock { gcode_response_capture_mutex };
+    if (gcode_response_capture_active_slot < 0) {
+        return;
+    }
+
+    auto &record = gcode_response_capture_history[gcode_response_capture_active_slot];
+    if (!record.in_use || record.completed) {
+        return;
+    }
+
+    if (starts_with(line, "echo:enqueueing \"")) {
+        return;
+    }
+
+    if (line == "ok") {
+        if (record.used == 0) {
+            append_gcode_response_line(record, line);
+        }
+        record.completed = true;
+        record.success = true;
+        gcode_response_capture_active_slot = -1;
+        return;
+    }
+
+    append_gcode_response_line(record, line);
+
+    if (starts_with(line, "Error:")) {
+        record.completed = true;
+        record.success = false;
+        gcode_response_capture_active_slot = -1;
+    }
+#else
+    (void)line;
+#endif
 }
 
 void enqueue_gcode_printf(const char *gcode, ...) {
@@ -3251,6 +3422,52 @@ static void _server_update_vars() {
 
     marlin_vars().temp_bed = thermalManager.degBed();
     marlin_vars().target_bed = thermalManager.degTargetBed();
+#if PRINTER_IS_PRUSA_iX()
+    marlin_vars().temp_psu = thermalManager.deg_psu();
+    marlin_vars().temp_ambient = thermalManager.deg_ambient();
+#endif
+
+#if XL_ENCLOSURE_SUPPORT()
+    marlin_vars().temp_enclosure = static_cast<float>(xl_enclosure.getEnclosureTemperature().value_or(0));
+    marlin_vars().fan_enclosure_rpm = Fans::enclosure().get_actual_rpm();
+#endif
+
+#if XBUDDY_EXTENSION_VARIANT_IS_STANDARD()
+    {
+        auto xbe = buddy::xbuddy_extension().get_fan12_state();
+        marlin_vars().temp_chamber = buddy::chamber().current_temperature().value_or(0);
+        marlin_vars().target_temp_chamber = (uint32_t)buddy::chamber().target_temperature().value_or(0);
+        marlin_vars().fan_1_chamber_rpm = xbe.fan1rpm;
+        marlin_vars().fan_2_chamber_rpm = xbe.fan2rpm;
+        marlin_vars().fan_pwm_chamber_target = xbe.fan1_fan2_target_pwm.transform(buddy::XBuddyExtension::FanPWM::to_percent_static).value_or(-1);
+        marlin_vars().chamber_led_intensity = static_cast<int8_t>(static_cast<uint16_t>(leds::SideStripHandler::instance().get_max_brightness()) * 100 / 255);
+    }
+#endif
+
+    marlin_vars().filament_used = Odometer_s::instance().get_extruded_all();
+    {
+        const auto state_with_dialog = printer_state::get_state_with_dialog(false);
+        marlin_vars().dialog_id = state_with_dialog.dialog.has_value() ? state_with_dialog.dialog->dialog_id.to_uint32_t() : 0xFFFFFFFF;
+    }
+
+    marlin_vars().pressure_advance = pressure_advance::get_axis_e_config().pressure_advance;
+    marlin_vars().pressure_advance_smooth_time = pressure_advance::get_axis_e_config().smooth_time;
+
+#if HAS_MESH
+    marlin_vars_t::MeshData mesh {};
+    mesh.valid = leveling_is_valid();
+    if (mesh.valid) {
+        memcpy(mesh.z_values, ubl.z_values, sizeof(mesh.z_values));
+        mesh.x_min = MESH_MIN_X;
+        mesh.y_min = MESH_MIN_Y;
+        mesh.x_dist = MESH_X_DIST;
+        mesh.y_dist = MESH_Y_DIST;
+        mesh.points_x = GRID_MAX_POINTS_X;
+        mesh.points_y = GRID_MAX_POINTS_Y;
+    }
+    marlin_vars().mesh_data = mesh;
+#endif
+
 #if HAS_MODULAR_BED()
     marlin_vars().enabled_bedlet_mask = thermalManager.getEnabledBedletMask();
 #endif

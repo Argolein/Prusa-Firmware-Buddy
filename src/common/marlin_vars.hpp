@@ -18,6 +18,10 @@
 
 #include <option/has_cancel_object.h>
 
+#include "printers.h"
+#include <option/xl_enclosure_support.h>
+#include <option/xbuddy_extension_variant.h>
+
 #if BOARD_IS_DWARF()
     #error "You're trying to add marlin_vars to Dwarf. Don't!"
 #endif /*BOARD_IS_DWARF()*/
@@ -313,6 +317,41 @@ public:
     MarlinVariable<float> native_curr_pos[4]; ///< current position XYZE (native coordinates) [mm]
     MarlinVariable<float> logical_curr_pos[4]; ///< current position XYZE (logical coordinates) [mm]
     MarlinVariable<float> max_printed_z;
+
+#if PRINTER_IS_PRUSA_iX()
+    MarlinVariable<float> temp_psu; // PSU temperature [C]
+    MarlinVariable<float> temp_ambient; // Ambient temperature [C]
+#endif
+
+#if XL_ENCLOSURE_SUPPORT()
+    MarlinVariable<float> temp_enclosure; // Enclosure temperature [C]
+    MarlinVariable<uint16_t> fan_enclosure_rpm; // Enclosure fan RPM [1/min]
+#endif
+
+#if XBUDDY_EXTENSION_VARIANT_IS_STANDARD()
+    MarlinVariable<float> temp_chamber; // Chamber temperature [C]
+    MarlinVariable<uint32_t> target_temp_chamber; // Chamber target temperature [C]
+    MarlinVariable<uint16_t> fan_1_chamber_rpm; // Chamber fan 1 RPM [1/min]
+    MarlinVariable<uint16_t> fan_2_chamber_rpm; // Chamber fan 2 RPM [1/min]
+    MarlinVariable<int8_t> fan_pwm_chamber_target; // Chamber fan PWM target [%]
+    MarlinVariable<int8_t> chamber_led_intensity; // Chamber LED intensity [%]
+#endif
+
+    MarlinVariable<float> filament_used; // Cumulative filament used [mm]
+    MarlinVariable<uint32_t> dialog_id; // Current dialog ID
+
+    MarlinVariable<float> pressure_advance;
+    MarlinVariable<float> pressure_advance_smooth_time;
+
+#if HAS_MESH
+    struct MeshData {
+        bool valid = false;
+        float z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+        float x_min, y_min, x_dist, y_dist;
+        uint8_t points_x, points_y;
+    };
+    MarlinVariableLocked<MeshData> mesh_data;
+#endif
 
     MarlinVariable<float> temp_bed; // bed temperature [C]
     MarlinVariable<float> target_bed; // bed target temperature [C]

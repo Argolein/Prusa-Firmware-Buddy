@@ -1,7 +1,9 @@
 // marlin_server.hpp
 #pragma once
 
+#include <array>
 #include <optional>
+#include <string_view>
 #include <atomic>
 #include "marlin_vars.hpp"
 
@@ -18,6 +20,7 @@
 #include <utils/publisher.hpp>
 
 #include <serial_printing.hpp>
+#include <option/has_usb_device.h>
 
 #if BOARD_IS_DWARF()
     #error "You're trying to add marlin_server to Dwarf. Don't!"
@@ -60,6 +63,27 @@ void move_axis(float pos, float feedrate, size_t axis);
 void enqueue_gcode(const char *gcode);
 
 [[nodiscard]] bool enqueue_gcode_try(const char *gcode);
+
+constexpr size_t GCODE_RESPONSE_TEXT_MAX = 1024;
+
+enum class GcodeResponseCaptureStartResult {
+    Started,
+    Busy,
+    Unsupported,
+};
+
+struct GcodeResponseSnapshot {
+    uint32_t id = 0;
+    bool completed = false;
+    bool success = false;
+    bool overflowed = false;
+    std::array<char, GCODE_RESPONSE_TEXT_MAX + 1> response {};
+};
+
+GcodeResponseCaptureStartResult start_gcode_response_capture(uint32_t &id);
+void cancel_gcode_response_capture(uint32_t id);
+bool get_gcode_response_capture(uint32_t id, GcodeResponseSnapshot &snapshot);
+void process_gcode_response_line(std::string_view line);
 
 // direct call of 'enqueue_and_echo_command' with formatting
 // @retval true command enqueued

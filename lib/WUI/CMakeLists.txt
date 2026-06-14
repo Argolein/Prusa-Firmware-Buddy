@@ -7,6 +7,7 @@ target_sources(
             ethernetif.cpp
             http_lifetime.cpp
             link_content/basic_gets.cpp
+            link_content/mesh_renderer.cpp
             link_content/previews.cpp
             link_content/prusa_api_helpers.cpp
             link_content/prusa_link_api_octo.cpp
@@ -18,6 +19,8 @@ target_sources(
             nhttp/file_command.cpp
             nhttp/file_command_marlin.cpp
             nhttp/file_info.cpp
+            nhttp/gcode_command.cpp
+            nhttp/gcode_reply.cpp
             nhttp/gcode_preview.cpp
             nhttp/gcode_upload.cpp
             nhttp/handler.cpp
