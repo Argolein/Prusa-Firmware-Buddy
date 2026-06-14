@@ -132,7 +132,7 @@ STEPPING_INLINE MoveFlag_t get_active_axis_flags_from_block(const block_t &block
 }
 
 STEPPING_INLINE bool append_move_segment_to_queue(const TimeTicks move_time, const double start_v, const double half_accel, const TimeTicks print_time,
-    const xyze_double_t axes_r, const xyze_double_t start_pos, const MoveFlag_t flags) {
+    const xyze_double_t axes_r, const xyze_double_t start_pos, const MoveFlag_t flags, const float pressure_advance_value) {
     debug_assert(PreciseStepping::total_print_time != TimeTicks::zero() && PreciseStepping::total_print_time < MAX_PRINT_TIME_TICKS);
     uint8_t next_move_segment_queue_head;
     if (move_t *m = PreciseStepping::get_next_free_move_segment(next_move_segment_queue_head); m != nullptr) {
@@ -142,6 +142,7 @@ STEPPING_INLINE bool append_move_segment_to_queue(const TimeTicks move_time, con
         m->print_time = print_time;
         m->axes_r = axes_r;
         m->start_pos = start_pos;
+        m->pressure_advance_value = pressure_advance_value;
         m->flags = flags;
         m->reference_cnt = 0;
         PreciseStepping::move_segment_queue.head = next_move_segment_queue_head;
@@ -260,7 +261,7 @@ bool append_move_segments_to_queue(const block_t &block) {
             | (uint16_t(block.direction_bits & 0x0F) << MOVE_FLAG_DIR_SHIFT)
             | active_axis
             | (uint32_t(old_ps_flags) << MOVE_FLAG_RESET_POSITION_SHIFT);
-        if (!append_move_segment_to_queue(accel_ticks, start_v, half_accel, print_time, axes_r, start_pos, flags)) {
+        if (!append_move_segment_to_queue(accel_ticks, start_v, half_accel, print_time, axes_r, start_pos, flags, block.pressure_advance_value)) {
             bsod("Acceleration move segment wasn't append into the queue.");
         }
 
@@ -276,7 +277,7 @@ bool append_move_segments_to_queue(const block_t &block) {
             | (uint16_t(block.direction_bits & 0x0F) << MOVE_FLAG_DIR_SHIFT)
             | active_axis
             | ((accel_dist != 0.) ? 0x00 : (uint32_t(old_ps_flags) << MOVE_FLAG_RESET_POSITION_SHIFT));
-        if (!append_move_segment_to_queue(cruise_ticks, cruise_v, 0., print_time, axes_r, start_pos, flags)) {
+        if (!append_move_segment_to_queue(cruise_ticks, cruise_v, 0., print_time, axes_r, start_pos, flags, block.pressure_advance_value)) {
             bsod("Cruise move segment wasn't append into the queue.");
         }
 
@@ -292,7 +293,7 @@ bool append_move_segments_to_queue(const block_t &block) {
             | (uint16_t(block.direction_bits & 0x0F) << MOVE_FLAG_DIR_SHIFT)
             | active_axis
             | ((accel_dist != 0. || cruise_dist != 0.) ? 0x00 : (uint32_t(old_ps_flags) << MOVE_FLAG_RESET_POSITION_SHIFT));
-        if (!append_move_segment_to_queue(decel_ticks, cruise_v, -half_accel, print_time, axes_r, start_pos, flags)) {
+        if (!append_move_segment_to_queue(decel_ticks, cruise_v, -half_accel, print_time, axes_r, start_pos, flags, block.pressure_advance_value)) {
             bsod("Deceleration move segment wasn't append into the queue.");
         }
 
