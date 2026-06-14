@@ -80,6 +80,12 @@ typedef struct move_t {
     xyze_double_t axes_r;
     xyze_double_t start_pos;
 
+    // Per-move pressure-advance value (seconds). Carried from block_t so that
+    // M572 S<x> can change the global queued PA value without flushing the planner:
+    // each move segment retains the PA value that was active when its parent G1
+    // was enqueued. Zero on an inactive move means no PA contribution.
+    float pressure_advance_value = 0.f;
+
     MoveFlag_t flags;
     // Number of step event generators that are using/referencing this move segment.
     mutable uint8_t reference_cnt = 0;
