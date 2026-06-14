@@ -71,8 +71,13 @@ void GcodeSuite::M900() {
     #endif
 
     if (WITHIN(newK, 0, 10)) {
-      const pressure_advance::Config default_config = pressure_advance::Config();
-      M572_internal(newK, default_config.smooth_time);
+      // Preserve the active smooth_time instead of resetting it to the default.
+      // This matters when an operator (or start-gcode) has tuned `W` via M572
+      // and a slicer then drives PA via M900 K<x> (e.g. PrusaSlicer / OrcaSlicer
+      // in MK3-Linear-Advance compatibility mode). Resetting smooth_time would
+      // force the structural M572 path on every M900 K and reintroduce the
+      // motion hiccup we just eliminated.
+      M572_internal(newK, pressure_advance::get_axis_e_config().smooth_time);
     }
     else
       SERIAL_ECHOLNPGM("?K value out of range (0-10).");

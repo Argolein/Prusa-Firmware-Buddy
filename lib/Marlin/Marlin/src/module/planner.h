@@ -153,6 +153,13 @@ typedef struct PlannerBlock {
   float initial_speed,                      // The jerk-adjusted spped at start of block
         final_speed;                        // The minimal speed at exit of block
 
+  // Snapshot of the queued pressure-advance value at the moment this block was populated.
+  // Carries the per-move PA value across the gcode-thread → motion-thread boundary
+  // so the precise_stepping move segments derived from this block see the PA value
+  // that was active when the corresponding G1 was enqueued, not the value active
+  // at move-segment creation time. Zeroed by reset() via memset.
+  float pressure_advance_value;
+
   void reset() { memset((char*)this, 0, sizeof(*this)); }
 
 } block_t;
