@@ -170,6 +170,8 @@ private:
     // It is set only once at the start, when the thread is started.
     static std::atomic<NetworkState *> instance;
     uint32_t active = NETDEV_NODEV_ID;
+    uint32_t prev_active = NETDEV_NODEV_ID;
+    bool prev_httpd_running = false;
 
     Mode iface_mode(const Iface &iface) {
         // Assumes already locked
@@ -400,12 +402,16 @@ private:
 
         lock.unlock();
 
-        if (allow_full && config_store().prusalink_enabled.get() == 1) {
+        const bool http_should_run = allow_full && config_store().prusalink_enabled.get() == 1;
+        if (!http_should_run) {
+            httpd_instance()->stop();
+            prev_httpd_running = false;
+        } else if (!prev_httpd_running || prev_active != active_local) {
             httpd_instance()->stop();
             httpd_instance()->start();
-        } else {
-            httpd_instance()->stop();
+            prev_httpd_running = true;
         }
+        prev_active = active_local;
     }
 
     void run() __attribute__((noreturn)) {
@@ -675,23 +681,6 @@ public:
         });
     }
 
-    static bool get_ifname(uint32_t netdev_id, char *buffer, size_t buffer_len) {
-        if (buffer_len > 0) {
-            buffer[0] = '\0';
-        }
-
-        bool found = false;
-        with_iface(netdev_id, [&](netif &iface, NetworkState &) {
-            if (buffer_len == 0) {
-                return;
-            }
-
-            snprintf(buffer, buffer_len, "%c%c%" PRIu8, iface.name[0], iface.name[1], iface.num);
-            found = true;
-        });
-        return found;
-    }
-
     static netdev_status_t get_status(uint32_t netdev_id) {
         netdev_status_t status = NETDEV_NETIF_DOWN;
         with_iface(netdev_id, [&](netif &iface, NetworkState &instance) {
@@ -754,10 +743,6 @@ bool netdev_get_MAC_address(uint32_t netdev_id, uint8_t mac[6]) {
 
 void netdev_get_hostname(uint32_t netdev_id, char *buffer, size_t buffer_len) {
     NetworkState::get_hostname(netdev_id, buffer, buffer_len);
-}
-
-bool netdev_get_ifname(uint32_t netdev_id, char *buffer, size_t buffer_len) {
-    return NetworkState::get_ifname(netdev_id, buffer, buffer_len);
 }
 
 netdev_status_t netdev_get_status(uint32_t netdev_id) {
