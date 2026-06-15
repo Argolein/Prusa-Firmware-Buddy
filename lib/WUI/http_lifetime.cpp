@@ -7,11 +7,14 @@
 #include "link_content/previews.h"
 #include "wui.h"
 #include "wui_api.h"
+#include "netdev.h"
 #if NETWORKING_BENCHMARK_ENABLED
     #include "nhttp/networking_benchmark_selector.h"
 #endif
 
 #include <cstring>
+#include <lwip/netif.h>
+#include <lwip/tcp.h>
 
 using std::nullopt;
 using std::optional;
@@ -56,10 +59,23 @@ public:
             return nullptr;
         }
 
+        char ifname[NETIF_NAMESIZE] = {};
+        if (!netdev_get_ifname(netdev_get_active_id(), ifname, sizeof(ifname))) {
+            altcp_close(l);
+            return nullptr;
+        }
+
+        netif *iface = netif_find(ifname);
+        if (iface == nullptr) {
+            altcp_close(l);
+            return nullptr;
+        }
+
+        tcp_bind_netif(reinterpret_cast<tcp_pcb *>(l), iface);
+
         /*
-         * set SOF_REUSEADDR to explicitly bind httpd to multiple
-         * interfaces and to allow re-binding after enabling & disabling
-         * ethernet.
+         * Keep reuseaddr so the listener can be rebound quickly when the
+         * active interface changes.
          */
         ip_set_option((struct tcp_pcb *)l, SOF_REUSEADDR);
         const auto err = tcp_bind(l, IP_ANY_TYPE, 80);

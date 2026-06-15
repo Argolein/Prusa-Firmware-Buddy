@@ -356,7 +356,8 @@ private:
 #endif
 
         // First, bring everything down. Then bring whatever is enabled up.
-        for (auto &iface : ifaces) {
+        for (size_t face_index = 0; face_index < ifaces.size(); ++face_index) {
+            auto &iface = ifaces[face_index];
             // "Pause" the mutex for a while, this calls callbacks that also lock.
             lock.unlock();
             set_down(iface.dev);
@@ -370,30 +371,37 @@ private:
             iface.dev.hostname = iface.desired_config.hostname;
 
 #if HAS_ESP()
-            if (&iface == &ifaces[NETDEV_ESP_ID]) {
+            if (face_index == NETDEV_ESP_ID) {
                 // The ESP interface is a bit weird. It doesn't support (yet)
                 // disconnecting from AP, so we reset it. Then we have to wait
                 // for it to become ready to join the AP, etc, which is done
                 // asynchronously in the event loop.
+                //
+                // We do the same even when Wi-Fi is not the selected interface:
+                // a soft local "disconnect" is not enough to actually leave the AP.
+                // Rejoin is guarded later in the event loop by active_netdev.
                 espif_reset();
             } else
 #endif
             {
-                // Other interfaces can just be turned on and be done with them.
-                // "Pause" the mutex for a while, this calls callbacks that also lock.
-                lock.unlock();
-                set_up(iface.dev);
-                lock.lock();
+                if (face_index == active_local && iface_mode(iface) != Mode::Off) {
+                    // Other interfaces can just be turned on and be done with them.
+                    // "Pause" the mutex for a while, this calls callbacks that also lock.
+                    lock.unlock();
+                    set_up(iface.dev);
+                    lock.lock();
+                }
             }
         }
 
-        if (active_local < ifaces.size()) {
+        if (active_local < ifaces.size() && iface_mode(ifaces[active_local]) != Mode::Off) {
             netifapi_netif_set_default(&ifaces[active_local].dev);
         }
 
         lock.unlock();
 
         if (allow_full && config_store().prusalink_enabled.get() == 1) {
+            httpd_instance()->stop();
             httpd_instance()->start();
         } else {
             httpd_instance()->stop();
@@ -460,7 +468,10 @@ private:
 
                 // Delayed init, after the ESP told us it is ready and gave us a MAC address.
                 // If we are reconfiguring don't send old connection information, wait for next loop and new ap info.
-                if (iface_mode(ifaces[NETDEV_ESP_ID]) != Mode::Off && espif_need_ap() && !(events & Reconfigure)) {
+                if (config_store().active_netdev.get() == NETDEV_ESP_ID
+                    && iface_mode(ifaces[NETDEV_ESP_ID]) != Mode::Off
+                    && espif_need_ap()
+                    && !(events & Reconfigure)) {
                     {
                         unique_lock lock(mutex);
                         const char *passwd = ap.pass[0] == '\0' ? NULL : ap.pass;
@@ -483,12 +494,16 @@ private:
             }
 
             if (events & EthInitDone) {
-                post_init(NETDEV_ETH_ID);
+                if (config_store().active_netdev.get() == NETDEV_ETH_ID) {
+                    post_init(NETDEV_ETH_ID);
+                }
             }
 
 #if HAS_ESP()
             if (events & EspInitDone) {
-                post_init(NETDEV_ESP_ID);
+                if (config_store().active_netdev.get() == NETDEV_ESP_ID) {
+                    post_init(NETDEV_ESP_ID);
+                }
             }
 #endif
 
@@ -505,22 +520,28 @@ private:
 
 #if HAS_ESP()
             if (events & HealthCheck) {
-                const bool was_alive = espif_tick();
-
-                // It's OK if the ESP is turned off on purpose or if it's up and running.
-                const bool esp_ok = (iface_mode(ifaces[NETDEV_ESP_ID]) == Mode::Off || ap.ssid[0] == '\0' || (espif_link() && was_alive) || espif::scan::is_running());
-
-                if (esp_ok) {
+                if (config_store().active_netdev.get() != NETDEV_ESP_ID || iface_mode(ifaces[NETDEV_ESP_ID]) == Mode::Off) {
+                    // Wi-Fi is not the selected runtime interface, so don't keep poking
+                    // or force-resetting the ESP in the background.
                     last_esp_ok = now;
-                }
+                } else {
+                    const bool was_alive = espif_tick();
 
-                const uint32_t faulty_for = now - last_esp_ok;
+                    // It's OK if Wi-Fi is enabled without configured credentials, or if it's up and running.
+                    const bool esp_ok = (ap.ssid[0] == '\0' || (espif_link() && was_alive) || espif::scan::is_running());
 
-                if (faulty_for >= RESET_FAULTY_AFTER) {
-                    log_warning(Network, "ESP not responsive, resetting");
-                    // It's not OK for a long time. Try resetting it if that helps.
-                    espif_reset();
-                    last_esp_ok = now;
+                    if (esp_ok) {
+                        last_esp_ok = now;
+                    }
+
+                    const uint32_t faulty_for = now - last_esp_ok;
+
+                    if (faulty_for >= RESET_FAULTY_AFTER) {
+                        log_warning(Network, "ESP not responsive, resetting");
+                        // It's not OK for a long time. Try resetting it if that helps.
+                        espif_reset();
+                        last_esp_ok = now;
+                    }
                 }
             }
 #endif
@@ -654,6 +675,23 @@ public:
         });
     }
 
+    static bool get_ifname(uint32_t netdev_id, char *buffer, size_t buffer_len) {
+        if (buffer_len > 0) {
+            buffer[0] = '\0';
+        }
+
+        bool found = false;
+        with_iface(netdev_id, [&](netif &iface, NetworkState &) {
+            if (buffer_len == 0) {
+                return;
+            }
+
+            snprintf(buffer, buffer_len, "%c%c%" PRIu8, iface.name[0], iface.name[1], iface.num);
+            found = true;
+        });
+        return found;
+    }
+
     static netdev_status_t get_status(uint32_t netdev_id) {
         netdev_status_t status = NETDEV_NETIF_DOWN;
         with_iface(netdev_id, [&](netif &iface, NetworkState &instance) {
@@ -716,6 +754,10 @@ bool netdev_get_MAC_address(uint32_t netdev_id, uint8_t mac[6]) {
 
 void netdev_get_hostname(uint32_t netdev_id, char *buffer, size_t buffer_len) {
     NetworkState::get_hostname(netdev_id, buffer, buffer_len);
+}
+
+bool netdev_get_ifname(uint32_t netdev_id, char *buffer, size_t buffer_len) {
+    return NetworkState::get_ifname(netdev_id, buffer, buffer_len);
 }
 
 netdev_status_t netdev_get_status(uint32_t netdev_id) {

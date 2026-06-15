@@ -144,6 +144,16 @@ netdev_ip_obtained_t netdev_get_ip_obtained_type(uint32_t);
 /// @param[in] buffer_len The size of the buffer (including space for \0).
 void netdev_get_hostname(uint32_t, char *buffer, size_t buffer_len);
 
+/// Retrieve the runtime lwIP interface name for a device (for example `PR0` or `wl1`).
+///
+/// @param[in] dev_id device ID. One of
+///             - #NETDEV_ETH_ID
+///             - #NETDEV_ESP_ID
+/// @param[out] buffer Where to store the interface name.
+/// @param[in] buffer_len The size of the buffer (including space for \0).
+/// @return true if the interface exists and the name was written.
+bool netdev_get_ifname(uint32_t dev_id, char *buffer, size_t buffer_len);
+
 ////////////////////////////////////////////////////////////////////////////
 /// @brief Retrive IPv4 configuration. IP address, network mask, gateway address
 ///
