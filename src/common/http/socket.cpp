@@ -29,7 +29,6 @@
     #include "sockets.h"
     #include "lwip/inet.h"
     #include "lwip/netdb.h"
-    #include "netdev.h"
 #endif
 #include <logging/log.hpp>
 
@@ -79,18 +78,6 @@ std::optional<Error> socket_con::connection(const char *host, uint16_t port) {
     if (lwip_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
         return Error::SetSockOpt;
     }
-
-#if !defined(__unix__) && !defined(__APPLE__) && !defined(__WIN32__)
-    // Route new outbound sockets through the interface selected in the printer UI.
-    struct ifreq iface = {};
-    if (!netdev_get_ifname(netdev_get_active_id(), iface.ifr_name, sizeof(iface.ifr_name))) {
-        return Error::InternalError;
-    }
-    if (lwip_setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &iface, sizeof(iface)) == -1) {
-        log_warning(socket, "Failed to bind socket to active netdev %s", iface.ifr_name);
-        return Error::SetSockOpt;
-    }
-#endif
 
     int error;
     struct addrinfo hints;
