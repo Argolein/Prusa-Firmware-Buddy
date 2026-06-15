@@ -1,6 +1,7 @@
 #include "send_json.h"
 #include "handler.h"
 #include "headers.h"
+#include "../link_content/mesh_renderer.hpp"
 #include "transfer_renderer.h"
 
 #include <timing.h>
@@ -94,6 +95,7 @@ void SendJson<Renderer>::step(std::string_view, bool, uint8_t *buffer, size_t bu
 }
 
 template class SendJson<EmptyRenderer>;
+template class SendJson<link_content::MeshRenderer>;
 template class SendJson<TransferRenderer>;
 template class SendJson<StatusRenderer>;
 

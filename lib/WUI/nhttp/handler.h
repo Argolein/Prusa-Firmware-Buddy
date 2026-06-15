@@ -31,9 +31,9 @@
 #include "file_info.h"
 #include "file_command.h"
 #include "gcode_upload.h"
-#include "gcode_reply.h"
 #include "gcode_preview.h"
 #include "job_command.h"
+#include "../link_content/mesh_renderer.hpp"
 #include "req_parser.h"
 #include "send_file.h"
 #include "send_json.h"
@@ -147,10 +147,10 @@ namespace handler {
         SendStaticMemory,
         SendFile,
         SendJson<EmptyRenderer>,
+        SendJson<link_content::MeshRenderer>,
         SendJson<TransferRenderer>,
         SendJson<StatusRenderer>,
         printer::GcodeUpload,
-        printer::GcodeReply,
         printer::GCodePreview,
         printer::JobCommand,
         printer::FileInfo,

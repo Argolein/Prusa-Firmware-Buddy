@@ -343,16 +343,6 @@ public:
     MarlinVariable<float> pressure_advance;
     MarlinVariable<float> pressure_advance_smooth_time;
 
-#if HAS_MESH
-    struct MeshData {
-        bool valid = false;
-        float z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
-        float x_min, y_min, x_dist, y_dist;
-        uint8_t points_x, points_y;
-    };
-    MarlinVariableLocked<MeshData> mesh_data;
-#endif
-
     MarlinVariable<float> temp_bed; // bed temperature [C]
     MarlinVariable<float> target_bed; // bed target temperature [C]
     MarlinVariable<float> z_offset; // probe z-offset [mm]

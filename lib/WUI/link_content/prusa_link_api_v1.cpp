@@ -1,5 +1,6 @@
 #include "prusa_link_api_v1.h"
 #include "basic_gets.h"
+#include "mesh_renderer.hpp"
 #include "../nhttp/file_info.h"
 #include "../nhttp/file_command.h"
 #include "../nhttp/headers.h"
@@ -173,6 +174,9 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
             out.next = StatusPage(Status::NoContent, parser);
             return Accepted::Accepted;
         }
+    } else if (suffix == "mesh") {
+        get_only(SendJson(MeshRenderer(), parser.can_keep_alive()), parser, out);
+        return Accepted::Accepted;
     } else if (remove_prefix(suffix, "files").has_value()) {
         static const auto prefix = "/api/v1/files";
         static const size_t prefix_len = strlen(prefix);

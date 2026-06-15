@@ -1,27 +1,35 @@
 #include "mesh_renderer.hpp"
-#include <marlin_vars.hpp>
 #include <segmented_json_macros.h>
 #include <cmath>
+#include <cstring>
 
 namespace nhttp::link_content {
 
 json::JsonResult MeshRenderer::renderState(size_t resume_point, json::JsonOutput &output, MeshState &state) const {
-    // Take a single consistent snapshot of the mesh on first entry. The renderer
-    // may be resumed multiple times across chunks, but the state survives so we
-    // only read the locked snapshot once per response.
+    // Take a single consistent snapshot on first entry. The renderer may be
+    // resumed across chunks, but the captured state stays attached to the
+    // connection so we only touch UBL once per request.
     if (!state.snapshot_taken) {
 #if HAS_MESH
-        state.mesh = marlin_vars().mesh_data.get();
-        state.valid = state.mesh.valid;
+        state.mesh.valid = leveling_is_valid();
+        if (state.mesh.valid) {
+            memcpy(state.mesh.z_values, ubl.z_values, sizeof(state.mesh.z_values));
+            state.mesh.x_min = MESH_MIN_X;
+            state.mesh.y_min = MESH_MIN_Y;
+            state.mesh.x_dist = MESH_X_DIST;
+            state.mesh.y_dist = MESH_Y_DIST;
+            state.mesh.points_x = GRID_MAX_POINTS_X;
+            state.mesh.points_y = GRID_MAX_POINTS_Y;
+        }
 #else
-        state.valid = false;
+        state.mesh.valid = false;
 #endif
         state.snapshot_taken = true;
     }
 
     JSON_START;
     JSON_OBJ_START;
-        JSON_FIELD_BOOL("valid", state.valid) JSON_COMMA;
+        JSON_FIELD_BOOL("valid", state.mesh.valid) JSON_COMMA;
 #if HAS_MESH
         JSON_FIELD_FFIXED("x_min", state.mesh.x_min, 2) JSON_COMMA;
         JSON_FIELD_FFIXED("y_min", state.mesh.y_min, 2) JSON_COMMA;

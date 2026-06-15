@@ -84,7 +84,6 @@ LOG_COMPONENT_REF(Marlin);
 #include "probe_position_lookback.hpp"
 #include <config_store/store_instance.hpp>
 #include <utils/serial_logging_disabler.hpp>
-#include <string_view>
 
 LOG_COMPONENT_DEF(Buddy, logging::Severity::debug);
 LOG_COMPONENT_DEF(Core, logging::Severity::info);
@@ -101,9 +100,6 @@ void app_marlin_serial_output_write_hook(const uint8_t *buffer, int size) {
 
     while (size && (buffer[size - 1] == '\n' || buffer[size - 1] == '\r')) {
         size--;
-    }
-    if (size > 0) {
-        marlin_server::process_gcode_response_line(std::string_view(reinterpret_cast<const char *>(buffer), size));
     }
     logging::Severity severity = logging::Severity::info;
     bool MMU = false;
