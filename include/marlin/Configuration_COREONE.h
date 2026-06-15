@@ -1213,10 +1213,9 @@ static constexpr float EXTRUDER_SERVICE_MOVE_E_FACTOR = 576.f / 550.f;
 #if HAS_INDX()
     #define NOZZLE_PARK_XY_FEEDRATE 300 // (mm/s) X and Y axes feedrate (also used for delta Z axis)
 #else
-    #define NOZZLE_PARK_XY_FEEDRATE 100 // (mm/s) X and Y axes feedrate (also used for delta Z axis)
+    #define NOZZLE_PARK_XY_FEEDRATE 120 // (mm/s) X and Y axes feedrate (also used for delta Z axis)
 #endif
-
-    #define NOZZLE_PARK_Z_FEEDRATE 5 // (mm/s) Z axis feedrate (not used for delta printers)
+    #define NOZZLE_PARK_Z_FEEDRATE 12 // (mm/s) Z axis feedrate (not used for delta printers)
 
 #if HAS_INDX()
     #define X_AXIS_LOAD_POS X_NOZZLE_PARK_POINT
