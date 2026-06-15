@@ -180,6 +180,7 @@ public:
         char token[CONNECT_TOKEN_BUF_LEN] = "";
         uint16_t port = 0;
         uint16_t proxy_port = 0;
+        uint8_t active_netdev = 0;
         bool tls = true;
         bool enabled = false;
         bool custom_cert = false;
