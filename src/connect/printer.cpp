@@ -106,6 +106,7 @@ uint32_t Printer::Config::crc() const {
         .add(port)
         .add(tls)
         .add(enabled)
+        .add(active_netdev)
         .done();
 }
 

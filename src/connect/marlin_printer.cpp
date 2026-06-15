@@ -339,7 +339,9 @@ Printer::Params MarlinPrinter::params() const {
 }
 
 Printer::Config MarlinPrinter::load_config() {
-    return load_eeprom_config();
+    auto config = load_eeprom_config();
+    config.active_netdev = config_store().active_netdev.get();
+    return config;
 }
 
 uint32_t MarlinPrinter::cancelable_fingerprint() const {
