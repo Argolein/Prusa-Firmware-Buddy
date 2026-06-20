@@ -102,7 +102,7 @@ METRIC_DEF(metric_phxy_home, "phxy_home", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED
 METRIC_DEF(metric_phxy_orig, "phxy_orig", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
 
 #if HAS_TRINAMIC
-#if PRINTER_IS_PRUSA_COREONE()
+    #if PRINTER_IS_PRUSA_COREONE()
 static constexpr uint16_t MIN_COREONE_HOMING_CURRENT_MA = 200;
 static constexpr uint16_t MAX_COREONE_HOMING_CURRENT_MA = 958;
 
@@ -148,27 +148,27 @@ static void coreone_axis_homing_sensitivity_range(const AxisEnum axis, int8_t &m
     min_sensitivity = static_cast<int8_t>(std::clamp<int16_t>(center - 2, TMCMarlin<TMC2130Stepper>::sgt_min, TMCMarlin<TMC2130Stepper>::sgt_max));
     max_sensitivity = static_cast<int8_t>(std::clamp<int16_t>(center + 2, TMCMarlin<TMC2130Stepper>::sgt_min, TMCMarlin<TMC2130Stepper>::sgt_max));
 }
-#endif
+    #endif
 
 static uint16_t coreone_homing_measure_current(const AxisEnum axis, const uint16_t prusa_current) {
-#if PRINTER_IS_PRUSA_COREONE()
+    #if PRINTER_IS_PRUSA_COREONE()
     if (!coreone_axis_current_is_default(axis)) {
         return coreone_axis_current(axis);
     }
-#else
+    #else
     (void)axis;
-#endif
+    #endif
     return prusa_current;
 }
 
 static uint16_t coreone_homing_holding_current(const AxisEnum axis, const uint16_t prusa_current) {
-#if PRINTER_IS_PRUSA_COREONE()
+    #if PRINTER_IS_PRUSA_COREONE()
     if (!coreone_axis_current_is_default(axis)) {
         return std::max(coreone_axis_current(axis), clamp_coreone_homing_current(prusa_current));
     }
-#else
+    #else
     (void)axis;
-#endif
+    #endif
     return prusa_current;
 }
 #endif
@@ -442,11 +442,11 @@ static measure_axis_params measure_axis_defaults(const AxisEnum axis) {
     // #error dead code found by automatic analyses (see BFW-5461)
     params.sensitivity = XY_HOMING_MEASURE_SENS;
     #else
-#if PRINTER_IS_PRUSA_COREONE()
+        #if PRINTER_IS_PRUSA_COREONE()
     params.sensitivity = coreone_axis_homing_sensitivity(axis);
-#else
+        #else
     params.sensitivity = (axis == A_AXIS ? X_STALL_SENSITIVITY : Y_STALL_SENSITIVITY);
-#endif
+        #endif
     #endif
 #endif
 #ifdef XY_HOMING_MEASURE_FR
@@ -1167,9 +1167,9 @@ static bool measure_calibrate_sens(CoreXYHomeTMCSens &calibrated_sens,
     // limits are inclusive
     int8_t min_sensitivity = XY_HOMING_MEASURE_SENS_MIN;
     int8_t max_sensitivity = XY_HOMING_MEASURE_SENS_MAX;
-#if PRINTER_IS_PRUSA_COREONE()
+    #if PRINTER_IS_PRUSA_COREONE()
     coreone_axis_homing_sensitivity_range(measured_axis, min_sensitivity, max_sensitivity);
-#endif
+    #endif
     constexpr size_t max_slots = 16;
     std::pair<int8_t, float> scores[max_slots];
     size_t score_cnt = 0;

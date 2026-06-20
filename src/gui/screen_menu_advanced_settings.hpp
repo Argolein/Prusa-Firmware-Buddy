@@ -15,7 +15,8 @@ using ScreenMenuAdvancedSettings = ScreenMenu<
     MI_RETURN,
     MI_ADVANCED_STEPS_PER_MM,
     MI_ADVANCED_MOTOR_CURRENTS,
-    MI_ADVANCED_HOMING_SENSITIVITY>;
+    MI_ADVANCED_HOMING_SENSITIVITY,
+    MI_ADV_PREHEAT_FOR_UNLOADING>;
 
 using ScreenMenuAdvancedStepsPerMm = ScreenMenu<
     GuiDefaults::MenuFooter,
