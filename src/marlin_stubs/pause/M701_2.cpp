@@ -49,8 +49,20 @@ static bool load_unload(Pause::LoadType load_type, pause::Settings &rSettings) {
         thermalManager.setTargetHotend(static_cast<int16_t>(disp_temp), rSettings.GetExtruder());
     }
 
-    // Load/Unload filament
-    const bool res = Pause::Instance().perform(load_type, rSettings);
+    bool res;
+    {
+#if ENABLED(PREVENT_COLD_EXTRUSION)
+        const bool is_unload = load_type == Pause::LoadType::unload || load_type == Pause::LoadType::unload_confirm || load_type == Pause::LoadType::unload_from_gears;
+        bool allow_cold = is_unload && !config_store().preheat_for_unloading.get();
+    #if HAS_AUTO_RETRACT()
+        allow_cold = allow_cold || (is_unload && buddy::auto_retract().is_safely_retracted_for_unload(hotend_from_extruder(rSettings.GetExtruder())));
+    #endif
+        AutoRestore ar_ce(thermalManager.allow_cold_extrude, true, allow_cold);
+#endif
+
+        // Load/Unload filament
+        res = Pause::Instance().perform(load_type, rSettings);
+    }
 
     if (marlin_server::printer_idle() && !res) { // Failed when printer is not printing
         // Disable nozzle heater
@@ -138,6 +150,9 @@ void filament_gcodes::M701_load(FilamentType filament_to_be_loaded, const std::o
 void filament_gcodes::M702_unload(std::optional<float> unload_length, float z_min_pos, std::optional<RetAndCool_t> op_preheat, VirtualToolIndex virtual_tool, bool ask_unloaded) {
     InProgress progress;
 
+    if (!config_store().preheat_for_unloading.get()) {
+        op_preheat = std::nullopt;
+    }
     bool do_preheat = op_preheat.has_value();
 #if HAS_AUTO_RETRACT()
     do_preheat = do_preheat && !buddy::auto_retract().can_cold_unload(virtual_tool.to_physical());
