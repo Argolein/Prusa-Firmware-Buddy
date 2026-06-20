@@ -7,5 +7,5 @@
 #pragma once
 
 namespace selftest {
-void calib_Z(bool move_down_after);
+void calib_Z(bool move_down_after, bool show_ui = true);
 }

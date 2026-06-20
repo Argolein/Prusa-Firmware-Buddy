@@ -96,3 +96,10 @@ extern uint16_t job_id;
   // #error dead code found by automatic analyses (see BFW-5461)
   inline void suicide() { OUT_WRITE(SUICIDE_PIN, LOW); }
 #endif
+
+#if ENABLED(G29_RETRY_AND_RECOVER)
+  void event_probe_recover();
+  void event_probe_failure();
+#endif
+
+extern bool z_auto_align_done;

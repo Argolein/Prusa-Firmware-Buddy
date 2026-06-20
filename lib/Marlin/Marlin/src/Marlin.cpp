@@ -125,6 +125,7 @@ bool wait_for_heatup = true;
 #endif
 
 uint16_t job_id = 0;
+bool z_auto_align_done = false;
 
 /**
  * ***************************************************************************
