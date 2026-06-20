@@ -161,24 +161,24 @@ static void apply_motor_current(const AxisEnum axis, const uint16_t current) {
 #if PRINTER_IS_PRUSA_COREONE()
     switch (axis) {
     case X_AXIS:
-        #if AXIS_IS_TMC(X)
+    #if AXIS_IS_TMC(X)
         stepperX.rms_current(current);
-        #endif
+    #endif
         break;
     case Y_AXIS:
-        #if AXIS_IS_TMC(Y)
+    #if AXIS_IS_TMC(Y)
         stepperY.rms_current(current);
-        #endif
+    #endif
         break;
     case Z_AXIS:
-        #if AXIS_IS_TMC(Z)
+    #if AXIS_IS_TMC(Z)
         stepperZ.rms_current(current);
-        #endif
+    #endif
         break;
     case E_AXIS:
-        #if AXIS_IS_TMC(E0)
+    #if AXIS_IS_TMC(E0)
         stepperE0.rms_current(current);
-        #endif
+    #endif
         break;
     default:
         return;
@@ -235,14 +235,14 @@ static void apply_homing_sensitivity(const AxisEnum axis, const int16_t sensitiv
 #if PRINTER_IS_PRUSA_COREONE()
     switch (axis) {
     case X_AXIS:
-        #if X_SENSORLESS
+    #if X_SENSORLESS
         stepperX.stall_sensitivity(sensitivity);
-        #endif
+    #endif
         break;
     case Y_AXIS:
-        #if Y_SENSORLESS
+    #if Y_SENSORLESS
         stepperY.stall_sensitivity(sensitivity);
-        #endif
+    #endif
         break;
     default:
         return;
@@ -364,4 +364,12 @@ MI_ADV_HOMING_SENS_RESET_DEFAULTS::MI_ADV_HOMING_SENS_RESET_DEFAULTS()
 
 void MI_ADV_HOMING_SENS_RESET_DEFAULTS::click([[maybe_unused]] IWindowMenu &window_menu) {
     Screens::Access()->Get()->WindowEvent(nullptr, GUI_event_t::CHILD_CLICK, reinterpret_cast<void *>(static_cast<intptr_t>(AdvancedSettingsClickCommand::Reset_homing_sensitivity)));
+}
+
+MI_ADV_PREHEAT_FOR_UNLOADING::MI_ADV_PREHEAT_FOR_UNLOADING()
+    : WI_ICON_SWITCH_OFF_ON_t(config_store().preheat_for_unloading.get() ? 1 : 0, _(label), nullptr, is_enabled_t::yes, is_hidden_t::no) {}
+
+void MI_ADV_PREHEAT_FOR_UNLOADING::OnChange(size_t old_index) {
+    WI_ICON_SWITCH_OFF_ON_t::OnChange(old_index);
+    config_store().preheat_for_unloading.set(value());
 }
