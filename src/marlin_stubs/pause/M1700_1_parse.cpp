@@ -235,7 +235,7 @@ void PrusaGcodeSuite::M1701() {
 
     // at this point autoload is considered successful so fail guard is not to be triggered and we report DoneHasFilament as status
     fail_guard.disarm();
-    PreheatStatus::SetResult(PreheatStatus::Result::DoneHasFilament);
+    filament_gcodes::M70X_process_user_response(PreheatStatus::Result::DoneHasFilament, *virtual_tool);
 }
 
 /**
