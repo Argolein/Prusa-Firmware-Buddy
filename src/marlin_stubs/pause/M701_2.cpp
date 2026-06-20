@@ -53,9 +53,12 @@ static bool load_unload(Pause::LoadType load_type, pause::Settings &rSettings) {
 
     bool res;
     {
-#if ENABLED(PREVENT_COLD_EXTRUSION) && HAS_AUTO_RETRACT()
+#if ENABLED(PREVENT_COLD_EXTRUSION)
         const bool is_unload = load_type == Pause::LoadType::unload || load_type == Pause::LoadType::unload_confirm || load_type == Pause::LoadType::unload_from_gears;
-        const bool allow_cold = is_unload && buddy::auto_retract().is_safely_retracted_for_unload(hotend_from_extruder(rSettings.GetExtruder()));
+        bool allow_cold = is_unload && !config_store().preheat_for_unloading.get();
+    #if HAS_AUTO_RETRACT()
+        allow_cold = allow_cold || (is_unload && buddy::auto_retract().is_safely_retracted_for_unload(hotend_from_extruder(rSettings.GetExtruder())));
+    #endif
         AutoRestore ar_ce(thermalManager.allow_cold_extrude, true, allow_cold);
 #endif
 
@@ -139,6 +142,10 @@ void filament_gcodes::M701_load(FilamentType filament_to_be_loaded, const std::o
 
 void filament_gcodes::M702_unload(std::optional<float> unload_length, float z_min_pos, std::optional<RetAndCool_t> op_preheat, uint8_t target_extruder, bool ask_unloaded) {
     InProgress progress;
+
+    if (!config_store().preheat_for_unloading.get()) {
+        op_preheat = std::nullopt;
+    }
 
 #if HAS_AUTO_RETRACT()
     if (op_preheat && !buddy::auto_retract().is_safely_retracted_for_unload(hotend_from_extruder(target_extruder))) {

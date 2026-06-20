@@ -213,3 +213,10 @@ void MI_HW_MMU::click(IWindowMenu &) {
 #if HAS_E2EE_SUPPORT()
 template struct MI_SCREEN_CTOR<ScreenMenuE2ee>;
 #endif
+
+MI_ADV_PREHEAT_FOR_UNLOADING::MI_ADV_PREHEAT_FOR_UNLOADING()
+    : WI_ICON_SWITCH_OFF_ON_t(config_store().preheat_for_unloading.get() ? 1 : 0, _(label), nullptr, is_enabled_t::yes, is_hidden_t::no) {}
+
+void MI_ADV_PREHEAT_FOR_UNLOADING::OnChange(size_t old_index) {
+    config_store().preheat_for_unloading.set(!old_index);
+}

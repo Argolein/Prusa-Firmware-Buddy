@@ -93,6 +93,7 @@ using ScreenMenuSettings__ = ScreenMenu<GuiDefaults::MenuFooter, MI_RETURN,
 #if HAS_MANUAL_BELT_TUNING()
     MI_MANUAL_BELT_TUNING,
 #endif
+    MI_ADV_PREHEAT_FOR_UNLOADING,
     // MI_SYSTEM needs to be last to ensure we can safely hit factory reset even in presence of unknown languages
     MI_SYSTEM>;
 

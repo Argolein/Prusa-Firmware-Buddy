@@ -227,3 +227,11 @@ public:
 using MI_E2EE
     = MI_SCREEN<N_("Encryption"), class ScreenMenuE2ee, nullptr, is_hidden_t::dev>;
 #endif
+
+class MI_ADV_PREHEAT_FOR_UNLOADING : public WI_ICON_SWITCH_OFF_ON_t {
+    constexpr static const char *const label = "Preheat before unloading";
+
+public:
+    MI_ADV_PREHEAT_FOR_UNLOADING();
+    virtual void OnChange(size_t old_index) override;
+};
