@@ -21,6 +21,7 @@
  */
 #pragma once
 
+extern bool z_auto_align_done;
 /**
  * stepper/indirection.h
  *
@@ -112,7 +113,7 @@
 #endif
 
 #define  enable_Z() do{ Z_enable; Z2_enable; Z3_enable; }while(0)
-#define disable_Z() do{ Z_disable; Z2_disable; Z3_disable; TERN_(HAS_PLANNER(), axes_home_level[Z_AXIS] = AxisHomeLevel::not_homed;) }while(0)
+#define disable_Z() do{ Z_disable; Z2_disable; Z3_disable; TERN_(HAS_PLANNER(), axes_home_level[Z_AXIS] = AxisHomeLevel::not_homed;) z_auto_align_done = false; }while(0)
 
 //
 // Extruder Stepper enable / disable

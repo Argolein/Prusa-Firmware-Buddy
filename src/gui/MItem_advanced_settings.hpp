@@ -53,3 +53,11 @@ public:
     MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE();
     virtual void OnChange(size_t old_index) override;
 };
+
+class MI_ADV_AUTO_Z_ALIGN_HOMING : public WI_ICON_SWITCH_OFF_ON_t {
+    constexpr static const char *const label = "Auto Z align when homing";
+
+public:
+    MI_ADV_AUTO_Z_ALIGN_HOMING();
+    virtual void OnChange(size_t old_index) override;
+};

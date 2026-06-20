@@ -100,6 +100,8 @@
 #include <marlin_server.hpp>
 #include <feature/print_status_message/print_status_message_guard.hpp>
 #include <config_store/store_instance.hpp>
+#include <calibration_z.hpp>
+#include <buddy/unreachable.hpp>
 
 #include <option/has_ceiling_clearance.h>
 #if HAS_CEILING_CLEARANCE()
@@ -387,6 +389,22 @@ void GcodeSuite::G28() {
     }
   #endif
 
+#if HAS_UNEVEN_BED_DETECTION()
+  if (config_store().auto_z_align_homing.get() && !z_auto_align_done && Z) {
+    if (X || Y) {
+      G28_no_parser(X, Y, false, flags);
+    }
+    // Attempted once per Z motor power cycle; auto_calib_Z backs off instead of pushing against an obstruction.
+    const auto selftest_result = config_store().selftest_result.get();
+    if (!selftest::auto_calib_Z(true)) {
+      // A blocked lift leaves Z align marked failed, which would start the Z calibration wizard.
+      config_store().selftest_result.set(selftest_result);
+    }
+    z_auto_align_done = true;
+    G28_no_parser(false, false, true, flags);
+    return;
+  }
+#endif
   G28_no_parser(X, Y, Z, flags);
 }
 /** @}*/
