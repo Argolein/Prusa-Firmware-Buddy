@@ -1,3 +1,4 @@
+#include <optional>
 #include "../../lib/Marlin/Marlin/src/gcode/gcode.h"
 #include "../../../lib/Marlin/Marlin/src/module/motion.h"
 #include "../../../lib/Marlin/Marlin/src/module/planner.h"
@@ -89,29 +90,40 @@ void selftest::calib_Z([[maybe_unused]] bool move_down_after) {
 #else
 static constexpr float AFTER_Z_CALIB_Z_POS = 50;
 
-static void safe_move_down() {
+static void safe_move_down(bool show_ui) {
     DEPLOY_PROBE();
 
     // Move to AFTER_Z_CALIB_Z_POS with Z endstop enabled
     float target_Z = AFTER_Z_CALIB_Z_POS - TERN0(HAS_HOTEND_OFFSET, hotend_currently_applied_offset.z);
 
-    Subscriber cb { marlin_server::idle_publisher,
-        [&]() {
-            // FSMAndPhase(ClientFSM::Load_unload, pause.getPhaseIndex())
-            ProgressPercent progress = ProgressSpan { 0, 100 }.map(to_normalized_progress(current_position.z, target_Z, marlin_vars().native_pos[MARLIN_VAR_INDEX_Z]));
-            marlin_server::fsm_change(FSMAndPhase(ClientFSM::Selftest, GetPhaseIndex(PhasesSelftest::CalibZ)), { progress });
-        } };
+    AutoRestore _se(soft_endstops_enabled, false);
+    TemporaryGlobalEndstopsState _ess(true);
+
+    // Create an empty optional for the subscriber so we can conditionally instantiate it
+    std::optional<Subscriber<>> cb;
+    if (show_ui) {
+        cb.emplace(marlin_server::idle_publisher,
+            [&]() {
+                ProgressPercent progress = ProgressSpan { 0, 100 }.map(to_normalized_progress(current_position.z, target_Z, marlin_vars().native_pos[MARLIN_VAR_INDEX_Z]));
+                marlin_server::fsm_change(FSMAndPhase(ClientFSM::Selftest, GetPhaseIndex(PhasesSelftest::CalibZ)), { progress });
+            });
+    }
 
     if (do_homing_move(AxisEnum::Z_AXIS, target_Z - current_position.z, HOMING_FEEDRATE_INVERTED_Z)) {
         // endstop triggered, raise the nozzle
+        current_position.z = Z_MIN_POS;
+        sync_plan_position();
         move_z_after_probing();
+    } else {
+        current_position.z = target_Z;
+        sync_plan_position();
     }
 
     STOW_PROBE();
 }
 
-void selftest::calib_Z(bool move_down_after) {
-    // mark test as failed (so it will be failed after reset - disconnected cables can cause rsod)
+void selftest::calib_Z(bool move_down_after, bool show_ui) {
+    // mark test as failed (so it will be failed after reset)
     auto result = config_store().selftest_result.get();
     result.set_zalign(TestResult::failed);
     config_store().selftest_result.set(result);
@@ -125,7 +137,9 @@ void selftest::calib_Z(bool move_down_after) {
     planner.set_max_acceleration(Z_AXIS, def_accel[Z_AXIS]);
 
     // Z axis lift
-    marlin_server::fsm_change(PhasesSelftest::CalibZ);
+    if (show_ui) {
+        marlin_server::fsm_change(PhasesSelftest::CalibZ);
+    }
     endstops.enable(true); // Stall endstops need to be enabled manually as in G28
     if (!homeaxis(Z_AXIS, HOMING_FEEDRATE_INVERTED_Z, true)) {
         fatal_error(ErrCode::ERR_ELECTRO_HOMING_ERROR_Z);
@@ -144,7 +158,7 @@ void selftest::calib_Z(bool move_down_after) {
     do_blocking_move_to_z(Z_MAX_POS - 1, Z_CALIB_ALIGN_AXIS_FEEDRATE);
 
     if (move_down_after) {
-        safe_move_down();
+        safe_move_down(show_ui);
     }
 
     // always set axis as unhomed (Z_MAX_POS is unreliable, Z_MIN_POS is not probed with homeaxis()!)
