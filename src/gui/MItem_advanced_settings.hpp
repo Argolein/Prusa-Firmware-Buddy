@@ -126,3 +126,11 @@ public:
     MI_ADV_PREHEAT_FOR_UNLOADING();
     virtual void OnChange(size_t old_index) override;
 };
+
+class MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE : public WI_ICON_SWITCH_OFF_ON_t {
+    constexpr static const char *const label = "Cooldown nozzle after loading when idle";
+
+public:
+    MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE();
+    virtual void OnChange(size_t old_index) override;
+};
