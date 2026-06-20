@@ -84,3 +84,11 @@ void MI_ADV_PREHEAT_FOR_UNLOADING::OnChange(size_t old_index) {
     WI_ICON_SWITCH_OFF_ON_t::OnChange(old_index);
     config_store().preheat_for_unloading.set(value());
 }
+
+MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE::MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE()
+    : WI_ICON_SWITCH_OFF_ON_t(config_store().cooldown_after_loading_when_idle.get() ? 1 : 0, _(label), nullptr, is_enabled_t::yes, is_hidden_t::no) {}
+
+void MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE::OnChange(size_t old_index) {
+    WI_ICON_SWITCH_OFF_ON_t::OnChange(old_index);
+    config_store().cooldown_after_loading_when_idle.set(value());
+}
