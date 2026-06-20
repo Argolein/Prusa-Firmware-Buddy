@@ -37,3 +37,11 @@ public:
 protected:
     void OnClick() override;
 };
+
+class MI_ADV_PREHEAT_FOR_UNLOADING : public WI_ICON_SWITCH_OFF_ON_t {
+    constexpr static const char *const label = "Preheat before unloading";
+
+public:
+    MI_ADV_PREHEAT_FOR_UNLOADING();
+    virtual void OnChange(size_t old_index) override;
+};

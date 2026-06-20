@@ -15,7 +15,8 @@ using ScreenMenuAdvancedSettings = ScreenMenu<
     MI_ADV_STEPS_PER_UNIT_X,
     MI_ADV_STEPS_PER_UNIT_Y,
     MI_ADV_STEPS_PER_UNIT_Z,
-    MI_ADV_STEPS_PER_UNIT_E>;
+    MI_ADV_STEPS_PER_UNIT_E,
+    MI_ADV_PREHEAT_FOR_UNLOADING>;
 
 } // namespace detail
 
