@@ -236,7 +236,13 @@ void filament_gcodes::M70X_process_user_response(PreheatStatus::Result res, Virt
     switch (res) {
     case PreheatStatus::Result::DoneHasFilament: {
         const float disp_temp = config_store().get_filament_type(target_extruder).parameters().nozzle_preheat_temperature;
-        thermalManager.setTargetHotend(static_cast<int16_t>(disp_temp), target_extruder.to_physical());
+        if (config_store().cooldown_after_loading_when_idle.get() && marlin_server::printer_idle() && !marlin_server::printer_paused_extended()) {
+            thermalManager.setTargetHotend(0, target_extruder.to_physical());
+            marlin_server::set_temp_to_display(0, target_extruder.to_physical());
+        } else {
+            thermalManager.setTargetHotend(static_cast<int16_t>(disp_temp), target_extruder.to_physical());
+            marlin_server::set_temp_to_display(disp_temp, target_extruder.to_physical());
+        }
         break;
     }
     case PreheatStatus::Result::CooledDown:
@@ -369,7 +375,7 @@ void filament_gcodes::M1701_autoload(const std::optional<float> &fast_load_lengt
 
     // at this point autoload is considered successful so fail guard is not to be triggered and we report DoneHasFilament as status
     fail_guard.disarm();
-    PreheatStatus::SetResult(PreheatStatus::Result::DoneHasFilament);
+    M70X_process_user_response(PreheatStatus::Result::DoneHasFilament, target_extruder);
 }
 
 void filament_gcodes::M1600_change_filament(FilamentType filament_to_be_loaded, VirtualToolIndex virtual_tool, RetAndCool_t preheat, AskFilament_t ask_filament, std::optional<Color> color_to_be_loaded) {
