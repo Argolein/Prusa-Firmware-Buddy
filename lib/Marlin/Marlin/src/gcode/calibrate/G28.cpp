@@ -100,6 +100,8 @@
 #include <marlin_server.hpp>
 #include <feature/print_status_message/print_status_message_guard.hpp>
 #include <config_store/store_instance.hpp>
+#include <calibration_z.hpp>
+#include <buddy/unreachable.hpp>
 
 #include <option/has_ceiling_clearance.h>
 #if HAS_CEILING_CLEARANCE()
@@ -379,7 +381,23 @@ void GcodeSuite::G28() {
     }
   #endif
 
-  G28_no_parser(X, Y, Z, flags);
+  if (config_store().auto_z_align_homing.get() && !z_auto_align_done && Z) {
+    if (X || Y) {
+      G28_no_parser(X, Y, false, flags);
+    }
+    selftest::calib_Z(true, false);
+
+    // calib_Z leaves the EEPROM result as TestResult_Failed, which causes the background
+    // state machine to jump to the Z calibration wizard. Mark it as passed to prevent this.
+    auto result = config_store().selftest_result.get();
+    result.zalign = TestResult_Passed;
+    config_store().selftest_result.set(result);
+
+    G28_no_parser(false, false, true, flags);
+    z_auto_align_done = true;
+  } else {
+    G28_no_parser(X, Y, Z, flags);
+  }
 }
 /** @}*/
 
