@@ -120,53 +120,35 @@ Reference: Klipper fix `c84d78f3f169bc5163d11b74837f9880b0b7dba4` and OrcaSlicer
 - [ ] In progress
 - [x] Done
 
-Detailed task list:
-- [x] Add `pressure_advance_value` field to `move_t` and `block_t`.
-- [x] Implement `pressure_advance::queued_value` shadow + getters/setters.
-- [x] Wire `block_t.pressure_advance_value = get_queued_value()` in `_populate_block` (both normal and raw-block paths).
-- [x] Wire `move_t.pressure_advance_value = block.pressure_advance_value` in `append_move_segment_to_queue` (all three phase callers).
-- [x] Refactor `M572_internal` to dispatch hot vs. structural path.
-- [x] Switch `pressure_advance_precalculate_parameters` and the next-move start-pos correction to read per-move PA value.
-- [x] Keep `PRESSURE_ADVANCE_STEP_GENERATOR_E` armed across non-zero PA changes; clear it on PA=0 (M572 S0 / PressureAdvanceDisabler).
-- [x] Loosen assertion in `set_axis_e_config` (kept the queue-empty assertion since callers still flush before invoking it; sticky-on logic added so subsequent M572 S<x> bypass it via the hot path).
-- [x] Patch `M900.cpp` to preserve current `smooth_time`.
-- [x] Smoke build for Core One (Docker GCC13, `-Werror`, two builds — second after the Codex-driven semantics fix).
-- [x] Manual verification on Core One hardware: feature works during real print, no observable hiccups, no regressions reported.
-- [x] Remove now-dead `pressure_advance_params_t::pressure_advance_value` field (PR cleanup).
+Detailed task list (Preheat for Unloading):
+- [x] Add `preheat_for_unloading` to config store (`store_definition.hpp`).
+- [x] Add `MI_ADV_PREHEAT_FOR_UNLOADING` switch to GUI headers and implementation.
+- [x] Add to `ScreenMenuAdvancedSettings` menu layout.
+- [x] Modify `M702_unload` in `M701_2.cpp` to bypass preheat when disabled.
+- [x] Modify `load_unload` in `M701_2.cpp` to allow cold extrude when preheat is disabled.
+- [x] Run build tests to verify no syntax errors (compiled via Docker `utils/build.py`).
 
 ## Decisions
-- The Bartlett FIR smoothing window is preserved as-is; it provides the per-move blending. No new low-pass filter is introduced.
-- `smooth_time` (`W`) remains a structural parameter that requires queue drain; only `pressure_advance` (`S`) goes through the hot queued path. OrcaSlicer adaptive PA only emits `S`, so this covers the use case (confirmed 2026-06-13).
-- PA step generator stays armed across non-zero PA value changes (the hot-path use case). **Going to PA value 0 is a structural disable**, not a hot-path update: the generator bit is cleared and the FIR lookback drops to zero. This is required so that `M572 S0` retains its documented "disable" semantics and so that `PressureAdvanceDisabler` (used by G28 / probe — see `assert(...is_active())` in `probe.cpp`) actually removes PA-induced motion latency. Re-activating after a disable (PA value 0 → >0) takes the structural path again. OrcaSlicer adaptive PA is unaffected: it varies PA between non-zero values and never emits S=0 mid-print, so the entire adaptive-PA hot loop remains flush-free.
-- Per-move PA value is stored on both `block_t` (gcode-thread snapshot) and `move_t` (motion-thread carrier) to guarantee ordering across the planner→precise_stepping boundary.
-- Queued PA shadow value uses `std::atomic<float>` with `memory_order_relaxed` (confirmed 2026-06-13). Word-atomicity on Cortex-M is sufficient; per-move ordering is enforced by the planner queue itself, not by the atomic.
-- **M900 K must NOT overwrite `smooth_time`** (confirmed 2026-06-13). Current upstream behavior of resetting smooth_time to 0.04 on every M900 K is removed; instead M900 K reads the active smooth_time and only changes the PA value. This guarantees M900 K is always hot path during a print, matching M572 S semantics.
-- Legacy stepper ISR (non phase-stepping) is **out of scope**.
-- `PressureAdvanceDisabler` (used by G425 calibration, G28 homing, and `probe.cpp` — the latter contains an explicit `assert(...is_active())`) keeps its flushing semantics and now correctly drops the PA generator bit + FIR lookback during its scope, so homing/probe see classic E-stepping latency, not PA latency.
+- The "Preheat before unloading" feature is user-configurable from the "Advanced settings" menu. It is enabled by default.
+- If disabled, `M702` (unload) will bypass the preheat block completely and `load_unload` will temporarily disable `PREVENT_COLD_EXTRUSION` specifically for unloading, so the filament will retract cold. This correctly assumes the user relies on their slicer's end G-code to have moved the filament out of the melt zone safely.
+- Used Docker compilation to verify that changes don't cause any compile errors on GCC 13.
 
 ## Handoff
-- Agent: Claude Code (Opus 4.7)
-- Date: 2026-06-14
-- Completed in this work item:
-  - Analyzed M572 / pressure-advance / precise-stepping / phase-stepping code paths on branch `v.6.5.3-Argo-adaptivePA` and authored a file-level plan (above).
-  - Implemented all 10 code changes across `block_t`, `move_t`, `pressure_advance_config`, `pressure_advance`, `precise_stepping`, `planner`, `M572`, and `M900`.
-  - Two smoke builds with Docker GCC13 + `-Werror`. First build .bbf SHA256 `46418ad5…`; second build (after Codex fix) `f3dbfdef…`.
-  - Addressed two correctness regressions surfaced by Codex review: an unconditional sticky-on broke `M572 S0` disable semantics and stopped `PressureAdvanceDisabler` from dropping PA lookback during homing/probe. Fixed by gating the hot path on `new value > 0` AND `!PressureAdvanceDisabler::is_active()`, and by making the structural path always clear the generator bit when PA value is 0.
-  - PR cleanup: removed now-dead `pressure_advance_params_t::pressure_advance_value` field (PA amplitude lives on each `move_t` now).
-  - Hardware-verified by user during real Core One print: adaptive PA works without observable hiccups.
+- Agent: Gemini CLI
+- Date: 2026-06-20
+- Completed this session:
+  - Addressed the user's request to make the "preheat before unload" feature optional via a toggle.
+  - Implemented the config store flag, GUI toggle logic, and `M701_2.cpp` logic to skip preheating and allow cold extrusion during unload when disabled.
+  - Verified compilation via Docker GCC 13.
 - Stopped at:
-  - Implementation complete, hardware-verified, PR-cleanup done. Awaiting user decision to commit / open PR.
+  - Implementation is fully complete and verified to compile.
 - Next step:
-  - Operator to review the final diff, then commit on `v.6.5.3-Argo-adaptivePA` and (optionally) open a PR upstream.
+  - Flash the firmware onto the hardware to verify functionality works as intended.
 - Open blockers:
-  - none.
-- Decisions made:
-  - Hot path covers non-zero ↔ non-zero PA value changes only. PA=0 (explicit M572 S0 or PressureAdvanceDisabler) always takes the structural path so the generator bit and FIR lookback are dropped — required for `M572 S0` documented semantics and for homing/probe latency.
-  - `std::atomic<float>` with `memory_order_relaxed` for the per-move PA shadow.
-  - `M900 K` no longer overwrites `smooth_time` with the default; it preserves whatever `smooth_time` is currently active, so `M900 K` during a print stays on the hot path.
-  - OrcaSlicer adaptive PA only emits `M572 S<x>` with `x > 0`; `M572 W<x>` (smooth_time change) stays on the flushing structural path.
-  - `can_use_queued_path` additionally guards against `PressureAdvanceDisabler::is_active()` for semantic consistency, even though the guard is normally unreachable from gcode-thread M572 handling.
+  - none
+- Decisions made this session:
+  - Modified cold extrusion prevention condition on unloading to explicitly respect the new `preheat_for_unloading` config option, ensuring cold unloads are permitted without errors.
 
 ## Notes
-- The previous PLANS.md content (Advanced Settings menu / steps-per-mm / motor currents) is preserved in git history (commits up to `f62c2f66f`) and was marked Done by Codex on 2026-05-30. It has been replaced because it covered an unrelated, completed task.
-- A smoke build on Core One should be requested before flashing — confirm with the user (per Notes guidance) which build preset/toolchain to use (Docker GCC13 was used for the previous Steps/mm change).
+- The firmware was successfully built via Docker.
+- A previous issue with `GetIndex()` vs `value()` in the UI toggle implementation was fixed and now compiles correctly.
