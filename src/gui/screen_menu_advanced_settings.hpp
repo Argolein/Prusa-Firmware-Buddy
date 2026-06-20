@@ -17,7 +17,8 @@ using ScreenMenuAdvancedSettings = ScreenMenu<
     MI_ADVANCED_MOTOR_CURRENTS,
     MI_ADVANCED_HOMING_SENSITIVITY,
     MI_ADV_PREHEAT_FOR_UNLOADING,
-    MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE>;
+    MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE,
+    MI_ADV_AUTO_Z_ALIGN_HOMING>;
 
 using ScreenMenuAdvancedStepsPerMm = ScreenMenu<
     GuiDefaults::MenuFooter,
