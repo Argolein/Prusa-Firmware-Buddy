@@ -1,4 +1,9 @@
-# PLANS.md
+# Adaptive Pressure Advance — planning notes (ARCHIVED)
+
+> **Status: DONE / merged.** Implemented on the Argo fork — see commit `e1e470b7d`
+> ("adaptive PA: avoid planner flush on M572 S/M900 K value changes") and the related
+> calibration fix `a10f4b38e`. Kept for design rationale only; not an active plan.
+> Current state: see [`ARGO-DEVELOPMENT.md`](../../ARGO-DEVELOPMENT.md).
 
 ## Objective
 Implement Klipper-style **adaptive pressure advance** support for the Prusa Core One on Prusa-Buddy firmware (branch `v.6.5.3-Argo-adaptivePA`), so that OrcaSlicer's adaptive PA feature works without motion hiccups.
