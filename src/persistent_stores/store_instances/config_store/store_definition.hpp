@@ -512,6 +512,25 @@ struct CurrentStore
 
     void clear_previous_filament_type(uint8_t index);
 
+    /// Master enable for the Filament Color Manager feature (Settings -> Hardware).
+    /// When disabled, the "Type and color" menu and the autoload color prompt are
+    /// hidden; the menu toggle also wipes all stored colors via clear_all_filament_colors().
+    StoreItem<bool, false, ItemFlag::features, journal::hash("Filament Color Manager Enabled")> filament_color_manager_enabled;
+
+    /// Per-tool filament color, stored as an index into filament_color_presets.
+    /// 255 means "no color assigned". Purely cosmetic metadata.
+    /// DO NOT ACCESS THIS ARRAY DIRECTLY, use the getter/setter instead.
+    StoreItemArray<uint8_t, uint8_t { 255 }, ItemFlag::printer_state, journal::hash("Filament Colors"), 16, PhysicalToolIndex::count> filament_color;
+
+    /// Returns the stored filament color palette index for the given tool, or nullopt if unset.
+    std::optional<uint8_t> get_filament_color(PhysicalToolIndex tool);
+
+    /// Sets the filament color palette index for the given tool. Pass nullopt to clear it.
+    void set_filament_color(PhysicalToolIndex tool, std::optional<uint8_t> palette_index);
+
+    /// Clears the stored filament color for every tool.
+    void clear_all_filament_colors();
+
     // Note: hash is kept for backwards compatibility
     StoreItem<bool, false, ItemFlag::features, journal::hash("Heatup Bed")> filament_change_preheat_all;
 

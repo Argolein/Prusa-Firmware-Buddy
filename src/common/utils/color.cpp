@@ -4,12 +4,7 @@
 
 #include <str_utils.hpp>
 
-struct ColorPreset {
-    std::string_view name;
-    Color color;
-};
-
-static constexpr auto color_presets = std::to_array<ColorPreset>({
+const std::array<ColorPreset, 15> filament_color_presets = std::to_array<ColorPreset>({
     { "BLACK", Color::from_raw(0x000000) },
     { "BLUE", Color::from_raw(0x0000FF) },
     { "GREEN", Color::from_raw(0x00FF00) },
@@ -26,6 +21,27 @@ static constexpr auto color_presets = std::to_array<ColorPreset>({
     { "YELLOW", Color::from_raw(0xFFFF00) },
     { "WHITE", Color::from_raw(0xFFFFFF) },
 });
+
+std::optional<uint8_t> filament_color_palette_index(std::optional<Color> color) {
+    if (!color) {
+        return std::nullopt;
+    }
+    for (uint8_t i = 0; i < filament_color_presets.size(); ++i) {
+        if (filament_color_presets[i].color == *color) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<uint8_t> filament_color_palette_index_by_name(std::string_view name) {
+    for (uint8_t i = 0; i < filament_color_presets.size(); ++i) {
+        if (filament_color_presets[i].name == name) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
 
 Color Color::mix(Color back, Color front, uint8_t front_alpha) {
     // Technically correct would be "/ 255", but difference to ">> 8" is less than 1.
@@ -48,7 +64,7 @@ std::optional<Color> Color::from_string(const std::string_view &str) {
     }
 
     // Color preset
-    for (const ColorPreset &c : color_presets) {
+    for (const ColorPreset &c : filament_color_presets) {
         if (str == c.name) {
             return c.color;
         }

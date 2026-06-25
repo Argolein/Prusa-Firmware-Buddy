@@ -30,6 +30,8 @@
 
 #include "screen_printing.hpp"
 #include <feature/filament_sensor/filament_sensors_handler.hpp>
+#include <gui/screen/filament/screen_type_and_color.hpp>
+#include <ScreenFactory.hpp>
 
 #include <raii/auto_restore.hpp>
 #include "lazyfilelist.hpp"
@@ -518,6 +520,15 @@ void screen_home_data_t::windowEvent(window_t *sender, GUI_event_t event, void *
             }
         }
 #endif // HAS_SELFTEST
+
+        // Filament Color Manager (INDX): a non-selected tool's sensor saw a filament
+        // insertion while idle. Open the passive type+color registration screen.
+        // This is GUI-only (no motion, no preheat) and only happens on the home screen.
+        if (!DialogHandler::Access().IsOpen()) {
+            if (const auto tool = FSensors_instance().consume_pending_color_registration()) {
+                Screens::Access()->Open(ScreenFactory::ScreenWithArg<ScreenToolTypeAndColor>(static_cast<uint8_t>(tool->to_raw())));
+            }
+        }
     }
 
 #if !HAS_LOADCELL()

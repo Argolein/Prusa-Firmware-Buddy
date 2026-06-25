@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <algorithm>
+#include <array>
 #include <string_view>
 #include <bit>
 #include <option/signature_oak.h>
@@ -99,3 +100,24 @@ constexpr Color COLOR_BRAND = COLOR_ORANGE;
 #endif
 
 constexpr Color COLOR_DARK_KHAKI = Color::from_raw(0xDBD76B);
+
+/// A named color from the predefined filament color palette.
+struct ColorPreset {
+    std::string_view name;
+    Color color;
+};
+
+/// Predefined filament color palette used by the Filament Color Manager.
+///
+/// The index into this array is persisted in EEPROM (config_store.filament_color),
+/// therefore the order and contents of existing entries MUST NOT change.
+/// New colors may only be appended at the end.
+extern const std::array<ColorPreset, 15> filament_color_presets;
+
+/// Returns the index of \p color in filament_color_presets, or nullopt if \p color
+/// is not (or is no color) in the palette.
+std::optional<uint8_t> filament_color_palette_index(std::optional<Color> color);
+
+/// Returns the index of the palette color whose name equals \p name (case-sensitive,
+/// e.g. "RED"), or nullopt if there's no such color.
+std::optional<uint8_t> filament_color_palette_index_by_name(std::string_view name);

@@ -11,6 +11,7 @@
 #include <marlin_server.hpp>
 #include <option/has_selftest.h>
 #include <option/has_mmu2.h>
+#include <option/has_indx.h>
 
 #include <option/has_toolchanger.h>
 #if HAS_TOOLCHANGER()
@@ -299,7 +300,41 @@ void FilamentSensors::process_events() {
         if (check_autoload()) {
             return;
         }
+
+        // Filament Color Manager (INDX): offer passive type+color registration for a
+        // non-selected tool whose sensor saw an insertion. Idle-only (we're in the
+        // not-printing branch), no motion and no preheat.
+        check_passive_color_registration();
     }
+}
+
+void FilamentSensors::check_passive_color_registration() {
+#if HAS_INDX()
+    if (!config_store().filament_color_manager_enabled.get()) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < PhysicalToolIndex::count; ++i) {
+        // The currently selected tool's insertion is handled by the normal autoload.
+        if (i == tool_index) {
+            continue;
+        }
+
+        IFSensor *side_fs = GetSideFSensor(PhysicalToolIndex::from_raw(i));
+        if (side_fs && side_fs->is_enabled() && side_fs->last_event() == IFSensor::Event::filament_inserted) {
+            // Request the GUI to open the passive registration dialog for this tool.
+            pending_color_registration_tool_ = i;
+        }
+    }
+#endif
+}
+
+std::optional<PhysicalToolIndex> FilamentSensors::consume_pending_color_registration() {
+    const uint8_t tool = pending_color_registration_tool_.exchange(PhysicalToolIndex::count);
+    if (tool >= PhysicalToolIndex::count) {
+        return std::nullopt;
+    }
+    return PhysicalToolIndex::from_raw(tool);
 }
 
 void FilamentSensors::process_enable_state_update() {
