@@ -10,6 +10,9 @@
 #include <gui/screen/filament/screen_filament_detail.hpp>
 #include <ScreenHandler.hpp>
 #include <gui/standard_frame/frame_prompt.hpp>
+#include <utils/color.hpp>
+#include <display.hpp>
+#include <guiconfig/GuiDefaults.hpp>
 
 #if HAS_ANFC()
     #include <feature/openprinttag/tool_tag.hpp>
@@ -278,6 +281,72 @@ struct FrameFilamentSelection {
 };
 static_assert(common_frames::is_update_callable<FrameFilamentSelection>);
 
+// * Filament Color Manager: color selection during load
+class MI_PREHEAT_COLOR : public IWindowMenuItem {
+public:
+    MI_PREHEAT_COLOR(uint8_t palette_index)
+        : IWindowMenuItem(string_view_utf8::MakeCPUFLASH(filament_color_presets[palette_index].name.data()), Rect16::Width_t { 32 })
+        , palette_index_(palette_index) {}
+
+    void click(IWindowMenu &) final {
+        marlin_client::FSM_response_variant(PhasesPreheat::user_color_selection, FSMResponseVariant::make<Color>(filament_color_presets[palette_index_].color));
+    }
+
+protected:
+    void printExtension(Rect16 extension_rect, [[maybe_unused]] Color color_text, Color color_back, [[maybe_unused]] ropfn raster_op) const override {
+        const Color color = filament_color_presets[palette_index_].color;
+        constexpr auto margin = 6;
+        constexpr auto padding = 1;
+
+        const auto outer_size = extension_rect.Height() - margin * 2;
+        const Rect16 outer_rect = Rect16::fromLTWH(extension_rect.Left(), extension_rect.Top() + margin, outer_size, outer_size);
+        display::draw_rounded_rect(outer_rect, color_back, COLOR_WHITE, GuiDefaults::MenuItemCornerRadius, MIC_ALL_CORNERS);
+
+        const auto inner_size = outer_size - padding * 2;
+        const Rect16 inner_rect = Rect16::fromLTWH(outer_rect.Left() + padding, outer_rect.Top() + padding, inner_size, inner_size);
+        display::draw_rounded_rect(inner_rect, COLOR_WHITE, color, GuiDefaults::MenuItemCornerRadius, MIC_ALL_CORNERS);
+    }
+
+private:
+    uint8_t palette_index_;
+};
+
+class WindowMenuColor : public WindowMenuVirtual {
+public:
+    WindowMenuColor(window_t *parent, const Rect16 &rect)
+        : WindowMenuVirtual(parent, rect, CloseScreenReturnBehavior::no) {
+        setup_items();
+    }
+
+    int item_count() const final {
+        return 1 + static_cast<int>(filament_color_presets.size()); // Return + colors
+    }
+
+protected:
+    void setup_item(ItemVariant &variant, int index) final {
+        if (index == 0) {
+            const auto callback = [] {
+                marlin_client::FSM_response(PhasesPreheat::user_color_selection, Response::Abort);
+            };
+            variant.emplace<WindowMenuCallbackItem>(_("Return"), callback, &img::folder_up_16x16);
+        } else {
+            variant.emplace<MI_PREHEAT_COLOR>(static_cast<uint8_t>(index - 1));
+        }
+    }
+};
+
+struct FrameColorSelection {
+    WindowExtendedMenu<WindowMenuColor> menu;
+
+    FrameColorSelection(window_frame_t *parent)
+        : menu(parent, parent->GetRect()) {
+        parent->CaptureNormalWindow(menu);
+    }
+
+    void update(const fsm::PhaseData &) {}
+};
+static_assert(common_frames::is_update_callable<FrameColorSelection>);
+
 #if HAS_ANFC()
 // Note: we need the window_t so that we can hook to the loop event
 class FrameAskLoadOpenPrintTag : public FramePrompt {
@@ -368,7 +437,8 @@ using Frames
         FrameDefinition<Phase::ask_load_openprinttag, FrameAskLoadOpenPrintTag>,
         FrameDefinition<Phase::openprinttag_parameters, FrameOPTParameters>,
 #endif
-        FrameDefinition<Phase::user_temp_selection, FrameFilamentSelection>>;
+        FrameDefinition<Phase::user_temp_selection, FrameFilamentSelection>,
+        FrameDefinition<Phase::user_color_selection, FrameColorSelection>>;
 
 } // namespace
 

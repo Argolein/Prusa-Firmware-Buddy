@@ -16,6 +16,7 @@
 #include <fsm/preheat_phases.hpp>
 #include <utils/variant_utils.hpp>
 #include <feature/gcode_exception/gcode_exception.hpp>
+#include <filament_to_load.hpp>
 
 #if HAS_CHAMBER_API()
     #include <feature/chamber/chamber.hpp>
@@ -56,6 +57,28 @@ static bool can_use_openprinttag(PreheatMode preheat_mode) {
     bsod_unreachable();
 }
 #endif
+
+/// Filament Color Manager: whether to ask the user for a filament color after the
+/// type is chosen. Only during a load (not preheat/unload/purge) and only when enabled.
+static bool should_ask_filament_color(PreheatMode mode) {
+    if (!config_store().filament_color_manager_enabled.get()) {
+        return false;
+    }
+
+    switch (mode) {
+    case PreheatMode::autoload:
+    case PreheatMode::standard_load:
+    case PreheatMode::change_load:
+        return true;
+
+    case PreheatMode::preheat:
+    case PreheatMode::unload:
+    case PreheatMode::purge:
+        return false;
+    }
+
+    bsod_unreachable();
+}
 
 static FSMResponseVariant preheatTempUnKnown(PreheatData preheat_data) {
     const auto serialized_data = preheat_data.serialize();
@@ -187,6 +210,29 @@ static FSMResponseVariant preheatTempUnKnown(PreheatData preheat_data) {
 
     while (true) {
         if (const auto ret = marlin_server::get_response_variant_from_phase(PhasesPreheat::user_temp_selection)) {
+            // Filament Color Manager: after a filament type is chosen during a load,
+            // ask the user for a color. The color is stashed in color_to_load and
+            // persisted on successful load (see Pause). Aborting the color step just
+            // continues the load without a color.
+            if (ret.holds_alternative<FilamentType>() && should_ask_filament_color(preheat_data.mode)) {
+                fsm.change(PhasesPreheat::user_color_selection, serialized_data);
+
+                while (true) {
+                    if (const auto color_ret = marlin_server::get_response_variant_from_phase(PhasesPreheat::user_color_selection)) {
+                        if (color_ret.holds_alternative<Color>()) {
+                            filament::set_color_to_load(color_ret.value<Color>());
+                        }
+                        break;
+                    }
+
+                    if (check_early_exit()) {
+                        break;
+                    }
+
+                    idle(true);
+                }
+            }
+
             return ret;
         }
 
