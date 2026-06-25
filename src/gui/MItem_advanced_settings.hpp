@@ -120,7 +120,9 @@ protected:
 };
 
 class MI_ADV_PREHEAT_FOR_UNLOADING : public WI_ICON_SWITCH_OFF_ON_t {
-    constexpr static const char *const label = "Preheat before unloading";
+    // ON (default): Prusa behaviour — preheat the nozzle and ram before unloading.
+    // OFF: cold unload — skip the preheat AND skip ramming (ramming cold risks a jam).
+    constexpr static const char *const label = "Preheat & ram before unload";
 
 public:
     MI_ADV_PREHEAT_FOR_UNLOADING();

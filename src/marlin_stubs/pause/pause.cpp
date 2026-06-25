@@ -1190,6 +1190,16 @@ void Pause::ram_sequence_process([[maybe_unused]] Response response) {
     }
 #endif
 
+    // "Preheat & ram before unload" (Advanced Settings) disabled -> the unload runs cold.
+    // Skip ramming: ramming a cold nozzle does not melt the filament and risks grinding / a jam.
+    // is_unload matches the cold-unload condition in M702_unload (M701_2.cpp).
+    const bool is_unload = load_type == LoadType::unload || load_type == LoadType::unload_confirm || load_type == LoadType::unload_from_gears;
+    if (is_unload && !config_store().preheat_for_unloading.get()) {
+        ram_retracted_distance = 0;
+        set(LoadState::unload);
+        return;
+    }
+
     if (ram_filament()) {
         set(LoadState::unload);
     }
