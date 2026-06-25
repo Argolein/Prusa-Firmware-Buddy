@@ -474,7 +474,7 @@ static constexpr float EXTRUDER_SERVICE_MOVE_E_FACTOR = 576.f / 550.f;
     { 100, 100, 400, 550 } // Adjust EXTRUDER_SERVICE_MOVE_E_FACTOR if changed
 #else
 #define DEFAULT_AXIS_STEPS_PER_UNIT \
-    { 101.5873, 101.5873, 400, 380 }
+    { 101.5873f, 101.5873f, 400, 380 }
 #endif
 /**
  * Default Max Feed Rate (mm/s)
