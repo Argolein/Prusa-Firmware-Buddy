@@ -8,6 +8,7 @@
 #include "MItem_filament.hpp"
 #include "MItem_menus.hpp"
 #include "MItem_tools.hpp"
+#include <screen/filament/screen_type_and_color.hpp>
 #include <option/has_toolchanger.h>
 #include <option/has_wastebin_fill_tracking.h>
 
@@ -21,7 +22,8 @@ using ScreenMenuFilament__ = ScreenMenu<GuiDefaults::MenuFooter,
 #if HAS_TOOLCHANGER()
     MI_CHANGEALL,
 #endif
-    MI_FILAMENT_MANAGEMENT //
+    MI_FILAMENT_MANAGEMENT, //
+    MI_TYPE_AND_COLOR //
     >;
 
 class ScreenMenuFilament : public ScreenMenuFilament__ {
