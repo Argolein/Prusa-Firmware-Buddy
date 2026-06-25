@@ -101,6 +101,7 @@
 #include <option/has_phase_stepping.h>
 #if HAS_PHASE_STEPPING()
 #include "../feature/phase_stepping/phase_stepping.hpp"
+#include "../feature/phase_stepping/axes.hpp"
 #endif // HAS_PHASE_STEPPING()
 
 #include <option/has_emergency_stop.h>
@@ -1339,10 +1340,6 @@ bool Planner::_populate_block(block_t * const block,
     FANS_LOOP(i) block->fan_speed[i] = thermalManager.fan_speed[i];
   #endif
 
-  #if EXTRUDERS > 1
-    block->extruder = extruder;
-  #endif
-
   // Snapshot the pressure-advance value that was queued at the moment this
   // block was enqueued. Carries the per-move PA across the gcode-thread →
   // motion-thread boundary so M572 S<x> can change PA without flushing the
@@ -1939,10 +1936,6 @@ bool Planner::populate_raw_block(block_t *const block, const xyze_msteps_t &targ
 
     #if FAN_COUNT > 0
         FANS_LOOP(i) block->fan_speed[i] = Temperature::fan_speed[i];
-    #endif
-
-    #if EXTRUDERS > 1
-        block->extruder = extruder;
     #endif
 
     // Same per-move PA snapshot as in _populate_block (raw_block path).
