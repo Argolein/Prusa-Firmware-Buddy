@@ -12,6 +12,7 @@
 #include "../../lib/Marlin/Marlin/src/feature/prusa/MMU2/mmu2_fsensor.h" // MMU2::FilamentState
 #include <atomic>
 #include <bitset>
+#include <optional>
 #include "config_features.h"
 #include <tool_index.hpp>
 
@@ -94,6 +95,12 @@ public:
         return extruder_fs_independent;
     }
 
+    /// Filament Color Manager (INDX): if filament was inserted into a non-selected tool's
+    /// sensor while idle, returns that tool and clears the request. Used by the GUI to open
+    /// a passive (no motion, no preheat) type+color registration dialog.
+    /// Thread-safe. Returns nullopt when there's no pending request.
+    std::optional<PhysicalToolIndex> consume_pending_color_registration();
+
 public:
     /// Periodically called from the marlin task
     void step();
@@ -104,6 +111,10 @@ private:
     void reconfigure_sensors_if_needed(bool force);
     void process_events();
     void process_enable_state_update();
+
+    /// INDX: detect filament insertion on a non-selected tool's sensor and request a passive
+    /// type+color registration dialog (no motion, no preheat). No-op on other printers.
+    void check_passive_color_registration();
 
     inline bool isEvLocked() const { return event_lock > 0; }
     inline bool isAutoloadLocked() const { return autoload_lock > 0; }
@@ -126,6 +137,11 @@ private:
     std::atomic<bool> enable_state_update_processing = false;
 
     std::atomic<uint8_t> tool_index = uint8_t(-1);
+
+    /// Filament Color Manager (INDX): pending passive type+color registration request.
+    /// Holds the physical tool index whose sensor saw an insertion, or PhysicalToolIndex::count for none.
+    std::atomic<uint8_t> pending_color_registration_tool_ = PhysicalToolIndex::count;
+
     std::atomic<bool> m600_sent = false;
     std::atomic<bool> autoload_sent = false;
     std::atomic<bool> has_mmu = false; // affect only MMU, named correctly .. it is not "has_side_sensor"

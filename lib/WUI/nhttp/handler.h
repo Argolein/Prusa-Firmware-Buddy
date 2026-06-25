@@ -30,6 +30,8 @@
 
 #include "file_info.h"
 #include "file_command.h"
+#include "filament_command.h"
+#include "filament_renderer.h"
 #include "gcode_upload.h"
 #include "gcode_preview.h"
 #include "job_command.h"
@@ -148,9 +150,11 @@ namespace handler {
         SendJson<EmptyRenderer>,
         SendJson<TransferRenderer>,
         SendJson<StatusRenderer>,
+        SendJson<link_content::FilamentRenderer>,
         printer::GcodeUpload,
         printer::GCodePreview,
         printer::JobCommand,
+        printer::FilamentCommand,
         printer::FileInfo,
         printer::FileCommand,
 #if NETWORKING_BENCHMARK_ENABLED
