@@ -87,7 +87,7 @@ next rebase.
 | Motion | CoreXY selftest axis-length calibration fix | `a10f4b38e` | adds `phase_stepping::update_axis_motor_params` |
 | Homing | Automatic Z-alignment during `G28` | `3cb8c663e` | |
 | Network | Wi-Fi / Ethernet mutually exclusive at runtime | `6e92d4af5`, `176caf4ca` | |
-| Filament | UI toggle: skip preheat before unload | `106cdb7f9` | |
+| Filament | Toggle "Preheat & ram before unload" (Advanced Settings): OFF = cold unload, skips BOTH preheat and ramming | `106cdb7f9` (+ ramming skip) | ramming skipped in `ram_sequence_process` because Prusa 6.6.0 rams even when cold |
 | Filament | Cool down nozzle after load when idle | `3a37b1eb8` | |
 | Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `25780ffad` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
 | — | **Rebase repair (drop on next rebase)** | `f8f75a630` | see "Rebase workflow" |
