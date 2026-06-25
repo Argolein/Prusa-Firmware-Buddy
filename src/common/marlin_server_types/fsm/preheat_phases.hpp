@@ -8,6 +8,12 @@
 enum class PhasesPreheat : PhaseUnderlyingType {
     user_temp_selection,
 
+    /// Filament Color Manager: after the filament type is chosen during a load,
+    /// the user picks a color from the predefined palette. The chosen color is
+    /// passed back through FSMResponseVariant(Color). Only used when the feature
+    /// is enabled and the preheat is part of a load.
+    user_color_selection,
+
 #if HAS_ANFC()
     /// Asks the user to load the data from OpenPrintTag
     ask_load_openprinttag,
@@ -29,6 +35,9 @@ namespace ClientResponses {
 inline constexpr EnumArray<PhasesPreheat, PhaseResponses, PhasesPreheat::_cnt> preheat_responses {
     // Additionally, filament type selection is passed through FSMResponseVariant(FilamentType)
     { PhasesPreheat::user_temp_selection, { Response::Abort, Response::Cooldown } },
+
+        // Additionally, the chosen color is passed through FSMResponseVariant(Color)
+        { PhasesPreheat::user_color_selection, { Response::Abort } },
 
 #if HAS_ANFC()
         { PhasesPreheat::ask_load_openprinttag, { Response::Yes, Response::No, Response::Always, Response::Never } },

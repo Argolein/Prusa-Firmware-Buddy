@@ -175,3 +175,14 @@ protected:
     virtual void OnChange(size_t old_index) override;
 };
 #endif
+
+/// Master enable for the Filament Color Manager. Disabling it wipes all stored colors.
+class MI_FILAMENT_COLOR_MANAGER : public WI_ICON_SWITCH_OFF_ON_t {
+    static constexpr const char *const label = N_("Filament Color Manager");
+
+public:
+    MI_FILAMENT_COLOR_MANAGER();
+
+protected:
+    virtual void OnChange(size_t old_index) override;
+};
