@@ -249,3 +249,15 @@ void MI_BELTS_15GT::OnChange([[maybe_unused]] size_t old_index) {
     }
 }
 #endif
+
+MI_FILAMENT_COLOR_MANAGER::MI_FILAMENT_COLOR_MANAGER()
+    : WI_ICON_SWITCH_OFF_ON_t(config_store().filament_color_manager_enabled.get(), _(label), nullptr, is_enabled_t::yes, is_hidden_t::no) {}
+
+void MI_FILAMENT_COLOR_MANAGER::OnChange([[maybe_unused]] size_t old_index) {
+    config_store().filament_color_manager_enabled.set(value());
+
+    // Disabling the feature wipes all stored filament colors.
+    if (!value()) {
+        config_store().clear_all_filament_colors();
+    }
+}

@@ -10,6 +10,7 @@
 #include <option/has_chamber_filtration_api.h>
 #include <common/sys.hpp>
 #include <common/printer_variant/printer_variant.hpp>
+#include <utils/color.hpp>
 
 #include <option/has_selftest.h>
 #if HAS_SELFTEST()
@@ -256,6 +257,9 @@ void CurrentStore::set_filament_type(VirtualToolIndex virtual_tool, FilamentType
         buddy::auto_retract().set_retracted_distance(virtual_tool.to_physical(), std::nullopt);
 #endif
 
+        // On filament removal, clear the cosmetic filament color (Filament Color Manager)
+        set_filament_color(virtual_tool.to_physical(), std::nullopt);
+
         loaded_filament_is_previous.apply([&](auto &item) {
             item.set(virtual_tool.to_raw(), true);
         });
@@ -278,6 +282,25 @@ FilamentType CurrentStore::get_previous_filament_type(VirtualToolIndex tool) {
 void CurrentStore::clear_previous_filament_type(uint8_t index) {
     if (loaded_filament_is_previous.get()[index]) {
         loaded_filament_type.set(index, FilamentType::none);
+    }
+}
+
+std::optional<uint8_t> CurrentStore::get_filament_color(PhysicalToolIndex tool) {
+    const uint8_t value = filament_color.get(tool.to_raw());
+    if (value >= filament_color_presets.size()) {
+        return std::nullopt;
+    }
+    return value;
+}
+
+void CurrentStore::set_filament_color(PhysicalToolIndex tool, std::optional<uint8_t> palette_index) {
+    const uint8_t value = (palette_index && *palette_index < filament_color_presets.size()) ? *palette_index : uint8_t { 255 };
+    filament_color.set(tool.to_raw(), value);
+}
+
+void CurrentStore::clear_all_filament_colors() {
+    for (uint8_t i = 0; i < PhysicalToolIndex::count; ++i) {
+        filament_color.set(i, uint8_t { 255 });
     }
 }
 

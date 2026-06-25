@@ -780,6 +780,11 @@ void Pause::purge_process([[maybe_unused]] Response response) {
         return;
     }
 
+    // Filament Color Manager: persist the chosen color (cosmetic) alongside the type.
+    if (config_store().filament_color_manager_enabled.get()) {
+        config_store().set_filament_color(settings.virtual_tool().to_physical(), filament_color_palette_index(filament::get_color_to_load()));
+    }
+
     if constexpr (option::has_human_interactions) {
         set(LoadState::color_correct_ask);
     } else {

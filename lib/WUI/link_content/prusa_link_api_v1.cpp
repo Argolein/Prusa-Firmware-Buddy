@@ -7,10 +7,14 @@
 #include "../nhttp/job_command.h"
 #include "../nhttp/send_json.h"
 #include "../nhttp/status_renderer.h"
+#include "../nhttp/filament_renderer.h"
+#include "../nhttp/filament_command.h"
 #include "../wui_api.h"
 #include "prusa_api_helpers.hpp"
 
 #include <buddy/filename_defs.hpp>
+#include <tool_index.hpp>
+
 #include <marlin_client.hpp>
 #include <common/path_utils.h>
 #include <transfers/monitor.hpp>
@@ -31,6 +35,7 @@ using std::optional;
 using std::string_view;
 using namespace handler;
 using namespace transfers;
+using nhttp::printer::FilamentCommand;
 using nhttp::printer::FileCommand;
 using nhttp::printer::FileInfo;
 using nhttp::printer::GcodeUpload;
@@ -172,6 +177,29 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
             return Accepted::Accepted;
         } else {
             out.next = StatusPage(Status::NoContent, parser);
+            return Accepted::Accepted;
+        }
+    } else if (suffix == "filament") {
+        // Per-tool filament type + color (Filament Color Manager).
+        get_only(SendJson(FilamentRenderer(), parser.can_keep_alive()), parser, out);
+        return Accepted::Accepted;
+    } else if (auto tool_suffix_opt = remove_prefix(suffix, "filament/"); tool_suffix_opt.has_value()) {
+        int tool = -1;
+        const auto r = from_chars_light(tool_suffix_opt->begin(), tool_suffix_opt->end(), tool);
+        if (r.ec != std::errc {} || tool < 0 || tool >= PhysicalToolIndex::count) {
+            out.next = StatusPage(Status::NotFound, parser);
+            return Accepted::Accepted;
+        }
+        switch (parser.method) {
+        case Method::Put:
+            if (!parser.content_length.has_value()) {
+                out.next = StatusPage(Status::LengthRequired, parser);
+            } else {
+                out.next = FilamentCommand(static_cast<uint8_t>(tool), *parser.content_length, parser.can_keep_alive(), parser.accepts_json);
+            }
+            return Accepted::Accepted;
+        default:
+            out.next = StatusPage(Status::MethodNotAllowed, parser);
             return Accepted::Accepted;
         }
     } else if (remove_prefix(suffix, "files").has_value()) {

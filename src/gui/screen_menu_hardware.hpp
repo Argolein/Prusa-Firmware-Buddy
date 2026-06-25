@@ -47,6 +47,7 @@ using ScreenMenuHardwareBase = BasicScreenMenu<
     MI_SIDE_FSENSOR_REMAP,
 #endif
     MI_FS_AUTOLOAD,
+    MI_FILAMENT_COLOR_MANAGER,
 
 // ================================
 // Motion related
