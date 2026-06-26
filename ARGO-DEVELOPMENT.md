@@ -90,14 +90,16 @@ next rebase.
 | Filament | Toggle "Preheat & ram before unload" (Advanced Settings): OFF = cold unload, skips BOTH preheat and ramming | `106cdb7f9` (+ ramming skip) | ramming skipped in `ram_sequence_process` because Prusa 6.6.0 rams even when cold |
 | Filament | Cool down nozzle after load when idle | `3a37b1eb8` | |
 | Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `25780ffad` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
+| Network | **Bed Mesh Viewer** (`GET /api/v1/mesh` + embedded `mesh.html` heatmap) | `6f13a0986`, `37abeb50e` | design: [`docs/planning/bed-mesh-viewer.md`](docs/planning/bed-mesh-viewer.md); served at `http://<printer>/mesh.html` |
 | — | **Rebase repair (drop on next rebase)** | `f8f75a630` | see "Rebase workflow" |
 
 ---
 
 ## Open / future work
 
-- **Prusa Link web modernization** — [`PLANS-Web.md`](PLANS-Web.md): Bed Mesh API + viewer,
-  G-code console, etc. The Filament Color Manager's `GET/PUT /api/v1/filament` endpoints
+- **Prusa Link web modernization** — [`PLANS-Web.md`](PLANS-Web.md): Bed Mesh API + viewer
+  **done** (`6f13a0986`, `37abeb50e`); G-code console etc. still open. The Filament Color
+  Manager's `GET/PUT /api/v1/filament` endpoints
   (`lib/WUI/nhttp/filament_renderer.*`, `filament_command.*`, routed in
   `prusa_link_api_v1.cpp`) are a working template for that plan's "Phase 1" backend endpoints
   (segmented JSON renderer + body-parsing PUT handler + `handler.h` variant registration +
