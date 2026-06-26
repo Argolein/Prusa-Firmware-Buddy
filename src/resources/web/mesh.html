@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bed Mesh</title>
+<style>
+  /* Metrology-instrument readout. System fonts only — this ships embedded and
+     offline on the printer, so the typographic identity is disciplined use of
+     ui-monospace for every measurement. */
+  :root {
+    --bg: #0e141a;
+    --panel: #151d25;
+    --panel-2: #1b2530;
+    --line: #28333f;
+    --ink: #cdd8e1;
+    --ink-dim: #8493a0;
+    --ink-faint: #5d6b78;
+    --accent: #e0a23a;      /* brass — interactive only */
+    --good: #57b894;
+    --warn: #d98a3d;
+    --bad: #cf5b46;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    padding: 22px;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header.bar {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 14px;
+    margin-bottom: 20px;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .brand .dot { color: var(--accent); }
+  .sub {
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+  .bar-spacer { flex: 1 1 auto; }
+  .status {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); }
+  .led.ok { background: var(--good); box-shadow: 0 0 6px var(--good); }
+  .led.no { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  button.ctl, .toggle {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--ink-dim);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  button.ctl:hover, .toggle:hover { color: var(--ink); border-color: var(--ink-faint); }
+  button.ctl:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .toggle.on { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  button.primary { color: var(--ink); }
+  button.primary:hover { background: var(--panel-2); }
+
+  .layout { display: grid; grid-template-columns: 1fr 280px; gap: 22px; align-items: start; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+  .plot {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 18px 14px;
+    position: relative;
+  }
+  .plot-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .plot-title { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; color: var(--ink-dim); text-transform: uppercase; }
+  .axis-y { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+
+  .stage { display: flex; gap: 14px; }
+  .canvas-col { flex: 1 1 auto; min-width: 0; }
+  #bed { width: 100%; height: auto; display: block; border-radius: 4px; cursor: crosshair; background: var(--panel-2); }
+  .x-axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 6px; padding: 0 2px; }
+
+  .bar-col { display: flex; flex-direction: column; align-items: center; width: 56px; padding-top: 2px; }
+  #colorbar { width: 16px; border-radius: 3px; display: block; }
+  .bar-ticks { display: flex; flex-direction: column; justify-content: space-between; height: 100%; font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-left: 6px; }
+  .bar-wrap { display: flex; height: 100%; }
+  .bar-unit { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-top: 6px; letter-spacing: .04em; }
+
+  aside.readout { display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .card h2 { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 12px; }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .stat:last-child { border-bottom: 0; }
+  .stat .k { font-size: 12px; color: var(--ink-dim); }
+  .stat .v { font-family: var(--mono); font-size: 15px; color: var(--ink); }
+  .stat .v .u { font-size: 11px; color: var(--ink-faint); margin-left: 3px; }
+  .stat.range .v { color: var(--accent); }
+
+  .legend-row { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--ink-dim); padding: 5px 0; }
+  .legend-row .mark { width: 18px; height: 18px; flex: none; display: grid; place-items: center; }
+  .crosshair-ico { width: 13px; height: 13px; position: relative; }
+  .crosshair-ico::before, .crosshair-ico::after { content: ""; position: absolute; background: var(--ink); }
+  .crosshair-ico::before { left: 6px; top: 0; width: 1px; height: 13px; }
+  .crosshair-ico::after { top: 6px; left: 0; height: 1px; width: 13px; }
+  .interp-ico { width: 13px; height: 13px; border-radius: 2px; background: linear-gradient(135deg, #1e5f9e, #f2efe6, #c2402a); opacity: .7; }
+  .contour-ico { width: 14px; height: 0; border-top: 1px solid var(--ink-dim); }
+
+  /* hover readout pinned over the plot */
+  .probe {
+    position: absolute;
+    pointer-events: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(10,15,20,.92);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 6px 8px;
+    color: var(--ink);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .1s;
+    z-index: 5;
+    line-height: 1.5;
+  }
+  .probe b { color: var(--accent); font-weight: 600; }
+  .probe .lbl { color: var(--ink-faint); }
+
+  /* overlay states */
+  .overlay {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px;
+    background: rgba(14,20,26,.96);
+    border-radius: 10px;
+    text-align: center;
+    padding: 30px;
+  }
+  .overlay.show { display: flex; }
+  .overlay .big { font-family: var(--mono); font-size: 14px; color: var(--ink); letter-spacing: .04em; }
+  .overlay .small { font-size: 12px; color: var(--ink-dim); max-width: 340px; }
+  .overlay a { color: var(--accent); text-decoration: none; }
+  .overlay a:hover { text-decoration: underline; }
+
+  .foot { margin-top: 22px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <span class="brand">Bed Mesh<span class="dot">.</span></span>
+    <span class="sub">surface deviation map</span>
+    <span class="bar-spacer"></span>
+    <span class="status"><span id="led" class="led"></span><span id="statusText">connecting…</span></span>
+  </header>
+
+  <div class="controls">
+    <button class="ctl primary" id="refresh">↻ Refresh</button>
+    <span class="toggle on" id="tMode" role="button" tabindex="0" aria-pressed="true">deviation</span>
+    <span class="toggle on" id="tContour" role="button" tabindex="0" aria-pressed="true">contours</span>
+    <span class="toggle on" id="tProbe" role="button" tabindex="0" aria-pressed="true">probe points</span>
+  </div>
+
+  <div class="layout">
+    <section class="plot">
+      <div class="plot-head">
+        <span class="plot-title">Bed surface · Y ↑ / X →</span>
+        <span class="axis-y" id="gridLabel">—</span>
+      </div>
+      <div class="stage">
+        <div class="canvas-col">
+          <canvas id="bed" width="600" height="600"></canvas>
+          <div class="x-axis"><span id="xMin">—</span><span>X (mm)</span><span id="xMax">—</span></div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-wrap">
+            <canvas id="colorbar" width="16" height="260"></canvas>
+            <div class="bar-ticks"><span id="barHi">—</span><span id="barMid">0</span><span id="barLo">—</span></div>
+          </div>
+          <div class="bar-unit">mm</div>
+        </div>
+      </div>
+      <div class="probe" id="probe"></div>
+      <div class="overlay" id="overlay">
+        <div class="big" id="ovBig">No mesh on record</div>
+        <div class="small" id="ovSmall">Run a bed level (First Layer Calibration / <code>G29</code>), then refresh.</div>
+      </div>
+    </section>
+
+    <aside class="readout">
+      <div class="card">
+        <h2>Deviation</h2>
+        <div class="stat range"><span class="k">Range (peak-peak)</span><span class="v" id="sRange">—</span></div>
+        <div class="stat"><span class="k">Std deviation</span><span class="v" id="sStd">—</span></div>
+        <div class="stat"><span class="k">Highest point</span><span class="v" id="sMax">—</span></div>
+        <div class="stat"><span class="k">Lowest point</span><span class="v" id="sMin">—</span></div>
+        <div class="stat"><span class="k">Mean height</span><span class="v" id="sMean">—</span></div>
+      </div>
+      <div class="card">
+        <h2>Legend</h2>
+        <div class="legend-row"><span class="mark"><span class="crosshair-ico"></span></span><span id="legProbe">measured probe point</span></div>
+        <div class="legend-row"><span class="mark"><span class="interp-ico"></span></span><span>interpolated surface</span></div>
+        <div class="legend-row"><span class="mark"><span class="contour-ico"></span></span><span>iso-deviation line</span></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="foot">
+    <span id="footGrid">—</span>
+    <span id="footTime">—</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const bed = $("bed"), bctx = bed.getContext("2d");
+  const cbar = $("colorbar"), cbctx = cbar.getContext("2d");
+  const probeEl = $("probe");
+
+  // Diverging colormap (blue → neutral → red), 5 stops.
+  const STOPS = [
+    [0.00, [30, 95, 158]],
+    [0.25, [111, 176, 216]],
+    [0.50, [232, 233, 224]],
+    [0.75, [220, 130, 52]],
+    [1.00, [194, 64, 42]],
+  ];
+  function colorAt(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (let i = 1; i < STOPS.length; i++) {
+      if (t <= STOPS[i][0]) {
+        const [t0, c0] = STOPS[i - 1], [t1, c1] = STOPS[i];
+        const f = (t - t0) / (t1 - t0);
+        return [
+          Math.round(c0[0] + (c1[0] - c0[0]) * f),
+          Math.round(c0[1] + (c1[1] - c0[1]) * f),
+          Math.round(c0[2] + (c1[2] - c0[2]) * f),
+        ];
+      }
+    }
+    return STOPS[STOPS.length - 1][1];
+  }
+
+  let M = null;       // current mesh model
+  const opts = { mode: "deviation", contour: true, probe: true };
+
+  function isProbed(g, i, j) {
+    const b = g.border, s = Math.max(1, g.major_step);
+    const inX = i >= b && i < g.x_points - b && ((i - b) % s === 0);
+    const inY = j >= b && j < g.y_points - b && ((j - b) % s === 0);
+    return inX && inY;
+  }
+
+  // value -> normalized [0,1] for the active color scale
+  function norm(v) {
+    if (opts.mode === "deviation") {
+      const span = M.maxAbsDev || 1e-6;
+      return (v - M.mean) / (2 * span) + 0.5;
+    }
+    const r = (M.max - M.min) || 1e-6;
+    return (v - M.min) / r;
+  }
+
+  function fmt(v, dec) { return (v >= 0 ? "+" : "") + v.toFixed(dec === undefined ? 3 : dec); }
+  function fmtAbs(v) { return v.toFixed(3); }
+
+  // bilinear sample in grid coordinates (gx,gy continuous), matching firmware interpolation
+  function sample(gx, gy) {
+    const d = M.data, X = M.x_points, Y = M.y_points;
+    gx = Math.max(0, Math.min(X - 1, gx));
+    gy = Math.max(0, Math.min(Y - 1, gy));
+    const x0 = Math.floor(gx), y0 = Math.floor(gy);
+    const x1 = Math.min(X - 1, x0 + 1), y1 = Math.min(Y - 1, y0 + 1);
+    const fx = gx - x0, fy = gy - y0;
+    const a = d[y0][x0], b = d[y0][x1], c = d[y1][x0], e = d[y1][x1];
+    if ([a, b, c, e].some((z) => z === null || Number.isNaN(z))) return NaN;
+    return a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + e * fx * fy;
+  }
+
+  function render() {
+    if (!M) return;
+    const X = M.x_points, Y = M.y_points;
+
+    // size display canvas to the bed aspect ratio, crisp via DPR
+    const cssW = bed.clientWidth || 560;
+    const aspect = ((X - 1) * M.x_step) / Math.max(1e-6, (Y - 1) * M.y_step) || 1;
+    const cssH = Math.round(cssW / aspect);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    bed.width = Math.round(cssW * dpr); bed.height = Math.round(cssH * dpr);
+    bed.style.height = cssH + "px";
+    const W = bed.width, H = bed.height;
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.clearRect(0, 0, W, H);
+
+    // 1) heatmap: paint grid into an offscreen buffer, scale up with smoothing (bilinear)
+    const off = document.createElement("canvas");
+    off.width = X; off.height = Y;
+    const octx = off.getContext("2d");
+    const img = octx.createImageData(X, Y);
+    for (let py = 0; py < Y; py++) {
+      const gy = Y - 1 - py;               // flip: front of bed (y_min) at bottom
+      for (let px = 0; px < X; px++) {
+        const v = M.data[gy][px];
+        const o = (py * X + px) * 4;
+        if (v === null || Number.isNaN(v)) {
+          img.data[o] = 34; img.data[o + 1] = 42; img.data[o + 2] = 50; img.data[o + 3] = 255;
+        } else {
+          const c = colorAt(norm(v));
+          img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+        }
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    bctx.imageSmoothingEnabled = true;
+    bctx.imageSmoothingQuality = "high";
+    bctx.drawImage(off, 0, 0, X, Y, 0, 0, W, H);
+
+    // bed frame
+    bctx.strokeStyle = "rgba(205,216,225,.25)";
+    bctx.lineWidth = dpr;
+    bctx.strokeRect(0.5 * dpr, 0.5 * dpr, W - dpr, H - dpr);
+
+    // 2) contour isolines (deviation from mean), the topographic signature
+    if (opts.contour) drawContours(W, H, dpr);
+
+    // 3) measured probe points as crosshairs
+    if (opts.probe) {
+      for (let j = 0; j < Y; j++) {
+        for (let i = 0; i < X; i++) {
+          if (!isProbed(M, i, j)) continue;
+          const px = (i / (X - 1)) * W;
+          const py = (1 - j / (Y - 1)) * H;
+          const r = 4 * dpr;
+          bctx.strokeStyle = "rgba(14,20,26,.55)"; bctx.lineWidth = 3 * dpr;
+          cross(px, py, r);
+          bctx.strokeStyle = "rgba(232,236,240,.92)"; bctx.lineWidth = dpr;
+          cross(px, py, r);
+        }
+      }
+    }
+  }
+
+  function cross(px, py, r) {
+    bctx.beginPath();
+    bctx.moveTo(px - r, py); bctx.lineTo(px + r, py);
+    bctx.moveTo(px, py - r); bctx.lineTo(px, py + r);
+    bctx.stroke();
+  }
+
+  function niceStep(span) {
+    const raw = span / 6;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const n = raw / mag;
+    const step = n >= 5 ? 5 : n >= 2 ? 2 : 1;
+    return step * mag;
+  }
+
+  // marching squares over the grid, levels relative to mean
+  function drawContours(W, H, dpr) {
+    const X = M.x_points, Y = M.y_points, d = M.data, mean = M.mean;
+    const step = niceStep(2 * (M.maxAbsDev || 0.01));
+    if (!isFinite(step) || step <= 0) return;
+    const gx = (i) => (i / (X - 1)) * W;
+    const gy = (j) => (1 - j / (Y - 1)) * H;
+    for (let L = -8; L <= 8; L++) {
+      const level = L * step;
+      const isZero = L === 0;
+      bctx.strokeStyle = isZero ? "rgba(205,216,225,.5)" : "rgba(205,216,225,.22)";
+      bctx.lineWidth = (isZero ? 1.4 : 0.8) * dpr;
+      bctx.beginPath();
+      for (let j = 0; j < Y - 1; j++) {
+        for (let i = 0; i < X - 1; i++) {
+          const v = [d[j][i], d[j][i + 1], d[j + 1][i + 1], d[j + 1][i]];
+          if (v.some((z) => z === null || Number.isNaN(z))) continue;
+          const dev = v.map((z) => z - mean - level);
+          // cell corners: (i,j)(i+1,j)(i+1,j+1)(i,j+1) in grid space
+          const cx = [i, i + 1, i + 1, i], cy = [j, j, j + 1, j + 1];
+          const pts = [];
+          for (let k = 0; k < 4; k++) {
+            const k2 = (k + 1) % 4;
+            const a = dev[k], b = dev[k2];
+            if ((a < 0) !== (b < 0)) {
+              const t = a / (a - b);
+              const ix = cx[k] + (cx[k2] - cx[k]) * t;
+              const iy = cy[k] + (cy[k2] - cy[k]) * t;
+              pts.push([gx(ix), gy(iy)]);
+            }
+          }
+          for (let k = 0; k + 1 < pts.length; k += 2) {
+            bctx.moveTo(pts[k][0], pts[k][1]);
+            bctx.lineTo(pts[k + 1][0], pts[k + 1][1]);
+          }
+        }
+      }
+      bctx.stroke();
+    }
+  }
+
+  function drawColorbar() {
+    const h = cbar.height, w = cbar.width;
+    for (let y = 0; y < h; y++) {
+      const t = 1 - y / (h - 1);          // top = high
+      const c = colorAt(t);
+      cbctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      cbctx.fillRect(0, y, w, 1);
+    }
+    if (opts.mode === "deviation") {
+      const s = M.maxAbsDev || 0;
+      $("barHi").textContent = fmt(s, 3);
+      $("barMid").textContent = "0.000";
+      $("barLo").textContent = fmt(-s, 3);
+    } else {
+      $("barHi").textContent = fmtAbs(M.max);
+      $("barMid").textContent = fmtAbs((M.max + M.min) / 2);
+      $("barLo").textContent = fmtAbs(M.min);
+    }
+  }
+
+  function setStats() {
+    const um = (mm) => `<span class="u">mm</span>`;
+    $("sRange").innerHTML = fmtAbs(M.max - M.min) + um();
+    $("sStd").innerHTML = fmtAbs(M.std) + um();
+    $("sMax").innerHTML = fmt(M.max - M.mean) + um();
+    $("sMin").innerHTML = fmt(M.min - M.mean) + um();
+    $("sMean").innerHTML = fmtAbs(M.mean) + um();
+    $("xMin").textContent = M.x_min.toFixed(0);
+    $("xMax").textContent = (M.x_min + (M.x_points - 1) * M.x_step).toFixed(0);
+    $("gridLabel").textContent = `${M.x_points}×${M.y_points}`;
+    $("footGrid").textContent = `grid ${M.x_points}×${M.y_points} · probed ${M.x_major}×${M.y_major} · step ${M.major_step}`;
+  }
+
+  function buildModel(j) {
+    const vals = [];
+    for (const row of j.data) for (const z of row) if (z !== null && !Number.isNaN(z)) vals.push(z);
+    const m = { ...j };
+    if (vals.length === 0) { m.empty = true; return m; }
+    m.min = Math.min(...vals);
+    m.max = Math.max(...vals);
+    m.mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    m.std = Math.sqrt(vals.reduce((a, b) => a + (b - m.mean) ** 2, 0) / vals.length);
+    m.maxAbsDev = Math.max(m.max - m.mean, m.mean - m.min) || 1e-6;
+    m.empty = false;
+    return m;
+  }
+
+  function showOverlay(big, small) {
+    $("ovBig").textContent = big;
+    if (small !== undefined) $("ovSmall").innerHTML = small;
+    $("overlay").classList.add("show");
+  }
+  function hideOverlay() { $("overlay").classList.remove("show"); }
+
+  function setStatus(state, text) {
+    $("led").className = "led" + (state ? " " + state : "");
+    $("statusText").textContent = text;
+  }
+
+  async function load() {
+    setStatus("", "reading mesh…");
+    try {
+      const res = await fetch("/api/v1/mesh", { credentials: "same-origin", headers: { Accept: "application/json" } });
+      if (res.status === 401) {
+        setStatus("no", "not authenticated");
+        showOverlay("Sign in required", 'Open <a href="/">PrusaLink</a>, log in, then reload this page.');
+        return;
+      }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const j = await res.json();
+      M = buildModel(j);
+      setStats();
+      $("footTime").textContent = "updated " + new Date().toLocaleTimeString();
+      if (M.empty || !j.valid) {
+        setStatus("no", "no valid mesh");
+        showOverlay("No mesh on record", "Run a bed level (First Layer Calibration / <code>G29</code>), then refresh.");
+        return;
+      }
+      hideOverlay();
+      setStatus("ok", "mesh loaded");
+      drawColorbar();
+      render();
+    } catch (err) {
+      setStatus("no", "unavailable");
+      showOverlay("Couldn’t reach the printer", "The mesh endpoint didn’t respond (" + err.message + "). Check the connection and refresh.");
+    }
+  }
+
+  // hover readout
+  bed.addEventListener("mousemove", (ev) => {
+    if (!M || M.empty) { probeEl.style.opacity = 0; return; }
+    const rect = bed.getBoundingClientRect();
+    const fx = (ev.clientX - rect.left) / rect.width;
+    const fy = (ev.clientY - rect.top) / rect.height;
+    const gx = fx * (M.x_points - 1);
+    const gy = (1 - fy) * (M.y_points - 1);
+    const z = sample(gx, gy);
+    const Xmm = M.x_min + gx * M.x_step;
+    const Ymm = M.y_min + gy * M.y_step;
+    if (Number.isNaN(z)) { probeEl.style.opacity = 0; return; }
+    probeEl.innerHTML =
+      `<span class="lbl">X</span> ${Xmm.toFixed(1)} <span class="lbl">Y</span> ${Ymm.toFixed(1)} mm<br>` +
+      `<span class="lbl">Z</span> <b>${fmt(z - M.mean)}</b> <span class="lbl">vs mean</span>`;
+    probeEl.style.opacity = 1;
+    const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+    const pr = probeEl.getBoundingClientRect();
+    let lx = px + 14, ly = py + 14;
+    if (lx + pr.width > rect.width) lx = px - pr.width - 14;
+    if (ly + pr.height > rect.height) ly = py - pr.height - 14;
+    probeEl.style.left = Math.max(4, lx) + "px";
+    probeEl.style.top = Math.max(4, ly) + "px";
+  });
+  bed.addEventListener("mouseleave", () => { probeEl.style.opacity = 0; });
+
+  // controls
+  $("refresh").addEventListener("click", load);
+  function toggle(el, key) {
+    const t = $(el);
+    t.addEventListener("click", () => {
+      opts[key] = !opts[key];
+      t.classList.toggle("on", opts[key]);
+      t.setAttribute("aria-pressed", String(opts[key]));
+      if (M && !M.empty) render();
+    });
+    t.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); t.click(); } });
+  }
+  // mode toggle flips between two labels rather than on/off
+  (function () {
+    const t = $("tMode");
+    t.addEventListener("click", () => {
+      opts.mode = opts.mode === "deviation" ? "absolute" : "deviation";
+      t.textContent = opts.mode;
+      if (M && !M.empty) { drawColorbar(); render(); }
+    });
+    t.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); t.click(); } });
+  })();
+  toggle("tContour", "contour");
+  toggle("tProbe", "probe");
+
+  let rt;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (M && !M.empty) render(); }, 120); });
+
+  load();
+})();
+</script>
+</body>
+</html>
