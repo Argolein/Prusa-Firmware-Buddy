@@ -26,6 +26,7 @@ target_sources(
             nhttp/headers.cpp
             nhttp/job_command.cpp
             nhttp/job_command_marlin.cpp
+            nhttp/mesh_renderer.cpp
             nhttp/req_parser.cpp
             nhttp/send_file.cpp
             nhttp/send_json.cpp

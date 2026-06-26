@@ -98,5 +98,6 @@ template class SendJson<EmptyRenderer>;
 template class SendJson<TransferRenderer>;
 template class SendJson<StatusRenderer>;
 template class SendJson<link_content::FilamentRenderer>;
+template class SendJson<link_content::MeshRenderer>;
 
 } // namespace nhttp::handler

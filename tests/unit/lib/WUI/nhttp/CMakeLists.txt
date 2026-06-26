@@ -7,16 +7,19 @@ add_executable(
   ${CMAKE_CURRENT_SOURCE_DIR}/status_renderer_mock.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/partial_file_mock.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/transfer_mock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mesh_mock.cpp
   # Some handlers are stubbed out.
   ${CMAKE_CURRENT_SOURCE_DIR}/server_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/req_parser_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/job_command_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/file_command_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mesh_renderer_tests.cpp
   # ${CMAKE_CURRENT_SOURCE_DIR}/segmented_json_rendering.cpp
   # Tested files
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/common_selectors.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/file_info.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/file_command.cpp
+  ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/mesh_renderer.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/gcode_upload.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/gcode_preview.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/server.cpp
