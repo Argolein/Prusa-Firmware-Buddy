@@ -64,8 +64,9 @@ base** (the correct fix may differ). Do not blindly replay it.
 See [`Firmware-Build-Instructions-Docker.md`](Firmware-Build-Instructions-Docker.md). Builds
 run in the `prusa-buddy-build:gcc13` Docker image to match Prusa's toolchain.
 
-- Validate features on **both** `--preset coreone` and `--preset coreone_indx` (INDX compiles
-  extra per-tool / sensor paths that `coreone` does not).
+- Validate features on `--preset coreone`. (Previously both `coreone` and `coreone_indx` were
+  built, but the maintainer doesn't use INDX, so `coreone` alone is sufficient as of
+  2026-06-27. Build `coreone_indx` only if a change specifically touches INDX-only paths.)
 - `-DCUSTOM_COMPILE_OPTIONS:STRING="-Werror"` is the intended strictness. If a fresh rebase
   has pre-existing `-Werror` debt unrelated to your change, that belongs in the rebase-repair
   commit — don't silently drop `-Werror`.

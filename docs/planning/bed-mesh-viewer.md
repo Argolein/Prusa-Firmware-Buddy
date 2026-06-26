@@ -20,7 +20,10 @@
 > Mesh active, live telemetry sidebar from `/api/v1/status` + `/api/v1/info`, `#0a0a0a` / orange
 > `#fa6831` theme, Helvetica, section hairlines). A **Mesh** nav link was added to the SPA shell
 > in `src/resources/web/index.html` (a plain `<a href="/mesh.html">` in the static `#navbar`,
-> no `data-label` so the SPA leaves the text literal). Browser-verified against mock APIs.
+> no `data-label` so the SPA leaves the text literal) **plus a capture-phase click script** —
+> the SPA attaches a bubble-phase handler to every `#navbar a` and calls `preventDefault()` for
+> its hash routing, which swallows a plain path link ("nothing happens" on click); the script
+> forces the navigation before the SPA can cancel it. Browser-verified against the real bundle.
 >
 > **Phase 3:** `POST /api/v1/mesh` in `prusa_link_api_v1.cpp` (`start_bed_leveling`): idle-only
 > guard (`DeviceState` + `gqueue == 0`), then enqueues `G28 O` + `G29` (mirrors the printer's
