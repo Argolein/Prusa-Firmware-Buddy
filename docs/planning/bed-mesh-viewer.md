@@ -14,8 +14,13 @@
 > `tests/unit/lib/WUI/nhttp/mesh_renderer_tests.cpp` (+ `mesh_mock.cpp`). Build-validated
 > (coreone + coreone_indx, `-Werror`); renderer logic verified standalone.
 >
-> **Phase 2 files:** `src/resources/web/mesh.html` (~27 KB raw, ~7 KB gzipped) registered
-> in `src/resources/CMakeLists.txt`, served at `http://<printer>/mesh.html`.
+> **Phase 2 files:** `src/resources/web/mesh.html` (registered in
+> `src/resources/CMakeLists.txt`, served at `http://<printer>/mesh.html`). Redesigned to match
+> the PrusaLink web UI (header + `PRUSA LINK`/BETA logo, `Dashboard · Storage · Mesh` nav with
+> Mesh active, live telemetry sidebar from `/api/v1/status` + `/api/v1/info`, `#0a0a0a` / orange
+> `#fa6831` theme, Helvetica, section hairlines). A **Mesh** nav link was added to the SPA shell
+> in `src/resources/web/index.html` (a plain `<a href="/mesh.html">` in the static `#navbar`,
+> no `data-label` so the SPA leaves the text literal). Browser-verified against mock APIs.
 >
 > **Phase 3:** `POST /api/v1/mesh` in `prusa_link_api_v1.cpp` (`start_bed_leveling`): idle-only
 > guard (`DeviceState` + `gqueue == 0`), then enqueues `G28 O` + `G29` (mirrors the printer's
