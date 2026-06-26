@@ -95,6 +95,22 @@ namespace {
             out.next = StatusPage(Status::BadRequest, parser);
         }
     }
+
+    void start_bed_leveling(const RequestParser &parser, handler::Step &out) {
+        // Mirror the printer's Mesh Bed Leveling menu item (MI_MESH_BED): only
+        // start when the printer is idle and nothing is queued, then home (if
+        // needed) and probe. G29 auto-expands to P1 / P3.2 / P3.13 / A.
+        const DeviceState state = printer_state::get_state(false);
+        const bool ready = state == DeviceState::Idle || state == DeviceState::Ready
+            || state == DeviceState::Finished || state == DeviceState::Stopped;
+        if (!ready || marlin_vars().gqueue != 0) {
+            out.next = StatusPage(Status::Conflict, parser);
+            return;
+        }
+        marlin_client::gcode("G28 O");
+        marlin_client::gcode("G29");
+        out.next = StatusPage(Status::Accepted, parser);
+    }
 } // namespace
 
 Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::Step &out) const {
@@ -184,8 +200,12 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
         get_only(SendJson(FilamentRenderer(), parser.can_keep_alive()), parser, out);
         return Accepted::Accepted;
     } else if (suffix == "mesh") {
-        // Bed mesh grid (UBL z_values) for the web heatmap viewer.
-        get_only(SendJson(MeshRenderer(), parser.can_keep_alive()), parser, out);
+        // GET reads the mesh grid; POST triggers bed leveling (re)creating it.
+        if (parser.method == Method::Post) {
+            start_bed_leveling(parser, out);
+        } else {
+            get_only(SendJson(MeshRenderer(), parser.can_keep_alive()), parser, out);
+        }
         return Accepted::Accepted;
     } else if (auto tool_suffix_opt = remove_prefix(suffix, "filament/"); tool_suffix_opt.has_value()) {
         int tool = -1;
