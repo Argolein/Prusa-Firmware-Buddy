@@ -23,4 +23,12 @@ Viewer integration must be re-applied:
 * Re-add the **Mesh** nav link in the new `index.html`: inside the static
   `<ul ... id="navbar">`, after the Storage `<li>`, insert
   `<li><a href="/mesh.html">Mesh</a></li>` (no `data-label`, so the SPA leaves
-  the text literal). See [`docs/planning/bed-mesh-viewer.md`](../../../docs/planning/bed-mesh-viewer.md).
+  the text literal).
+* Re-add the capture-phase navigation script (right after `</nav></div></div>`).
+  The SPA attaches a bubble-phase click handler to **every** `#navbar a` and
+  calls `preventDefault()` (that's its hash routing), so a plain link to
+  `/mesh.html` is swallowed and "nothing happens" on click. The script forces a
+  real navigation before the SPA can cancel it:
+  `<script>(function(){var m=document.querySelector('#navbar a[href="/mesh.html"]');if(m){m.addEventListener("click",function(e){e.stopPropagation();window.location.href="/mesh.html";},true);}})();</script>`
+
+  See [`docs/planning/bed-mesh-viewer.md`](../../../docs/planning/bed-mesh-viewer.md).
