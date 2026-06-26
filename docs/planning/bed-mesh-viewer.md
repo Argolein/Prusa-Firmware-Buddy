@@ -1,11 +1,12 @@
 # Bed Mesh Viewer (PrusaLink web) — planning notes
 
-> **Status: Phase 1 (backend) + Phase 2 (frontend) implemented.** Design record for a
-> bed-mesh heatmap viewer in the PrusaLink web interface. Phase 1 = `GET /api/v1/mesh`
-> endpoint + renderer unit test. Phase 2 = the standalone embedded `mesh.html` heatmap page.
-> Part of the broader [`PLANS-Web.md`](../../PLANS-Web.md) web-modernization effort. Current
-> fork state: [`ARGO-DEVELOPMENT.md`](../../ARGO-DEVELOPMENT.md). User-facing docs (when done):
-> `doc/bed_mesh_viewer.md`.
+> **Status: Phase 1 (backend read) + Phase 2 (frontend) + Phase 3 (leveling trigger)
+> implemented.** Design record for a bed-mesh heatmap viewer in the PrusaLink web interface.
+> Phase 1 = `GET /api/v1/mesh` + renderer unit test. Phase 2 = the standalone embedded
+> `mesh.html` heatmap page. Phase 3 = `POST /api/v1/mesh` to (re)create the mesh + a "Run bed
+> leveling" button with poll-and-refresh. Part of the broader [`PLANS-Web.md`](../../PLANS-Web.md)
+> web-modernization effort. Current fork state: [`ARGO-DEVELOPMENT.md`](../../ARGO-DEVELOPMENT.md).
+> User-facing docs (when done): `doc/bed_mesh_viewer.md`.
 >
 > **Phase 1 files:** `src/common/bed_mesh_api.{hpp,cpp}` (pull-based snapshot accessor),
 > `lib/WUI/nhttp/mesh_renderer.{h,cpp}` (segmented JSON renderer), route + variant +
@@ -13,8 +14,15 @@
 > `tests/unit/lib/WUI/nhttp/mesh_renderer_tests.cpp` (+ `mesh_mock.cpp`). Build-validated
 > (coreone + coreone_indx, `-Werror`); renderer logic verified standalone.
 >
-> **Phase 2 files:** `src/resources/web/mesh.html` (~23 KB raw, ~6–7 KB gzipped) registered
+> **Phase 2 files:** `src/resources/web/mesh.html` (~27 KB raw, ~7 KB gzipped) registered
 > in `src/resources/CMakeLists.txt`, served at `http://<printer>/mesh.html`.
+>
+> **Phase 3:** `POST /api/v1/mesh` in `prusa_link_api_v1.cpp` (`start_bed_leveling`): idle-only
+> guard (`DeviceState` + `gqueue == 0`), then enqueues `G28 O` + `G29` (mirrors the printer's
+> `MI_MESH_BED` menu item), returns `202 Accepted` / `409 Conflict`. The `mesh.html` button
+> POSTs (after a one-click confirm), then polls `GET /api/v1/status` (`printer.state`) until the
+> printer leaves BUSY/PRINTING and returns to IDLE, then re-fetches the mesh. Browser-verified
+> (happy path re-renders the new mesh; 409 shows "printer busy").
 
 ## Objective
 Show the bed mesh as a **heatmap with variance/quality stats** in the PrusaLink web UI,
