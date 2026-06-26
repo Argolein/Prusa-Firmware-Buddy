@@ -9,6 +9,7 @@
 #include "../nhttp/status_renderer.h"
 #include "../nhttp/filament_renderer.h"
 #include "../nhttp/filament_command.h"
+#include "../nhttp/mesh_renderer.h"
 #include "../wui_api.h"
 #include "prusa_api_helpers.hpp"
 
@@ -181,6 +182,10 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
     } else if (suffix == "filament") {
         // Per-tool filament type + color (Filament Color Manager).
         get_only(SendJson(FilamentRenderer(), parser.can_keep_alive()), parser, out);
+        return Accepted::Accepted;
+    } else if (suffix == "mesh") {
+        // Bed mesh grid (UBL z_values) for the web heatmap viewer.
+        get_only(SendJson(MeshRenderer(), parser.can_keep_alive()), parser, out);
         return Accepted::Accepted;
     } else if (auto tool_suffix_opt = remove_prefix(suffix, "filament/"); tool_suffix_opt.has_value()) {
         int tool = -1;
