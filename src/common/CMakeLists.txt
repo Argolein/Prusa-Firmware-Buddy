@@ -14,6 +14,7 @@ if(BOARD IN_LIST BUDDY_BOARDS)
             appmain.cpp
             awdg.cpp
             bbf.cpp
+            bed_mesh_api.cpp
             conserve_cpu.cpp
             crc32.cpp
             data_exchange.cpp
