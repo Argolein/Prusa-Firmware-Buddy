@@ -35,6 +35,7 @@
 #include "gcode_upload.h"
 #include "gcode_preview.h"
 #include "job_command.h"
+#include "mesh_renderer.h"
 #include "req_parser.h"
 #include "send_file.h"
 #include "send_json.h"
@@ -151,6 +152,7 @@ namespace handler {
         SendJson<TransferRenderer>,
         SendJson<StatusRenderer>,
         SendJson<link_content::FilamentRenderer>,
+        SendJson<link_content::MeshRenderer>,
         printer::GcodeUpload,
         printer::GCodePreview,
         printer::JobCommand,
