@@ -92,6 +92,11 @@
   .toggle.on { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600; }
   button.primary { color: var(--ink); }
   button.primary:hover { background: var(--panel-2); }
+  button.ctl.level { color: var(--accent); border-color: rgba(224,162,58,.5); }
+  button.ctl.level:hover { background: rgba(224,162,58,.12); color: var(--accent); }
+  button.ctl.level.arm { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  button.ctl.level:disabled { color: var(--ink-faint); border-color: var(--line); background: var(--panel); cursor: default; }
+  .ctl-sep { width: 1px; background: var(--line); align-self: stretch; margin: 2px; }
 
   .layout { display: grid; grid-template-columns: 1fr 280px; gap: 22px; align-items: start; }
   @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
@@ -191,6 +196,8 @@
 
   <div class="controls">
     <button class="ctl primary" id="refresh">↻ Refresh</button>
+    <button class="ctl level" id="level">⬡ Run bed leveling</button>
+    <span class="ctl-sep"></span>
     <span class="toggle on" id="tMode" role="button" tabindex="0" aria-pressed="true">deviation</span>
     <span class="toggle on" id="tContour" role="button" tabindex="0" aria-pressed="true">contours</span>
     <span class="toggle on" id="tProbe" role="button" tabindex="0" aria-pressed="true">probe points</span>
@@ -571,6 +578,76 @@
   })();
   toggle("tContour", "contour");
   toggle("tProbe", "probe");
+
+  // --- bed leveling trigger (POST /api/v1/mesh, then poll status until idle) ---
+  const levelBtn = $("level");
+  let probing = false, armTimer = null;
+  const BUSY = new Set(["PRINTING", "BUSY", "PAUSED", "ATTENTION"]);
+  const DONE = new Set(["IDLE", "READY", "FINISHED", "STOPPED"]);
+
+  function resetLevelBtn() {
+    levelBtn.disabled = false;
+    levelBtn.classList.remove("arm");
+    levelBtn.textContent = "⬡ Run bed leveling";
+  }
+
+  levelBtn.addEventListener("click", () => {
+    if (probing) return;
+    if (!levelBtn.classList.contains("arm")) {
+      // first click arms a confirm; it moves the toolhead, so make that explicit
+      levelBtn.classList.add("arm");
+      levelBtn.textContent = "Probe now? Moves the toolhead — click to confirm";
+      clearTimeout(armTimer);
+      armTimer = setTimeout(resetLevelBtn, 4000);
+      return;
+    }
+    clearTimeout(armTimer);
+    startLeveling();
+  });
+
+  async function startLeveling() {
+    probing = true;
+    levelBtn.classList.remove("arm");
+    levelBtn.disabled = true;
+    levelBtn.textContent = "Starting…";
+    hideOverlay();
+    try {
+      const res = await fetch("/api/v1/mesh", { method: "POST", credentials: "same-origin" });
+      if (res.status === 409) { probing = false; resetLevelBtn(); setStatus("no", "printer busy — can’t level now"); return; }
+      if (res.status === 401) {
+        probing = false; resetLevelBtn(); setStatus("no", "not authenticated");
+        showOverlay("Sign in required", 'Open <a href="/">PrusaLink</a>, log in, then reload this page.');
+        return;
+      }
+      if (res.status !== 202 && !res.ok) throw new Error("HTTP " + res.status);
+      pollLeveling(Date.now(), false);
+    } catch (err) {
+      probing = false; resetLevelBtn(); setStatus("no", "couldn’t start (" + err.message + ")");
+    }
+  }
+
+  async function pollLeveling(t0, sawBusy) {
+    if (!probing) return;
+    const elapsed = Math.round((Date.now() - t0) / 1000);
+    levelBtn.textContent = `Probing bed… ${elapsed}s`;
+    setStatus("", `probing bed… ${elapsed}s`);
+    if (elapsed > 360) { probing = false; resetLevelBtn(); setStatus("no", "leveling timed out"); return; }
+    let state = "";
+    try {
+      const res = await fetch("/api/v1/status", { credentials: "same-origin", headers: { Accept: "application/json" } });
+      if (res.ok) { const j = await res.json(); state = (j.printer && j.printer.state) || ""; }
+    } catch (e) { /* transient — keep polling */ }
+    if (state === "ERROR") { probing = false; resetLevelBtn(); setStatus("no", "printer error during leveling"); return; }
+    if (BUSY.has(state)) sawBusy = true;
+    // accept idle as "done" only once we've seen activity (or after a grace period,
+    // since the queued G28/G29 may not have started on the very first poll)
+    if (DONE.has(state) && (sawBusy || elapsed > 10)) {
+      probing = false; resetLevelBtn();
+      await load(); // re-fetch + render the freshly probed mesh
+      return;
+    }
+    setTimeout(() => pollLeveling(t0, sawBusy), 2500);
+  }
 
   let rt;
   window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (M && !M.empty) render(); }, 120); });
