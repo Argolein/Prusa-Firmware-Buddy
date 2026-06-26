@@ -264,6 +264,14 @@
     const b = g.border, s = Math.max(1, g.major_step);
     return i >= b && i < g.x_points - b && ((i - b) % s === 0) && j >= b && j < g.y_points - b && ((j - b) % s === 0);
   }
+  // Grid index of the probed point nearest to continuous grid coords (gx, gy).
+  function nearestProbed(g, gx, gy) {
+    const b = g.border, s = Math.max(1, g.major_step);
+    const lastX = b + Math.max(0, g.x_major - 1) * s, lastY = b + Math.max(0, g.y_major - 1) * s;
+    const i = Math.max(b, Math.min(lastX, b + Math.round((gx - b) / s) * s));
+    const j = Math.max(b, Math.min(lastY, b + Math.round((gy - b) / s) * s));
+    return { i, j };
+  }
   function norm(v) {
     if (opts.mode === "deviation") { const span = M.maxAbsDev || 1e-6; return (v - M.mean) / (2 * span) + 0.5; }
     const r = (M.max - M.min) || 1e-6; return (v - M.min) / r;
@@ -477,6 +485,45 @@
   })();
   toggle("tContour", "contour");
   toggle("tProbe", "probe");
+
+  // ---- hover readout: snap to probed points (actual measured Z), else interpolate ----
+  const SNAP_PX = 18;
+  bed.addEventListener("mousemove", (ev) => {
+    if (!M || M.empty) { probeEl.style.opacity = 0; return; }
+    const rect = bed.getBoundingClientRect();
+    const gx = ((ev.clientX - rect.left) / rect.width) * (M.x_points - 1);
+    const gy = (1 - (ev.clientY - rect.top) / rect.height) * (M.y_points - 1); // front of bed at bottom
+
+    const np = nearestProbed(M, gx, gy);
+    const dpx = Math.hypot(((np.i - gx) / (M.x_points - 1)) * rect.width, ((np.j - gy) / (M.y_points - 1)) * rect.height);
+    const onProbe = dpx <= SNAP_PX && isProbed(M, np.i, np.j);
+
+    let html;
+    if (onProbe) {
+      const z = M.data[np.j][np.i];
+      if (z === null || Number.isNaN(z)) { probeEl.style.opacity = 0; return; }
+      const Xmm = M.x_min + np.i * M.x_step, Ymm = M.y_min + np.j * M.y_step;
+      html = `<span class="l">measured</span> X ${Xmm.toFixed(1)} Y ${Ymm.toFixed(1)} mm<br>`
+        + `<span class="l">Z</span> <b>${fmtAbs(z)} mm</b> <span class="l">(${fmt(z - M.mean)} vs mean)</span>`;
+    } else {
+      const z = sample(gx, gy);
+      if (Number.isNaN(z)) { probeEl.style.opacity = 0; return; }
+      const Xmm = M.x_min + gx * M.x_step, Ymm = M.y_min + gy * M.y_step;
+      html = `<span class="l">interp.</span> X ${Xmm.toFixed(1)} Y ${Ymm.toFixed(1)} mm<br>`
+        + `<span class="l">Z</span> <b>${fmtAbs(z)} mm</b> <span class="l">(${fmt(z - M.mean)} vs mean)</span>`;
+    }
+    probeEl.innerHTML = html;
+    probeEl.style.opacity = 1;
+
+    const stage = probeEl.parentElement.getBoundingClientRect();
+    const pw = probeEl.offsetWidth, ph = probeEl.offsetHeight;
+    let lx = ev.clientX - stage.left + 14, ly = ev.clientY - stage.top + 14;
+    if (lx + pw > stage.width) lx = ev.clientX - stage.left - pw - 14;
+    if (ly + ph > stage.height) ly = ev.clientY - stage.top - ph - 14;
+    probeEl.style.left = Math.max(0, lx) + "px";
+    probeEl.style.top = Math.max(0, ly) + "px";
+  });
+  bed.addEventListener("mouseleave", () => { probeEl.style.opacity = 0; });
 
   let rt;
   window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (M && !M.empty) render(); }, 120); });

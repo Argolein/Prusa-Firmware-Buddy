@@ -119,7 +119,9 @@ Single self-contained file, no external deps (offline on the printer). Design di
   emphasized zero line) over the heatmap, with the 49 measured probe points drawn as crisp
   crosshairs. Encodes the measured-vs-interpolated truth visually.
 - Modes/toggles: deviation-from-mean ↔ absolute color scale; contours on/off; probe points
-  on/off. Hover readout: X/Y in mm + Z deviation (bilinear sample).
+  on/off. Hover readout snaps to the nearest probed point within ~18 px and shows its **actual
+  measured Z** (`labelled "measured"`); off a probed point it shows the bilinear-interpolated Z
+  (`"interp."`). Both also show X/Y in mm and the deviation from mean.
 - Stats panel: range (peak-to-peak), std-dev, highest/lowest (vs mean), mean — computed in
   the browser over all defined cells.
 - Validated: rendered against a mock 21×21 mesh in a real browser (correct stats, colorbar,
