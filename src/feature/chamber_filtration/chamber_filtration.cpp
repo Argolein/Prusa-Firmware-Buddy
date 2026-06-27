@@ -2,6 +2,7 @@
 
 #include <marlin_vars.hpp>
 #include <marlin_server.hpp>
+#include <module/planner.h>
 #include <gcode_info.hpp>
 #include <tools_mapping.hpp>
 #include <config_store/store_definition.hpp>
@@ -236,6 +237,13 @@ bool ChamberFiltration::needs_filtration() const {
     // If explicitly set to false, we will never filter, so return early
     // If explicitly set to true, that will still depend on whether the nozzle is hot or not
     if (needs_filtration_override_ == Tristate::no) {
+        return false;
+    }
+
+    // Only run filtration while actually printing, and only after the first extrusion.
+    // Keeps the fans off during filament load/unload and chamber pre-heat (no fumes yet);
+    // is_printing_state() still covers mid-print filament changes.
+    if (!marlin_server::is_printing_state(marlin_vars().print_state.get()) || planner.max_printed_z <= 0) {
         return false;
     }
 
