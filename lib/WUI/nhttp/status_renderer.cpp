@@ -11,6 +11,11 @@
     #include <connect/connect.hpp>
 #endif
 
+#include <option/has_chamber_api.h>
+#if HAS_CHAMBER_API()
+    #include <feature/chamber/chamber.hpp>
+#endif
+
 using namespace marlin_server;
 using transfers::Monitor;
 
@@ -65,6 +70,10 @@ json::JsonResult StatusRenderer::renderState(size_t resume_point, json::JsonOutp
             JSON_FIELD_FFIXED("target_bed", marlin_vars().target_bed, 1) JSON_COMMA;
             JSON_FIELD_FFIXED("temp_nozzle", marlin_vars().active_hotend().temp_nozzle, 1) JSON_COMMA;
             JSON_FIELD_FFIXED("target_nozzle", marlin_vars().active_hotend().target_nozzle, 1) JSON_COMMA;
+#if HAS_CHAMBER_API()
+            JSON_FIELD_FFIXED("temp_chamber", buddy::chamber().current_temperature().value_or(0), 1) JSON_COMMA;
+            JSON_FIELD_FFIXED("target_chamber", buddy::chamber().target_temperature().value_or(0), 1) JSON_COMMA;
+#endif
             // XYZE, mm
             JSON_FIELD_FFIXED("axis_z", marlin_vars().logical_curr_pos[2], 1) JSON_COMMA;
             if (!marlin_client::is_printing()) {
