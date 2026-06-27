@@ -27,6 +27,7 @@
 #include <option/has_indx.h>
 #include <option/has_heaters_selftest_gcode.h>
 #include <option/has_door_sensor_calibration.h>
+#include <option/has_z_endstop_calibration.h>
 #include <option/xbuddy_extension_variant.h>
 #include <option/has_side_fsensor.h>
 #include <option/has_bed_fan.h>
@@ -256,6 +257,9 @@ DeviceState get_state(bool ready) {
 #endif
 #if HAS_INPUT_SHAPER_CALIBRATION()
     case ClientFSM::InputShaperCalibration:
+#endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    case ClientFSM::ZEndstopCalibration:
 #endif
 #if HAS_GEARBOX_ALIGNMENT()
     case ClientFSM::GearboxAlignment:
@@ -504,6 +508,9 @@ StateWithDialog get_state_with_dialog(bool ready) {
 #endif
 #if HAS_INPUT_SHAPER_CALIBRATION()
     case ClientFSM::InputShaperCalibration:
+#endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    case ClientFSM::ZEndstopCalibration:
 #endif
 #if HAS_GEARBOX_ALIGNMENT()
     case ClientFSM::GearboxAlignment:

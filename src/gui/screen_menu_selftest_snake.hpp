@@ -5,6 +5,7 @@
 #include <utility_extensions.hpp>
 #include <selftest_snake_config.hpp>
 #include <meta_utils.hpp>
+#include <option/has_z_endstop_calibration.h>
 
 namespace SelftestSnake {
 
@@ -47,6 +48,18 @@ protected:
     void OnChange(size_t old_index) override;
 };
 
+#if HAS_Z_ENDSTOP_CALIBRATION()
+/// Standalone "Z endstop calibration" entry (not a snake Action): launches the M1988 wizard.
+class MI_Z_ENDSTOP_CALIB : public IWindowMenuItem {
+    static constexpr const char *label = N_("12 Z endstop calibration");
+
+public:
+    MI_Z_ENDSTOP_CALIB();
+    void click(IWindowMenu &window_menu) override;
+    void Loop() override;
+};
+#endif
+
 bool is_menu_draw_enabled(window_t *window);
 void do_menu_event(window_t *receiver, window_t *sender, GUI_event_t event, void *param, Action action, bool is_submenu);
 
@@ -68,6 +81,9 @@ namespace detail {
     struct menu_builder<FOOTER, MenuType::Calibrations, std::index_sequence<I...>> {
         using type = ScreenMenu<FOOTER, MI_RETURN,
             MI_STS<static_cast<Action>(I + std::to_underlying(Action::_first))>...,
+#if HAS_Z_ENDSTOP_CALIBRATION()
+            MI_Z_ENDSTOP_CALIB,
+#endif
             MI_BYPASS_DEPENDENCIES>;
     };
 

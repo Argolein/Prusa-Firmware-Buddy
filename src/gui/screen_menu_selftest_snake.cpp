@@ -97,6 +97,29 @@ struct SnakeConfig {
     PhysicalToolIndex last_tool { PhysicalToolIndex::from_raw(0) };
 };
 
+#if HAS_Z_ENDSTOP_CALIBRATION()
+// "Green or nothing": show the green check only when the last run was within tolerance.
+static const img::Resource *z_endstop_calib_icon() {
+    return config_store().selftest_result_z_endstop_calibration.get() == TestResult::passed
+        ? &img::ok_color_16x16
+        : nullptr;
+}
+
+MI_Z_ENDSTOP_CALIB::MI_Z_ENDSTOP_CALIB()
+    : IWindowMenuItem(_(label), z_endstop_calib_icon(), is_enabled_t::yes, marlin_client::is_printing() ? is_hidden_t::yes : is_hidden_t::no) {
+    set_icon_position(IconPosition::before_extension);
+}
+
+void MI_Z_ENDSTOP_CALIB::click([[maybe_unused]] IWindowMenu &window_menu) {
+    marlin_client::gcode("M1988");
+}
+
+void MI_Z_ENDSTOP_CALIB::Loop() {
+    SetIconId(z_endstop_calib_icon());
+    set_icon_position(IconPosition::before_extension);
+}
+#endif
+
 } // namespace SelftestSnake
 
 static SnakeConfig snake_config {};
