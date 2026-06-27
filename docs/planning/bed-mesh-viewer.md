@@ -14,16 +14,18 @@
 > `tests/unit/lib/WUI/nhttp/mesh_renderer_tests.cpp` (+ `mesh_mock.cpp`). Build-validated
 > (coreone + coreone_indx, `-Werror`); renderer logic verified standalone.
 >
-> **Phase 2 files:** `src/resources/web/mesh.html` (registered in
-> `src/resources/CMakeLists.txt`, served at `http://<printer>/mesh.html`). Redesigned to match
-> the PrusaLink web UI (header + `PRUSA LINK`/BETA logo, `Dashboard · Storage · Mesh` nav with
-> Mesh active, live telemetry sidebar from `/api/v1/status` + `/api/v1/info`, `#0a0a0a` / orange
-> `#fa6831` theme, Helvetica, section hairlines). A **Mesh** nav link was added to the SPA shell
-> in `src/resources/web/index.html` (a plain `<a href="/mesh.html">` in the static `#navbar`,
-> no `data-label` so the SPA leaves the text literal) **plus a capture-phase click script** —
-> the SPA attaches a bubble-phase handler to every `#navbar a` and calls `preventDefault()` for
-> its hash routing, which swallows a plain path link ("nothing happens" on click); the script
-> forces the navigation before the SPA can cancel it. Browser-verified against the real bundle.
+> **Phase 2 files:** `src/resources/web/mesh-view.js` (registered in
+> `src/resources/CMakeLists.txt`) — Bed Mesh is a **first-class SPA route `#mesh`**, not a
+> separate page. The add-on module hooks `hashchange`/`load` and, when the hash is `#mesh`,
+> renders the heatmap UI into the SPA's own `#root` content area and marks the nav link active;
+> so the **real** PrusaLink header, logo, nav (orange active underline) and live telemetry
+> sidebar are reused (no hand-recreated chrome). This works because the SPA router ignores
+> unknown hashes (`Zt: if(!a) return false`) rather than bouncing — so `#mesh` is ours; leaving
+> it lets the SPA render its own route into `#root`. The **Mesh** nav link
+> (`<li><a href="#mesh">Mesh</a></li>`) and the `<script src="mesh-view.js">` include are added
+> to `index.html`. (Superseded the earlier standalone `mesh.html` + capture-script approach,
+> which looked like a separate page.) Browser-verified against the real bundle: nav active,
+> content in `#root`, sidebar persists, round-trip Dashboard↔Mesh clean.
 >
 > **Phase 3:** `POST /api/v1/mesh` in `prusa_link_api_v1.cpp` (`start_bed_leveling`): idle-only
 > guard (`DeviceState` + `gqueue == 0`), then enqueues `G28 O` + `G29` (mirrors the printer's
