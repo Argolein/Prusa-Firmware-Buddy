@@ -36,5 +36,11 @@ upstream overwrites `index.html`, so re-apply:
   "Application error". Guard it:
   `(Ut.routes.find((e=>e.path===t))||{getTitle:function(){return"Mesh"}}).getTitle()`
   (single occurrence in `main.*.js`). Navigation (`Zt`) is already guarded.
+* Because that patch edits the bundle in place, **rename the file** so browsers
+  don't serve the stale cached copy (JS is served with `max-age=86400`). We append
+  an `.argoN` suffix, e.g. `main.<hash>.argo1.js`, and bump it whenever the bundle
+  content changes. Update the `<script src>` in `index.html` and the
+  `add_gzip_resource(...)` line in `../CMakeLists.txt` to match. (`index.html` is
+  served uncached, so it always points browsers at the current filename.)
 
   See [`docs/planning/bed-mesh-viewer.md`](../../../docs/planning/bed-mesh-viewer.md).
