@@ -10,6 +10,7 @@
 #include <option/has_esp.h>
 #include <option/has_gantry_squareness_check.h>
 #include <option/has_gearbox_alignment.h>
+#include <option/has_z_endstop_calibration.h>
 #include <option/has_indx.h>
 #include <option/has_input_shaper_calibration.h>
 #include <option/has_loadcell.h>
@@ -62,6 +63,9 @@ enum class ClientFSM : uint8_t {
 #endif
 #if HAS_DOOR_SENSOR_CALIBRATION()
     DoorSensorCalibration,
+#endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    ZEndstopCalibration,
 #endif
 #if HAS_LOADCELL()
     NozzleCleaningFailed,

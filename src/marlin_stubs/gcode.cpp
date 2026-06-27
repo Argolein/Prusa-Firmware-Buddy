@@ -42,6 +42,11 @@
     #include "M1959.hpp"
 #endif
 
+#include <option/has_z_endstop_calibration.h>
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    #include "M1989.hpp"
+#endif
+
 #if HAS_GEARBOX_ALIGNMENT()
     #include <feature/gearbox_alignment/gcode_gearbox_alignment.hpp>
 #endif
@@ -358,6 +363,11 @@ bool GcodeSuite::process_parsed_command_custom(bool no_ok) {
 #if HAS_HEATERS_SELFTEST_GCODE()
         case 1987:
             PrusaGcodeSuite::M1987();
+            break;
+#endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+        case 1989:
+            PrusaGcodeSuite::M1989();
             break;
 #endif
         case 9140:

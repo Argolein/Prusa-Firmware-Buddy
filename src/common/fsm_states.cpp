@@ -6,6 +6,7 @@
 #include <option/has_phase_stepping_calibration.h>
 #include <option/has_input_shaper_calibration.h>
 #include <option/has_door_sensor_calibration.h>
+#include <option/has_z_endstop_calibration.h>
 #include <option/has_manual_belt_tuning.h>
 #include <option/has_indx.h>
 #include <option/has_heaters_selftest_gcode.h>
@@ -71,6 +72,9 @@ static constexpr uint32_t score(ClientFSM fsm_type) {
 #endif
 #if HAS_INPUT_SHAPER_CALIBRATION()
     case ClientFSM::InputShaperCalibration:
+#endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    case ClientFSM::ZEndstopCalibration:
 #endif
 #if HAS_LOADCELL()
     case ClientFSM::NozzleCleaningFailed:
