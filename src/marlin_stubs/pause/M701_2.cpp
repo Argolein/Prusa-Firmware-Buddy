@@ -85,6 +85,11 @@ void filament_gcodes::M701_load(const M701LoadArgs &args) {
     const VirtualToolIndex virtual_tool = args.virtual_tool;
     const bool do_purge_only = args.fast_load_length.has_value() && *args.fast_load_length <= 0.0f;
 
+    // Set the color before preheat so that an interactive color selection during the
+    // preheat prompt (for an unknown filament type) takes precedence; an explicitly
+    // passed color (e.g. M600 / RFID) is kept when no interactive selection happens.
+    filament::set_color_to_load(args.color_to_be_loaded);
+
     if (args.op_preheat) {
         if (filament_to_be_loaded == FilamentType::none) {
             const FilamentSelectionArgs data {
@@ -108,7 +113,6 @@ void filament_gcodes::M701_load(const M701LoadArgs &args) {
         }
     }
     filament::set_type_to_load(filament_to_be_loaded);
-    filament::set_color_to_load(args.color_to_be_loaded);
 
     pause::Settings settings;
     settings.SetExtruder(virtual_tool);
@@ -357,7 +361,8 @@ void filament_gcodes::M1701_autoload(const std::optional<float> &fast_load_lengt
 
         const FilamentType filament = preheat_ret.second;
         filament::set_type_to_load(filament);
-        filament::set_color_to_load(std::nullopt);
+        // Note: don't reset color_to_load here; the preheat prompt may have set the
+        // user-chosen filament color (Filament Color Manager), which we must keep.
 
         mapi::ParkingPosition park_position = { .z = mapi::ParkingPosition::AtLeast { .above_print = Z_NOZZLE_PARK_RISE, .absolute = z_min_pos } };
         // Returning to previous position is unwanted outside of printing (M1701 should be used only outside of printing)
