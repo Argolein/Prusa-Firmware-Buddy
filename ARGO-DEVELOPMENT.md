@@ -92,6 +92,7 @@ next rebase.
 | Filament | Cool down nozzle after load when idle | `3a37b1eb8` | |
 | Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `25780ffad` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
 | Network | **Bed Mesh Viewer** (`GET/POST /api/v1/mesh` + embedded `mesh.html` heatmap with "Run bed leveling") | `6f13a0986`, `37abeb50e`, `089732d65`, `0037a6479` | design: [`docs/planning/bed-mesh-viewer.md`](docs/planning/bed-mesh-viewer.md); served at `http://<printer>/mesh.html` |
+| Network | **PrusaLink Chamber Temperature** (Dashboard sidebar row below Heatbed) | _(this commit)_ | `temp_chamber`/`target_chamber` in `/api/v1/status` (`HAS_CHAMBER_API()` guard) + web bundle telemetry map + `index.html` row; design: [`docs/planning/prusalink-chamber-temperature.md`](docs/planning/prusalink-chamber-temperature.md) |
 | — | **Rebase repair (drop on next rebase)** | `f8f75a630` | see "Rebase workflow" |
 
 ---
