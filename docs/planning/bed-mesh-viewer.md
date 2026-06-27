@@ -27,6 +27,11 @@
 > which looked like a separate page.) Browser-verified against the real bundle: nav active,
 > content in `#root`, sidebar persists, round-trip Dashboard↔Mesh clean.
 >
+> **One bundle patch is required** (`main.*.js`): the SPA's telemetry-`update` loop sets the
+> page title via `Ut.routes.find((e=>e.path===t)).getTitle()` with no null check, so on every
+> tick while the hash is `#mesh` it throws ("Application error" repeatedly). Guard it with
+> `||{getTitle:function(){return"Mesh"}}`. (Navigation `Zt` is already guarded; this is the only
+> remaining current-route assumption.) Re-apply on bundle update — see the web `README.md`.
 > **Phase 3:** `POST /api/v1/mesh` in `prusa_link_api_v1.cpp` (`start_bed_leveling`): idle-only
 > guard (`DeviceState` + `gqueue == 0`), then enqueues `G28 O` + `G29` (mirrors the printer's
 > `MI_MESH_BED` menu item), returns `202 Accepted` / `409 Conflict`. The `mesh.html` button
