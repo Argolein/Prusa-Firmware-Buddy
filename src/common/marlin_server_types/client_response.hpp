@@ -442,6 +442,19 @@ enum class PhasesInputShaperCalibration : PhaseUnderlyingType {
 constexpr inline ClientFSM client_fsm_from_phase(PhasesInputShaperCalibration) { return ClientFSM::InputShaperCalibration; }
 #endif
 
+#if HAS_Z_ENDSTOP_CALIBRATION()
+enum class PhasesZEndstopCalib : PhaseUnderlyingType {
+    homing, ///< Homing X/Y (spinner)
+    aligning, ///< Z alignment, ram-to-top against the adjustable endstops (spinner)
+    probing, ///< Probing the three points closest to the Z motors (spinner)
+    show_result, ///< Display the three measured heights + spread; Try again / Quit
+    probe_failed, ///< A probe returned NaN; Try again / Quit
+    finish, ///< Internal terminal phase, never shown
+    _last = finish,
+};
+constexpr inline ClientFSM client_fsm_from_phase(PhasesZEndstopCalib) { return ClientFSM::ZEndstopCalibration; }
+#endif
+
 enum class PhasesPrinting : PhaseUnderlyingType {
     active,
 };
@@ -795,6 +808,17 @@ inline constexpr EnumArray<PhasesInputShaperCalibration, PhaseResponses, CountPh
         { PhasesInputShaperCalibration::results, { Response::Yes, Response::No } },
         { PhasesInputShaperCalibration::abort, {} },
         { PhasesInputShaperCalibration::finish, {} },
+};
+#endif
+
+#if HAS_Z_ENDSTOP_CALIBRATION()
+inline constexpr EnumArray<PhasesZEndstopCalib, PhaseResponses, CountPhases<PhasesZEndstopCalib>()> z_endstop_calib_responses {
+    { PhasesZEndstopCalib::homing, {} },
+    { PhasesZEndstopCalib::aligning, {} },
+    { PhasesZEndstopCalib::probing, {} },
+    { PhasesZEndstopCalib::show_result, { Response::Retry, Response::Quit } },
+    { PhasesZEndstopCalib::probe_failed, { Response::Retry, Response::Quit } },
+    { PhasesZEndstopCalib::finish, {} },
 };
 #endif
 

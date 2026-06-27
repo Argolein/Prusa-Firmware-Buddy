@@ -14,6 +14,7 @@
 #include <option/has_chamber_api.h>
 #include <option/has_uneven_bed_prompt.h>
 #include <option/has_door_sensor_calibration.h>
+#include <option/has_z_endstop_calibration.h>
 #include <option/has_manual_belt_tuning.h>
 #include <option/has_serial_print.h>
 #include <option/has_indx.h>
@@ -66,6 +67,9 @@ enum class ClientFSM : uint8_t {
     #endif
     #if HAS_DOOR_SENSOR_CALIBRATION()
     DoorSensorCalibration,
+    #endif
+    #if HAS_Z_ENDSTOP_CALIBRATION()
+    ZEndstopCalibration,
     #endif
     #if HAS_LOADCELL()
     NozzleCleaningFailed,
