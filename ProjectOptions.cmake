@@ -640,6 +640,12 @@ set_feature_for_printers(
   HAS_DOOR_SENSOR_CALIBRATION "COREONE" "COREONE_INDX" "COREONEL" "COREONEL_INDX"
   )
 
+# Z endstop calibration: homes, runs Z alignment and probes one point closest to each of the three Z
+# motors, reporting the heights + spread so the user can trim the adjustable Z endstops.
+set_feature_for_printers(
+  HAS_Z_ENDSTOP_CALIBRATION "COREONE" "COREONE_INDX" "COREONEL" "COREONEL_INDX"
+  )
+
 # Set GUI settings
 set(PRINTERS_WITH_GUI
     "COREONE"
