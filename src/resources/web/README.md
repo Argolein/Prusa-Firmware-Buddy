@@ -29,5 +29,12 @@ upstream overwrites `index.html`, so re-apply:
   Storage `<li>`, insert `<li><a href="#mesh">Mesh</a></li>`. It is a normal hash
   route like `#dashboard`/`#files` — the SPA ignores unknown hashes
   (`Zt: if(!a) return false`), and `mesh-view.js` takes over `#mesh`.
+* Patch the bundle's telemetry-update loop to tolerate the `#mesh` route. The
+  SPA's `update` sets the page title via
+  `Ut.routes.find((e=>e.path===t)).getTitle()` with **no** null check, so on every
+  telemetry tick while the hash is `#mesh` it throws (route not found) → repeated
+  "Application error". Guard it:
+  `(Ut.routes.find((e=>e.path===t))||{getTitle:function(){return"Mesh"}}).getTitle()`
+  (single occurrence in `main.*.js`). Navigation (`Zt`) is already guarded.
 
   See [`docs/planning/bed-mesh-viewer.md`](../../../docs/planning/bed-mesh-viewer.md).
