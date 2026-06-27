@@ -15,20 +15,19 @@ Updating:
 
 ## Argo fork additions (re-apply after updating the bundle)
 
-Replacing the bundle from upstream overwrites `index.html`, so the Bed Mesh
-Viewer integration must be re-applied:
+The Bed Mesh Viewer is a first-class SPA route (`#mesh`) implemented as an
+add-on module — `mesh-view.js` hooks the hash router and renders into the SPA's
+own `#root`, reusing the real header/nav/sidebar. Replacing the bundle from
+upstream overwrites `index.html`, so re-apply:
 
-* Keep `mesh.html` (the Bed Mesh Viewer page; not part of upstream) and its
-  `add_gzip_resource("web/mesh.html" ...)` line in `../CMakeLists.txt`.
-* Re-add the **Mesh** nav link in the new `index.html`: inside the static
-  `<ul ... id="navbar">`, after the Storage `<li>`, insert
-  `<li><a href="/mesh.html">Mesh</a></li>` (no `data-label`, so the SPA leaves
-  the text literal).
-* Re-add the capture-phase navigation script (right after `</nav></div></div>`).
-  The SPA attaches a bubble-phase click handler to **every** `#navbar a` and
-  calls `preventDefault()` (that's its hash routing), so a plain link to
-  `/mesh.html` is swallowed and "nothing happens" on click. The script forces a
-  real navigation before the SPA can cancel it:
-  `<script>(function(){var m=document.querySelector('#navbar a[href="/mesh.html"]');if(m){m.addEventListener("click",function(e){e.stopPropagation();window.location.href="/mesh.html";},true);}})();</script>`
+* Keep `mesh-view.js` (not part of upstream) and its
+  `add_gzip_resource("web/mesh-view.js" ...)` line in `../CMakeLists.txt`.
+* In the new `index.html`, load the module — add
+  `<script defer="defer" src="mesh-view.js"></script>` right after the main bundle
+  `<script ... src="main.*.js">`.
+* Add the **Mesh** nav link: inside the static `<ul ... id="navbar">`, after the
+  Storage `<li>`, insert `<li><a href="#mesh">Mesh</a></li>`. It is a normal hash
+  route like `#dashboard`/`#files` — the SPA ignores unknown hashes
+  (`Zt: if(!a) return false`), and `mesh-view.js` takes over `#mesh`.
 
   See [`docs/planning/bed-mesh-viewer.md`](../../../docs/planning/bed-mesh-viewer.md).
