@@ -31,6 +31,7 @@
 #include <option/has_sheet_profiles.h>
 #include <option/has_adc_side_fsensor.h>
 #include <option/has_input_shaper_calibration.h>
+#include <option/has_z_endstop_calibration.h>
 #include <option/has_mmu2.h>
 #include <option/has_toolchanger.h>
 #include <option/has_tool_offset_sensor.h>
@@ -885,6 +886,10 @@ struct CurrentStore
 
 #if HAS_INPUT_SHAPER_CALIBRATION()
     StoreItem<TestResult, TestResult::unknown, ItemFlag::calibrations, journal::hash("Input Shaper Calibration")> selftest_result_input_shaper_calibration;
+#endif
+
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    StoreItem<TestResult, TestResult::unknown, ItemFlag::calibrations, journal::hash("Z Endstop Calibration")> selftest_result_z_endstop_calibration;
 #endif
 
 #if HAS_I2C_EXPANDER()

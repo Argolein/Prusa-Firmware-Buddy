@@ -13,6 +13,7 @@
 #include <option/has_gearbox_alignment.h>
 #include <option/has_phase_stepping_calibration.h>
 #include <option/has_input_shaper_calibration.h>
+#include <option/has_z_endstop_calibration.h>
 #include <option/has_coldpull.h>
 #include <option/has_door_sensor_calibration.h>
 #include <option/has_manual_belt_tuning.h>
@@ -69,6 +70,10 @@
 
 #if HAS_INPUT_SHAPER_CALIBRATION()
     #include "screen_input_shaper_calibration.hpp"
+#endif
+
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    #include "screen_z_endstop_calibration.hpp"
 #endif
 
 #if HAS_GEARBOX_ALIGNMENT()
@@ -303,6 +308,9 @@ using FSMDisplayConfig = FSMDisplayConfigDef<
 #endif
 #if HAS_INPUT_SHAPER_CALIBRATION()
     FSMScreenDef<ClientFSM::InputShaperCalibration, ScreenInputShaperCalibration>,
+#endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+    FSMScreenDef<ClientFSM::ZEndstopCalibration, ScreenZEndstopCalibration>,
 #endif
 #if HAS_GEARBOX_ALIGNMENT()
     FSMScreenDef<ClientFSM::GearboxAlignment, ScreenGearboxAlignment>,

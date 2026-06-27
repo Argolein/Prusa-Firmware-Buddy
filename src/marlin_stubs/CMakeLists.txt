@@ -86,6 +86,10 @@ if(HAS_INPUT_SHAPER_CALIBRATION)
   target_sources(firmware PRIVATE M1959.cpp)
 endif()
 
+if(HAS_Z_ENDSTOP_CALIBRATION)
+  target_sources(firmware PRIVATE M1988.cpp)
+endif()
+
 if(HAS_MANUAL_BELT_TUNING)
   target_sources(firmware PRIVATE M961.cpp)
 endif()

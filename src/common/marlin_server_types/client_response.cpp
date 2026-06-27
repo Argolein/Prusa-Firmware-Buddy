@@ -74,6 +74,9 @@ constinit const EnumArray<ClientFSM, std::span<const PhaseResponses>, ClientFSM:
 #if HAS_DOOR_SENSOR_CALIBRATION()
         { ClientFSM::DoorSensorCalibration, door_sensor_calibration_responses },
 #endif
+#if HAS_Z_ENDSTOP_CALIBRATION()
+        { ClientFSM::ZEndstopCalibration, z_endstop_calib_responses },
+#endif
 #if HAS_LOADCELL()
         { ClientFSM::NozzleCleaningFailed, nozzle_cleaning_responses },
 #endif

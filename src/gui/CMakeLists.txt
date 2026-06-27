@@ -207,6 +207,10 @@ if(HAS_INPUT_SHAPER_CALIBRATION)
   target_sources(firmware PRIVATE screen_input_shaper_calibration.cpp)
 endif()
 
+if(HAS_Z_ENDSTOP_CALIBRATION)
+  target_sources(firmware PRIVATE screen_z_endstop_calibration.cpp)
+endif()
+
 add_subdirectory(dialogs)
 add_subdirectory(footer)
 add_subdirectory(screen)
