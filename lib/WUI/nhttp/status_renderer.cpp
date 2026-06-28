@@ -16,6 +16,11 @@
     #include <feature/chamber/chamber.hpp>
 #endif
 
+#include <option/has_side_leds.h>
+#if HAS_SIDE_LEDS()
+    #include <leds/side_strip_handler.hpp>
+#endif
+
 using namespace marlin_server;
 using transfers::Monitor;
 
@@ -73,6 +78,10 @@ json::JsonResult StatusRenderer::renderState(size_t resume_point, json::JsonOutp
 #if HAS_CHAMBER_API()
             JSON_FIELD_FFIXED("temp_chamber", buddy::chamber().current_temperature().value_or(0), 1) JSON_COMMA;
             JSON_FIELD_FFIXED("target_chamber", buddy::chamber().target_temperature().value_or(0), 1) JSON_COMMA;
+#endif
+#if HAS_SIDE_LEDS()
+            // Argo: chamber light on/off state for the PrusaLink dashboard switch.
+            JSON_FIELD_BOOL("chamber_light", leds::SideStripHandler::instance().get_max_brightness() > 0) JSON_COMMA;
 #endif
             // XYZE, mm
             JSON_FIELD_FFIXED("axis_z", marlin_vars().logical_curr_pos[2], 1) JSON_COMMA;
