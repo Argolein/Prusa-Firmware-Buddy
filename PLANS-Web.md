@@ -33,7 +33,9 @@ Anpassung und Erweiterung der Prusa Buddy Web-Schnittstelle (Prusa Link), um Fun
 | **Bed Mesh** | 3D Visualisierung | Keine Anzeige | ❌ Fehlend |
 | **Konsole** | Echtzeit G-Code Terminal | Nur Log-Download | ❌ Fehlend |
 | **Makros** | Beliebige G-Code Blöcke | Keine | ❌ Fehlend |
-| **Presets** | Temperatur-Voreinstellungen | Fest in Firmware | ⚠️ Eingeschränkt |
+| **Presets** | Temperatur-Voreinstellungen | Sidebar-Dropdown (Düse/Bett, Preset + Direkteingabe) | ✅ Umgesetzt (Argo) |
+| **Beleuchtung** | LED-Steuerung | Kammerlicht Ein/Aus Schalter | ✅ Umgesetzt (Argo) |
+| **Material-Anzeige** | Pro-Extruder Filament | Pro-Tool Typ + Farbe (1/4/8 Tools), Farbe per Klick änderbar | ✅ Umgesetzt (Argo) |
 | **Vorschaubild** | Vollständige Integration | Vorhanden (Thumbnails) | ✅ Vorhanden |
 
 ---
@@ -75,8 +77,8 @@ Anpassung und Erweiterung der Prusa Buddy Web-Schnittstelle (Prusa Link), um Fun
 ---
 
 ## Notizen & Risiken
-- **Speicherplatz (Core One):** 
-    - Der Core One verfügt über eine Ressourcen-Partition von **2 MB** (512 Blöcke à 4 KB). 
+- **Speicherplatz (Core One):**
+    - Der Core One verfügt über eine Ressourcen-Partition von **2 MB** (512 Blöcke à 4 KB).
     - Zum Vergleich: Der Prusa MINI hat nur ca. **820 KB**.
     - Die UI wird Gzip-komprimiert gespeichert. Aktuell belegt die UI unkomprimiert ca. 210 KB.
     - Große Bibliotheken (z.B. Three.js für 3D Mesh) müssen vorsichtig eingesetzt werden (Tree Shaking), aber 2 MB bieten ausreichend Puffer für Erweiterungen.
