@@ -28,6 +28,12 @@ void FilamentRenderState::load() {
     }
 }
 
+void FilamentRenderState::load_palette() {
+    const auto &preset = filament_color_presets[palette];
+    snprintf(palette_name.data(), palette_name.size(), "%.*s", static_cast<int>(preset.name.size()), preset.name.data());
+    snprintf(palette_rgb.data(), palette_rgb.size(), "#%02x%02x%02x", preset.color.r, preset.color.g, preset.color.b);
+}
+
 JsonResult FilamentRenderer::renderState(size_t resume_point, JsonOutput &output, FilamentRenderState &state) const {
     // clang-format off
     JSON_START;
@@ -57,6 +63,23 @@ JsonResult FilamentRenderer::renderState(size_t resume_point, JsonOutput &output
                 } else {
                     JSON_CONTROL("\"color\":null,\"color_rgb\":null");
                 }
+            JSON_OBJ_END;
+        }
+        JSON_ARR_END;
+        JSON_COMMA;
+        // Selectable color palette (single source of truth for the web picker).
+        JSON_FIELD_ARR("palette");
+        for (; state.palette < static_cast<uint8_t>(filament_color_presets.size()); state.palette++) {
+            state.load_palette();
+
+            if (!state.palette_first) {
+                JSON_COMMA;
+            }
+            state.palette_first = false;
+
+            JSON_OBJ_START;
+                JSON_FIELD_STR("name", state.palette_name.data()) JSON_COMMA;
+                JSON_FIELD_STR("color_rgb", state.palette_rgb.data());
             JSON_OBJ_END;
         }
         JSON_ARR_END;

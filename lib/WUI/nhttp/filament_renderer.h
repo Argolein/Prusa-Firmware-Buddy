@@ -21,8 +21,18 @@ public:
     std::array<char, 16> color_name {};
     std::array<char, 8> color_rgb {};
 
+    // Palette iteration (the selectable colors), rendered after "tools" so the web
+    // color picker can use the printer's own list as the single source of truth.
+    uint8_t palette = 0;
+    bool palette_first = true;
+    std::array<char, 16> palette_name {};
+    std::array<char, 8> palette_rgb {};
+
     /// Loads the current tool's type + color into the buffers above.
     void load();
+
+    /// Loads the current palette entry's name + rgb into the buffers above.
+    void load_palette();
 };
 
 class FilamentRenderer final : public json::JsonRenderer<FilamentRenderState> {
