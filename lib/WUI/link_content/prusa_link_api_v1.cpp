@@ -20,6 +20,11 @@
 #include <transfers/monitor.hpp>
 #include <transfers/changed_path.hpp>
 #include <state/printer_state.hpp>
+#include <option/has_side_leds.h>
+#if HAS_SIDE_LEDS()
+    #include <leds/side_strip_handler.hpp>
+#endif
+#include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cerrno>
@@ -111,6 +116,49 @@ namespace {
         marlin_client::gcode("G29");
         out.next = StatusPage(Status::Accepted, parser);
     }
+
+    // Argo: interactive PrusaLink controls. The web UI sends the requested value
+    // in the URL path; we clamp server-side (the client limits are UX only) and
+    // set the target without waiting, matching Prusa Connect's behaviour (allowed
+    // even mid-print; the running G-code may later override it).
+    constexpr int max_nozzle_target = 295;
+    constexpr int max_bed_target = 115;
+
+    void set_nozzle_target(int value, const RequestParser &parser, handler::Step &out) {
+        value = std::clamp(value, 0, max_nozzle_target);
+        for (auto tool : PhysicalToolIndex::all()) {
+            marlin_client::set_target_nozzle(static_cast<int16_t>(value), tool);
+        }
+        out.next = StatusPage(Status::NoContent, parser);
+    }
+
+    void set_bed_target(int value, const RequestParser &parser, handler::Step &out) {
+        value = std::clamp(value, 0, max_bed_target);
+        marlin_client::set_target_bed(static_cast<int16_t>(value));
+        out.next = StatusPage(Status::NoContent, parser);
+    }
+
+#if HAS_SIDE_LEDS()
+    void set_chamber_light(bool on, const RequestParser &parser, handler::Step &out) {
+        auto &strip = leds::SideStripHandler::instance();
+        // "Off" is persisted as max_brightness == 0 (the same config the on-screen
+        // "Chamber Lights" menu writes), so it survives a reboot. We keep a RAM
+        // shadow of the last on-brightness to restore on switch-on; after a
+        // reboot-while-off the shadow is empty and we fall back to full.
+        static uint8_t saved_brightness = 0;
+        if (on) {
+            if (strip.get_max_brightness() == 0) {
+                strip.set_max_brightness(saved_brightness > 0 ? saved_brightness : 255);
+            }
+        } else {
+            if (const uint8_t current = strip.get_max_brightness(); current > 0) {
+                saved_brightness = current;
+            }
+            strip.set_max_brightness(0);
+        }
+        out.next = StatusPage(Status::NoContent, parser);
+    }
+#endif
 } // namespace
 
 Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::Step &out) const {
@@ -278,6 +326,37 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
             out.next = StatusPage(Status::MethodNotAllowed, StatusPage::CloseHandling::ErrorClose, parser.accepts_json);
             return Accepted::Accepted;
         }
+    } else if (auto printer_suffix_opt = remove_prefix(suffix, "printer/"); printer_suffix_opt.has_value()) {
+        // Argo: interactive controls — POST /api/v1/printer/{nozzle,bed,chamber-light}/<value>.
+        if (parser.method != Method::Post) {
+            out.next = StatusPage(Status::MethodNotAllowed, parser);
+            return Accepted::Accepted;
+        }
+        const auto printer_suffix = *printer_suffix_opt;
+        const auto slash = printer_suffix.find('/');
+        if (slash == string_view::npos) {
+            out.next = StatusPage(Status::BadRequest, parser);
+            return Accepted::Accepted;
+        }
+        const auto key = printer_suffix.substr(0, slash);
+        const auto value_str = printer_suffix.substr(slash + 1);
+        int value = 0;
+        if (from_chars_light(value_str.begin(), value_str.end(), value).ec != std::errc {}) {
+            out.next = StatusPage(Status::BadRequest, parser);
+            return Accepted::Accepted;
+        }
+        if (key == "nozzle") {
+            set_nozzle_target(value, parser, out);
+        } else if (key == "bed") {
+            set_bed_target(value, parser, out);
+#if HAS_SIDE_LEDS()
+        } else if (key == "chamber-light") {
+            set_chamber_light(value != 0, parser, out);
+#endif
+        } else {
+            out.next = StatusPage(Status::NotFound, parser);
+        }
+        return Accepted::Accepted;
     } else {
         out.next = StatusPage(Status::NotFound, parser);
         return Accepted::Accepted;
