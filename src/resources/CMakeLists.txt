@@ -100,6 +100,7 @@ endif()
 add_gzip_resource("web/favicon.ico" "/web/favicon.ico")
 add_gzip_resource("web/index.html" "/web/index.html")
 add_gzip_resource("web/mesh-view.js" "/web/mesh-view.js")
+add_gzip_resource("web/link-controls.js" "/web/link-controls.js")
 add_gzip_resource("web/main.af4a33467c9cc980afd5.js" "/web/main.af4a33467c9cc980afd5.js")
 add_gzip_resource("web/main.71c989a4a290e5c10892.css" "/web/main.71c989a4a290e5c10892.css")
 
