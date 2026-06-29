@@ -957,6 +957,26 @@ void MI_TOOL_LEDS_ENABLE::OnChange(size_t old_index) {
 }
 #endif
 
+#if HAS_INDX()
+/**********************************************************************************************/
+// MI_INDX_SPEED_LED
+MI_INDX_SPEED_LED::MI_INDX_SPEED_LED()
+    : WI_ICON_SWITCH_OFF_ON_t(config_store().tool_leds_speed_reactive.get(), _(label), nullptr, is_enabled_t::yes, is_hidden_t::no) {
+}
+void MI_INDX_SPEED_LED::OnChange(size_t old_index) {
+    const bool enabled = !old_index;
+    config_store().tool_leds_speed_reactive.set(enabled);
+    if (!enabled) {
+        // The speed-reactive engine no longer drives the LED; restore the static state.
+        if (config_store().tool_leds_enabled.get()) {
+            buddy::puppies::indx.set_leds_color(COLOR_ORANGE, indx_head::leds::Mode::solid);
+        } else {
+            buddy::puppies::indx.set_leds_color(COLOR_BLACK, indx_head::leds::Mode::off);
+        }
+    }
+}
+#endif
+
 /*****************************************************************************/
 #if ENABLED(POWER_PANIC)
 MI_TRIGGER_POWER_PANIC::MI_TRIGGER_POWER_PANIC()

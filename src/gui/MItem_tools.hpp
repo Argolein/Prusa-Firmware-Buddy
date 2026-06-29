@@ -590,6 +590,16 @@ public:
 };
 #endif
 
+#if HAS_INDX()
+class MI_INDX_SPEED_LED : public WI_ICON_SWITCH_OFF_ON_t {
+    static constexpr const char *const label = N_("Speed Reactive Light");
+
+public:
+    MI_INDX_SPEED_LED();
+    virtual void OnChange(size_t old_index) override;
+};
+#endif
+
 #if ENABLED(POWER_PANIC)
 class MI_TRIGGER_POWER_PANIC : public IWindowMenuItem {
     static constexpr const char *const label = N_("Trigger Power Panic");

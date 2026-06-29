@@ -123,6 +123,9 @@
 #endif
 
 #include <option/has_indx.h>
+#if HAS_INDX()
+    #include "indx_speed_led.hpp"
+#endif
 #include <option/has_wastebin_fill_tracking.h>
 #if HAS_WASTEBIN_FILL_TRACKING()
     #include <feature/wastebin_watcher/wastebin_watcher.hpp>
@@ -3514,6 +3517,9 @@ static void _server_update_vars() {
     auto &no_tool_hotend = marlin_vars().hotend(NoTool());
     no_tool_hotend.print_fan_rpm = Fans::print(PhysicalToolIndex::count).get_actual_rpm();
     no_tool_hotend.heatbreak_fan_rpm = Fans::heat_break(PhysicalToolIndex::count).get_actual_rpm();
+
+    // Drive the speed-reactive status LED (no-op unless the feature is enabled).
+    indx_speed_led::update();
 #endif
 
     for (auto tool : VirtualToolIndex::all()) {

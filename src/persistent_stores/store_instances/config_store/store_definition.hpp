@@ -596,6 +596,9 @@ struct CurrentStore
 
     StoreItem<bool, true, ItemFlag::user_interface, journal::hash("Enable Tool LEDs")> tool_leds_enabled;
 
+    /// INDX status LED "speed reactive" mode: color follows motion speed (green -> red).
+    StoreItem<bool, true, ItemFlag::user_interface, journal::hash("INDX Speed Reactive LED")> tool_leds_speed_reactive;
+
     StoreItem<float, 0.0f, ItemFlag::stats, journal::hash("Odometer X")> odometer_x;
     StoreItem<float, 0.0f, ItemFlag::stats, journal::hash("Odometer Y")> odometer_y;
     StoreItem<float, 0.0f, ItemFlag::stats, journal::hash("Odometer Z")> odometer_z;

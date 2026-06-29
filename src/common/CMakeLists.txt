@@ -34,6 +34,7 @@ if(BOARD IN_LIST BUDDY_BOARDS)
             hw_check.cpp
             hwio_pindef_check.cpp
             i2c.cpp
+            indx_speed_led.cpp
             ini_handler.cpp
             jsmn.cpp
             json_encode.cpp
