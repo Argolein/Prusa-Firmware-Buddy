@@ -91,8 +91,29 @@
   }
 
   // ---------- backend ----------
+  // Hard ceiling on every request. The printer's lwIP stack has a tiny, shared
+  // TCP-PCB pool (Prusa Connect's TLS socket lives in the same pool), so a stalled
+  // request that keeps a socket open is exactly what can push Connect offline.
+  // An abort-based timeout guarantees we release the socket instead of leaking it.
+  var REQ_TIMEOUT_MS = 6000;
+  function timedFetch(url, opts) {
+    opts = opts || {};
+    opts.credentials = "same-origin";
+    if (typeof AbortController === "function") {
+      var ctrl = new AbortController();
+      opts.signal = ctrl.signal;
+      var timer = setTimeout(function () { ctrl.abort(); }, REQ_TIMEOUT_MS);
+      var clear = function () { clearTimeout(timer); };
+      return fetch(url, opts).then(
+        function (r) { clear(); return r; },
+        function (e) { clear(); throw e; }
+      );
+    }
+    return fetch(url, opts);
+  }
+
   function postControl(path) {
-    return fetch("/api/v1/printer/" + path, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json" } })
+    return timedFetch("/api/v1/printer/" + path, { method: "POST", headers: { Accept: "application/json" } })
       .then(function (r) {
         if (r.status === 401 || r.status === 403) { toast("Sign in to PrusaLink first"); return false; }
         if (!r.ok) { throw new Error("HTTP " + r.status); }
@@ -100,10 +121,16 @@
       });
   }
 
+  // In-flight guards: never let a slow request stack up behind the poll timers.
+  // At most one status and one filament request can be outstanding at a time.
+  var pollBusy = false;
   function poll() {
-    fetch("/api/v1/status", { credentials: "same-origin", headers: { Accept: "application/json" } })
+    if (pollBusy) { return; }
+    pollBusy = true;
+    timedFetch("/api/v1/status", { headers: { Accept: "application/json" } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
+        pollBusy = false;
         var p = j && j.printer;
         if (!p) { return; }
         if (typeof p.target_nozzle === "number") { lastTargets.nozzle = Math.round(p.target_nozzle); }
@@ -115,7 +142,7 @@
           showLightRow(false);
         }
       })
-      .catch(function () {});
+      .catch(function () { pollBusy = false; });
   }
 
   // ---------- temperature dropdown ----------
@@ -286,10 +313,14 @@
     row.style.display = "";
   }
 
+  var filBusy = false;
   function pollFilament() {
-    fetch("/api/v1/filament", { credentials: "same-origin", headers: { Accept: "application/json" } })
+    if (filBusy) { return; }
+    filBusy = true;
+    timedFetch("/api/v1/filament", { headers: { Accept: "application/json" } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
+        filBusy = false;
         if (j && j.tools) {
           if (Array.isArray(j.palette)) { palette = j.palette; }
           renderFilament(j.tools);
@@ -298,7 +329,7 @@
           if (row) { row.style.display = "none"; }
         }
       })
-      .catch(function () {});
+      .catch(function () { filBusy = false; });
   }
 
   // ---------- tool color picker ----------
@@ -337,9 +368,8 @@
   }
 
   function applyColor(tool, name) {
-    fetch("/api/v1/filament/" + tool, {
+    timedFetch("/api/v1/filament/" + tool, {
       method: "PUT",
-      credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ color: name }),
     })
@@ -357,6 +387,29 @@
   function rowFor(where) {
     var s = document.querySelector('[data-where="' + where + '"]');
     return s ? s.closest(".tel-prop") : null;
+  }
+
+  // Visibility-gated poller. The printer's network stack is tight (few TCP PCBs,
+  // shared lwIP heap) and Prusa Connect competes for it, so we keep local polling
+  // gentle: only tick while the tab is actually visible, and refresh immediately
+  // when it becomes visible again (so a backgrounded or wall-mounted dashboard
+  // stops hammering /api/v1/* and starving Connect's TLS connection).
+  var pollers = [];
+  function startPoller(fn, intervalMs) {
+    var timer = null;
+    function tick() { if (document.visibilityState === "visible") { fn(); } }
+    function start() { if (timer === null) { timer = setInterval(tick, intervalMs); } }
+    function stop() { if (timer !== null) { clearInterval(timer); timer = null; } }
+    pollers.push({ start: start, stop: stop, fn: fn });
+    fn();
+    start();
+  }
+  function onVisibilityChange() {
+    if (document.visibilityState === "visible") {
+      pollers.forEach(function (p) { p.fn(); p.start(); });
+    } else {
+      pollers.forEach(function (p) { p.stop(); });
+    }
   }
 
   function init() {
@@ -394,10 +447,11 @@
       closeColors();
     }, true);
 
-    poll();
-    setInterval(poll, 3000);
-    pollFilament();
-    setInterval(pollFilament, 8000);
+    // Gentle, visibility-gated polling (see startPoller). Intervals are
+    // deliberately long to leave the shared network stack free for Prusa Connect.
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    startPoller(poll, 9000);
+    startPoller(pollFilament, 30000);
   }
 
   if (document.readyState === "loading") {
