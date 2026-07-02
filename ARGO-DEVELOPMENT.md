@@ -14,10 +14,19 @@ top of stock Prusa firmware, and where to continue. Per-feature design records l
 | `v6.5.7` | Stock Prusa release (upstream, untouched) |
 | `v6.5.7-Argo-stable` | Argo features on top of `v6.5.7` (last known-good before the 6.6.0 bump) |
 | `v6.6.0` | Stock Prusa release (upstream, untouched) |
-| `v6.6.0-Argo-stable` | **Current working branch** — Argo features rebased onto `v6.6.0` |
+| `v6.6.0-Argo-stable` | Argo features on top of `v6.6.0` (previous working branch) |
+| `v6.6.1` | Stock Prusa release (upstream, untouched) |
+| `v6.6.1-Argo-stable` | **Current working branch** — Argo features rebased onto `v6.6.1` |
 
 The `*-Argo-stable` branches carry the same set of personal features, re-based onto each new
 stock Prusa release.
+
+> **6.6.0 → 6.6.1 note (patch bump):** `v6.6.1` is a direct descendant of `v6.6.0`
+> (16 upstream commits, mostly INDX-only). All 38 Argo commits replayed onto `v6.6.1` with a
+> clean `git rebase --onto` (zero conflicts; `git range-diff` shows every commit identical).
+> Because none of the files touched by the `rebase repair` commit changed between 6.6.0 and
+> 6.6.1, the repair commit was **carried unchanged** here (the "drop and re-derive" rule below
+> is for larger base changes). Validated with a green `coreone` `-Werror` Docker build.
 
 ---
 
@@ -35,7 +44,7 @@ stricter `-Werror`, etc.). Those fixes are collected into a single commit whose 
 
 > `rebase repair — NOT intended for future cherry-picks / rebases`
 
-(example on this branch: `f8f75a630`). Its body lists each fix and the original feature commit
+(example on this branch: `1437929f3`). Its body lists each fix and the original feature commit
 it really belongs to.
 
 **On the next rebase: DROP the repair commit and re-derive the equivalent fixes against the new
@@ -50,7 +59,7 @@ base** (the correct fix may differ). Do not blindly replay it.
    `v6.6.0-Argo-stable`'s repair commit.
 3. Build `coreone` and `coreone_indx` with `-Werror` (see "Build"). Fix what breaks.
 4. Collect those fixes into a fresh `rebase repair — NOT intended ...` commit, with a body
-   mapping each fix to its origin feature commit (same format as `f8f75a630`).
+   mapping each fix to its origin feature commit (same format as `1437929f3`).
 5. Tag the result `v6.7.0-Argo-stable`.
 
 > Even cleaner (optional, history rewrite): instead of a separate repair commit, fold each
@@ -73,25 +82,25 @@ run in the `prusa-buddy-build:gcc13` Docker image to match Prusa's toolchain.
 
 ---
 
-## Feature log (Argo additions on top of stock `v6.6.0`)
+## Feature log (Argo additions on top of stock `v6.6.1`)
 
-Oldest → newest. Commit hashes are for this `v6.6.0-Argo-stable` rebase and will change on the
+Oldest → newest. Commit hashes are for this `v6.6.1-Argo-stable` rebase and will change on the
 next rebase.
 
 | Area | Feature | Commit(s) | Notes |
 |------|---------|-----------|-------|
-| Mechanics | 1.5GT belt support + default steps/mm | `1b087b650`, `f0dedbd69`, `890721f20` | `DEFAULT_AXIS_STEPS_PER_UNIT`, "steps/mm" setting |
-| Mechanics | Custom motor current | `24a2d6d43` | |
-| Mechanics | Increased XY/Z park speed | `0fa6b1789` | |
-| Chamber | Higher max chamber temp + safety margins | `a9edda91a`, `458ace999` | up to 65 °C |
-| Motion | Adaptive Pressure Advance (no planner flush on `M572 S`) | `e1e470b7d` | design: [`docs/planning/adaptive-pressure-advance.md`](docs/planning/adaptive-pressure-advance.md) |
-| Motion | CoreXY selftest axis-length calibration fix | `a10f4b38e` | adds `phase_stepping::update_axis_motor_params` |
-| Homing | Automatic Z-alignment during `G28` | `3cb8c663e` | |
-| Network | Wi-Fi / Ethernet mutually exclusive at runtime | `6e92d4af5`, `176caf4ca` | |
-| Filament | Toggle "Preheat & ram before unload" (Advanced Settings): OFF = cold unload, skips BOTH preheat and ramming | `106cdb7f9` (+ ramming skip) | ramming skipped in `ram_sequence_process` because Prusa 6.6.0 rams even when cold |
-| Filament | Cool down nozzle after load when idle | `3a37b1eb8` | |
-| Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `25780ffad` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
-| Network | **Bed Mesh Viewer** (`GET/POST /api/v1/mesh` + embedded `mesh.html` heatmap with "Run bed leveling") | `6f13a0986`, `37abeb50e`, `089732d65`, `0037a6479` | design: [`docs/planning/bed-mesh-viewer.md`](docs/planning/bed-mesh-viewer.md); served at `http://<printer>/mesh.html` |
+| Mechanics | 1.5GT belt support + default steps/mm | `2004bc8c6`, `b02dd2bcf`, `d4fef8444` | `DEFAULT_AXIS_STEPS_PER_UNIT`, "steps/mm" setting |
+| Mechanics | Custom motor current | `1bb2a3e74` | |
+| Mechanics | Increased XY/Z park speed | `ad7a600d6` | |
+| Chamber | Higher max chamber temp + safety margins | `3219a6253`, `98f9b13ae` | up to 65 °C |
+| Motion | Adaptive Pressure Advance (no planner flush on `M572 S`) | `ac4705d68` | design: [`docs/planning/adaptive-pressure-advance.md`](docs/planning/adaptive-pressure-advance.md) |
+| Motion | CoreXY selftest axis-length calibration fix | `5859d3784` | adds `phase_stepping::update_axis_motor_params` |
+| Homing | Automatic Z-alignment during `G28` | `9430ee442` | |
+| Network | Wi-Fi / Ethernet mutually exclusive at runtime | `3a5ecf6c3`, `04f1a78ea` | |
+| Filament | Toggle "Preheat & ram before unload" (Advanced Settings): OFF = cold unload, skips BOTH preheat and ramming | `b07303141` (+ ramming skip) | ramming skipped in `ram_sequence_process` because Prusa 6.6.0 rams even when cold |
+| Filament | Cool down nozzle after load when idle | `4b09b1751` | |
+| Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `2eb5432e7` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
+| Network | **Bed Mesh Viewer** (`GET/POST /api/v1/mesh` + embedded `mesh.html` heatmap with "Run bed leveling") | `801f77f55`, `37f11dacb`, `5569b4670`, `15a40c465` | design: [`docs/planning/bed-mesh-viewer.md`](docs/planning/bed-mesh-viewer.md); served at `http://<printer>/mesh.html` |
 | Network | **PrusaLink Chamber Temperature** (Dashboard sidebar row below Heatbed) | _(this commit)_ | `temp_chamber`/`target_chamber` in `/api/v1/status` (`HAS_CHAMBER_API()` guard) + web bundle telemetry map + `index.html` row; design: [`docs/planning/prusalink-chamber-temperature.md`](docs/planning/prusalink-chamber-temperature.md) |
 | Calibration | **Z endstop calibration** (Control → Calibrations & Tests → "12 Z endstop calibration") | _(uncommitted)_ | `HAS_Z_ENDSTOP_CALIBRATION()` option (Core One family); M1987 wizard homes → explicit `calib_Z` → probes one point per Z motor → shows heights + spread with Try again / Quit; design: [`docs/planning/z-endstop-calibration.md`](docs/planning/z-endstop-calibration.md) |
 | Chamber | **Filtration only while printing** (no fan during filament load/unload or chamber pre-heat) | _(uncommitted)_ | Restores pre-BFW-7026 gate in `ChamberFiltration::needs_filtration()` (`is_printing_state() && planner.max_printed_z > 0`); undoes upstream `a97474829` + `74b85ea7b` side effect that spun the xBuddy-Ext filtration fan whenever the nozzle was hot (incl. attributing previously-loaded ASA via `for_tool_heuristic`); design: [`docs/planning/chamber-filtration-printing-gate.md`](docs/planning/chamber-filtration-printing-gate.md) |
@@ -99,14 +108,14 @@ next rebase.
 | Network | **PrusaLink chamber light switch** (sidebar on/off toggle for the side LED) | _(uncommitted)_ | `POST /api/v1/printer/chamber-light/<0\|1>` via `SideStripHandler` (RAM-shadow restore) + `chamber_light` in `/api/v1/status` (`HAS_SIDE_LEDS()` guard); design: [`docs/planning/prusalink-chamber-light.md`](docs/planning/prusalink-chamber-light.md) |
 | Network | **PrusaLink per-tool Filament row** (sidebar; type in tool's Color-Manager color, adapts to 1/4/8 tools) | _(uncommitted)_ | Frontend-only: `link-controls.js` consumes existing `GET /api/v1/filament` (already one entry per `PhysicalToolIndex::count`); swatch+type chips, empty slots shown; design: [`docs/planning/prusalink-filament-tools.md`](docs/planning/prusalink-filament-tools.md) |
 | Network | **PrusaLink tool color picker** (click a tool's swatch → pick from the 15 printer colors) | _(uncommitted)_ | `GET /api/v1/filament` gains a `palette` array (`filament_renderer`, single source of truth); picker `PUT /api/v1/filament/<tool>` `{color:NAME\|null}`; design: [`docs/planning/prusalink-filament-color-picker.md`](docs/planning/prusalink-filament-color-picker.md) |
-| — | **Rebase repair (drop on next rebase)** | `f8f75a630` | see "Rebase workflow" |
+| — | **Rebase repair (drop on next rebase)** | `1437929f3` | see "Rebase workflow" |
 
 ---
 
 ## Open / future work
 
 - **Prusa Link web modernization** — [`PLANS-Web.md`](PLANS-Web.md): Bed Mesh API + viewer
-  **done** (`6f13a0986`, `37abeb50e`); G-code console etc. still open. The Filament Color
+  **done** (`801f77f55`, `37f11dacb`); G-code console etc. still open. The Filament Color
   Manager's `GET/PUT /api/v1/filament` endpoints
   (`lib/WUI/nhttp/filament_renderer.*`, `filament_command.*`, routed in
   `prusa_link_api_v1.cpp`) are a working template for that plan's "Phase 1" backend endpoints
