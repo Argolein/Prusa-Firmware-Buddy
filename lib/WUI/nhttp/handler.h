@@ -42,6 +42,8 @@
 #include "static_mem.h"
 #include "status_page.h"
 #include "status_renderer.h"
+#include "tool_mapping_command.h"
+#include "tool_mapping_renderer.h"
 #include "transfer_renderer.h"
 
 #include <http/types.h>
@@ -153,10 +155,12 @@ namespace handler {
         SendJson<StatusRenderer>,
         SendJson<link_content::FilamentRenderer>,
         SendJson<link_content::MeshRenderer>,
+        SendJson<link_content::ToolMappingRenderer>,
         printer::GcodeUpload,
         printer::GCodePreview,
         printer::JobCommand,
         printer::FilamentCommand,
+        printer::ToolMappingCommand,
         printer::FileInfo,
         printer::FileCommand,
 #if NETWORKING_BENCHMARK_ENABLED
