@@ -104,6 +104,18 @@ GcodeSuite::VirtualToolFromCommand GcodeSuite::get_virtual_tool_from_command(uin
       return NoTool{};
     }
 
+    // Argo (single-tool collapse): when the printer has exactly one enabled tool
+    // (a bare Core One / MMU-disabled machine), resolve EVERY gcode tool to it so a
+    // multi-filament gcode prints mono-color instead of fatal-erroring on an
+    // unmapped tool change (T.cpp treats ToolNotMapped as a fatal_error). The tool
+    // mapper is a strict bijection and cannot collapse many gcode tools onto one
+    // tool, so this has to happen here in resolution. Multi-tool machines (MMU/INDX)
+    // have >1 enabled tool, so single_enabled_tool() is nullopt there and the normal
+    // mapping below applies unchanged.
+    if (const auto only_tool = VirtualToolIndex::single_enabled_tool(); only_tool.has_value()) {
+      return *only_tool;
+    }
+
     return stdext::to_variant(GcodeToolIndex::from_raw(tool_index).to_virtual());
 
   } else {
