@@ -287,7 +287,15 @@ StartPrintResult wui_start_print(char *filename, bool autostart_if_able) {
 
     if (autostart_if_able) {
         if (printer_can_print) {
-            print_begin(filename, marlin_server::PreviewSkipIfAble::all);
+            // Argo (web tool mapping): skip the preview thumbnail but hold at the
+            // tools-mapping screen when the print needs mapping, so it can be done
+            // from the PrusaLink web UI (GET/PUT /api/v1/mapping + confirm). This
+            // only changes behaviour when tools_mapping::is_tool_mapping_possible()
+            // (MMU/INDX/multi-tool) — single-tool/single-material prints still skip
+            // everything exactly as ::all did (only the >=tool_mapping comparison in
+            // marlin_print_preview differs between ::preview and ::all). The print is
+            // still MarkStarted at preview init, so is_print_started() stays true.
+            print_begin(filename, marlin_server::PreviewSkipIfAble::preview);
             return marlin_client::is_print_started() ? StartPrintResult::PrintStarted : StartPrintResult::Failed;
         } else {
             return StartPrintResult::Failed;

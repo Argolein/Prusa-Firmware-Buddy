@@ -277,6 +277,16 @@ IPrintPreview::State PrintPreview::stateFromFilamentType() const {
         return State::checks_done; // filament loaded/type checks are handled by the tools_mapping screen
     }
 
+    // Argo (single-tool collapse): a multi-filament gcode deliberately printed on a
+    // single enabled tool will always mismatch filament types (many gcode filaments,
+    // one loaded), so the wrong-filament screen would just block an intended mono
+    // print. Skip it for that case only — a normal single-tool print (single-tool
+    // gcode) still gets the wrong-filament warning.
+    if (VirtualToolIndex::single_enabled_tool().has_value()
+        && GCodeInfo::getInstance().UsedExtrudersCount() > 1) {
+        return State::checks_done;
+    }
+
     buddy::gcode_compatibility::CompatibilityReport report;
     report.generate_toolmapping_only({});
 
