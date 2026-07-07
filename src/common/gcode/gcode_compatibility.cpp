@@ -330,7 +330,13 @@ void CompatibilityReport::generate_without_toolmapping(const GCodeInfo &gcode_in
         failed_general_checks.set(GeneralCheck::input_shaper);
     }
 
-    if (gcode_info.UsedExtrudersCount() > get_num_of_enabled_tools()) {
+    // Argo (single-tool collapse): with exactly one enabled tool, a multi-filament
+    // gcode is intentionally collapsed onto that tool (get_virtual_tool_from_command),
+    // so "not enough tools" would fatally block a print we can actually do. Machines
+    // with >1 enabled tool (MMU/INDX) are unaffected — single_enabled_tool() is nullopt
+    // there, and the tool-mapping screen handles genuine shortfalls.
+    if (gcode_info.UsedExtrudersCount() > get_num_of_enabled_tools()
+        && !VirtualToolIndex::single_enabled_tool().has_value()) {
         failed_general_checks.set(GeneralCheck::not_enough_tools);
     }
 

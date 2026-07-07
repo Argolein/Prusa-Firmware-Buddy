@@ -10,6 +10,8 @@
 #include "../nhttp/filament_renderer.h"
 #include "../nhttp/filament_command.h"
 #include "../nhttp/mesh_renderer.h"
+#include "../nhttp/tool_mapping_renderer.h"
+#include "../nhttp/tool_mapping_command.h"
 #include "../wui_api.h"
 #include "prusa_api_helpers.hpp"
 
@@ -23,6 +25,13 @@
 #include <option/has_side_leds.h>
 #if HAS_SIDE_LEDS()
     #include <leds/side_strip_handler.hpp>
+#endif
+#include <option/has_tool_mapping.h>
+#if HAS_TOOL_MAPPING()
+    #include <marlin_vars.hpp>
+    #include <fsm_states.hpp>
+    #include <client_response.hpp>
+    #include <fsm/print_preview_phases.hpp>
 #endif
 #include <algorithm>
 #include <cstring>
@@ -45,6 +54,7 @@ using nhttp::printer::FileCommand;
 using nhttp::printer::FileInfo;
 using nhttp::printer::GcodeUpload;
 using nhttp::printer::JobCommand;
+using nhttp::printer::ToolMappingCommand;
 using printer_state::DeviceState;
 using transfers::ChangedPath;
 
@@ -159,6 +169,27 @@ namespace {
         out.next = StatusPage(Status::NoContent, parser);
     }
 #endif
+
+#if HAS_TOOL_MAPPING()
+    // Argo: web tool mapping — send the tools-mapping preview screen's Print/Abort
+    // response, but only while the print-preview FSM is actually holding there
+    // (mirrors Connect's dialog_action guard). The mapping itself is set first via
+    // PUT /api/v1/mapping.
+    void mapping_response(Response response, const RequestParser &parser, handler::Step &out) {
+        std::optional<fsm::States::Top> top;
+        marlin_vars().peek_fsm_states([&](const fsm::States &states) {
+            top = states.get_top();
+        });
+        if (!top.has_value()
+            || top->fsm_type != ClientFSM::PrintPreview
+            || GetEnumFromPhaseIndex<PhasesPrintPreview>(top->data.GetPhase()) != PhasesPrintPreview::tools_mapping) {
+            out.next = StatusPage(Status::Conflict, parser);
+            return;
+        }
+        marlin_client::FSM_response(PhasesPrintPreview::tools_mapping, response);
+        out.next = StatusPage(Status::NoContent, parser);
+    }
+#endif
 } // namespace
 
 Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::Step &out) const {
@@ -254,6 +285,40 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
         } else {
             get_only(SendJson(MeshRenderer(), parser.can_keep_alive()), parser, out);
         }
+        return Accepted::Accepted;
+    } else if (suffix == "mapping") {
+        // Argo: web tool mapping — GET reads the current G-code-filament ↔ tool
+        // mapping (only meaningful while held at the tools-mapping preview phase);
+        // PUT applies a new mapping.
+#if HAS_TOOL_MAPPING()
+        if (parser.method == Method::Put) {
+            if (!parser.content_length.has_value()) {
+                out.next = StatusPage(Status::LengthRequired, parser);
+            } else {
+                out.next = ToolMappingCommand(*parser.content_length, parser.can_keep_alive(), parser.accepts_json);
+            }
+        } else {
+            get_only(SendJson(ToolMappingRenderer(), parser.can_keep_alive()), parser, out);
+        }
+#else
+        out.next = StatusPage(Status::NotFound, parser);
+#endif
+        return Accepted::Accepted;
+    } else if (auto mapping_suffix_opt = remove_prefix(suffix, "mapping/"); mapping_suffix_opt.has_value()) {
+        // Argo: confirm (Print) / cancel (Abort) the tools-mapping preview screen.
+#if HAS_TOOL_MAPPING()
+        if (parser.method != Method::Post) {
+            out.next = StatusPage(Status::MethodNotAllowed, parser);
+        } else if (const auto action = *mapping_suffix_opt; action == "confirm") {
+            mapping_response(Response::Print, parser, out);
+        } else if (action == "cancel") {
+            mapping_response(Response::Abort, parser, out);
+        } else {
+            out.next = StatusPage(Status::NotFound, parser);
+        }
+#else
+        out.next = StatusPage(Status::NotFound, parser);
+#endif
         return Accepted::Accepted;
     } else if (auto tool_suffix_opt = remove_prefix(suffix, "filament/"); tool_suffix_opt.has_value()) {
         int tool = -1;
