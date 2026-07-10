@@ -16,7 +16,9 @@ top of stock Prusa firmware, and where to continue. Per-feature design records l
 | `v6.6.0` | Stock Prusa release (upstream, untouched) |
 | `v6.6.0-Argo-stable` | Argo features on top of `v6.6.0` (previous working branch) |
 | `v6.6.1` | Stock Prusa release (upstream, untouched) |
-| `v6.6.1-Argo-stable` | **Current working branch** — Argo features rebased onto `v6.6.1` |
+| `v6.6.1-Argo-stable` | Argo features on top of `v6.6.1` (previous working branch) |
+| `v6.6.2` | Stock Prusa release (upstream, untouched) |
+| `v6.6.2-Argo-stable` | **Current working branch** — Argo features rebased onto `v6.6.2` (custom-current feature dropped) |
 
 The `*-Argo-stable` branches carry the same set of personal features, re-based onto each new
 stock Prusa release.
@@ -27,6 +29,21 @@ stock Prusa release.
 > Because none of the files touched by the `rebase repair` commit changed between 6.6.0 and
 > 6.6.1, the repair commit was **carried unchanged** here (the "drop and re-derive" rule below
 > is for larger base changes). Validated with a green `coreone` `-Werror` Docker build.
+
+> **6.6.1 → 6.6.2 note (patch bump):** `v6.6.2` is a direct descendant of `v6.6.1` (32 upstream
+> commits — nozzle-cleaner tuning, `M600` parking, INDX/toolchanger, temperature, translations).
+> The Argo commits replayed onto `v6.6.2` with conflicts only where upstream touched the same
+> code: the Filament Color Manager's `pause.cpp` purge hook (merged with upstream's new
+> `nozzle_cleaner_purge_sequence`; color is now persisted only after a successful purge) and the
+> tool-mapping `not_enough_tools` check in `gcode_compatibility.cpp` (kept alongside the new
+> `HAS_INDX()` indx-lock check). The `rebase repair` commit again applied **unchanged**. The
+> **`custom current` feature was intentionally dropped** at this rebase — it added custom X/Y
+> motor-current *and* X/Y homing StallGuard-sensitivity editing to Advanced Settings and is no
+> longer needed. Dropping it also removed its Advanced-Settings submenu reshuffle; the remaining
+> toggles (preheat, cooldown, Z-align) and the steps/mm items sit in the **flat Advanced Settings
+> menu** created by the steps/mm commit (`MI_ADVANCED_SETTINGS`, still registered in
+> `screen_menu_settings.hpp`). Validated with green `coreone` and `coreone_indx` `-Werror`
+> Docker builds.
 
 ---
 
@@ -82,15 +99,16 @@ run in the `prusa-buddy-build:gcc13` Docker image to match Prusa's toolchain.
 
 ---
 
-## Feature log (Argo additions on top of stock `v6.6.1`)
+## Feature log (Argo additions on top of stock `v6.6.2`)
 
-Oldest → newest. Commit hashes are for this `v6.6.1-Argo-stable` rebase and will change on the
-next rebase.
+Oldest → newest. The hashes below are illustrative (carried over from a prior rebase) and change
+on every rebase — for the exact `v6.6.2-Argo-stable` hashes run
+`git log --oneline v6.6.2..v6.6.2-Argo-stable`. The `custom current` commit (custom X/Y
+motor-current + homing StallGuard-sensitivity editing) was **dropped** at the 6.6.2 rebase.
 
 | Area | Feature | Commit(s) | Notes |
 |------|---------|-----------|-------|
 | Mechanics | 1.5GT belt support + default steps/mm | `2004bc8c6`, `b02dd2bcf`, `d4fef8444` | `DEFAULT_AXIS_STEPS_PER_UNIT`, "steps/mm" setting |
-| Mechanics | Custom motor current | `1bb2a3e74` | |
 | Mechanics | Increased XY/Z park speed | `ad7a600d6` | |
 | Chamber | Higher max chamber temp + safety margins | `3219a6253`, `98f9b13ae` | up to 65 °C |
 | Motion | Adaptive Pressure Advance (no planner flush on `M572 S`) | `ac4705d68` | design: [`docs/planning/adaptive-pressure-advance.md`](docs/planning/adaptive-pressure-advance.md) |
