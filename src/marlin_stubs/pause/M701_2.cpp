@@ -55,7 +55,7 @@ static bool load_unload(Pause::LoadType load_type, pause::Settings &rSettings) {
         const bool is_unload = load_type == Pause::LoadType::unload || load_type == Pause::LoadType::unload_confirm || load_type == Pause::LoadType::unload_from_gears;
         bool allow_cold = is_unload && !config_store().preheat_for_unloading.get();
     #if HAS_AUTO_RETRACT()
-        allow_cold = allow_cold || (is_unload && buddy::auto_retract().is_safely_retracted_for_unload(hotend_from_extruder(rSettings.GetExtruder())));
+        allow_cold = allow_cold || (is_unload && buddy::auto_retract().can_cold_unload(PhysicalToolIndex::from_raw(hotend_from_extruder(rSettings.GetExtruder()))));
     #endif
         AutoRestore ar_ce(thermalManager.allow_cold_extrude, true, allow_cold);
 #endif
@@ -227,10 +227,8 @@ void filament_gcodes::M70X_process_user_response(PreheatStatus::Result res, Virt
         const float disp_temp = config_store().get_filament_type(target_extruder).parameters().nozzle_preheat_temperature;
         if (config_store().cooldown_after_loading_when_idle.get() && marlin_server::printer_idle() && !marlin_server::printer_paused_extended()) {
             thermalManager.setTargetHotend(0, target_extruder.to_physical());
-            marlin_server::set_temp_to_display(0, target_extruder.to_physical());
         } else {
             thermalManager.setTargetHotend(static_cast<int16_t>(disp_temp), target_extruder.to_physical());
-            marlin_server::set_temp_to_display(disp_temp, target_extruder.to_physical());
         }
         break;
     }
@@ -355,7 +353,7 @@ void filament_gcodes::M1701_autoload(const std::optional<float> &fast_load_lengt
 
     // at this point autoload is considered successful so fail guard is not to be triggered and we report DoneHasFilament as status
     fail_guard.disarm();
-    M70X_process_user_response(PreheatStatus::Result::DoneHasFilament, target_extruder);
+    M70X_process_user_response(PreheatStatus::Result::DoneHasFilament, virtual_tool);
 }
 
 void filament_gcodes::M1600_change_filament(FilamentType filament_to_be_loaded, VirtualToolIndex virtual_tool, RetAndCool_t preheat, AskFilament_t ask_filament, std::optional<Color> color_to_be_loaded) {
