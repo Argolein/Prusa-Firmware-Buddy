@@ -136,7 +136,7 @@ struct ParkingPosition {
     }
 };
 
-ParkingPosition get_parking_position(ParkPosition position, std::variant<VirtualToolIndex, NoTool> tool = NoTool {});
+ParkingPosition get_parking_position(ParkPosition position, std::variant<PhysicalToolIndex, NoTool> tool = NoTool {});
 
 #if HAS_NOZZLE_CLEANER()
 void move_out_of_nozzle_cleaner_area();

@@ -83,7 +83,7 @@ void GcodeSuite::G27() {
 #endif
     };
     if (auto ix = parser.option<size_t>('W', (size_t)0, std::size(where_to_park_list) - 1)) {
-        parking_position = mapi::get_parking_position(where_to_park_list[*ix], VirtualToolIndex::currently_selected());
+        parking_position = mapi::get_parking_position(where_to_park_list[*ix], PhysicalToolIndex::currently_selected());
     }
 
     if (auto x = parser.option<float>('X')) {

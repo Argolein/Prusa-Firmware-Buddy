@@ -36,7 +36,7 @@ constexpr bool is_in_wastebin_area(float x, float y) {
 }
 #endif
 
-ParkingPosition get_parking_position(ParkPosition position, [[maybe_unused]] std::variant<VirtualToolIndex, NoTool> tool) {
+ParkingPosition get_parking_position(ParkPosition position, [[maybe_unused]] std::variant<PhysicalToolIndex, NoTool> tool) {
     switch (position) {
     case ParkPosition::park:
 #if HAS_INDX()
@@ -135,8 +135,8 @@ ParkingPosition get_parking_position(ParkPosition position, [[maybe_unused]] std
 
 #if HAS_TOOLCHANGER()
     case ParkPosition::tool_park:
-        if (auto *t = std::get_if<VirtualToolIndex>(&tool)) {
-            const auto xy = prusa_toolchanger.tool_park_position(t->to_physical());
+        if (auto *t = std::get_if<PhysicalToolIndex>(&tool)) {
+            const auto xy = prusa_toolchanger.tool_park_position(*t);
             return { .x = xy.x, .y = xy.y, .z = mapi::ParkingPosition::AtLeast { .above_print = 2 } };
         } else {
             // User-reachable, don't do a BSOD
