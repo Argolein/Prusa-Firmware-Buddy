@@ -629,9 +629,9 @@ void PrusaToolChanger::move(const float x, const float y, const feedRate_t feedr
     line_to_current_position(feedrate);
 }
 
-const xy_float_t PrusaToolChanger::get_tool_dock_position(PhysicalToolIndex tool) {
+const xy_float_t PrusaToolChanger::get_tool_dock_position(PhysicalToolIndex tool, bool check_calibrated) {
     const auto &dwarf = dwarfs[tool];
-    const auto info = PrusaToolChangerUtils::get_tool_info(dwarf, true);
+    const auto info = PrusaToolChangerUtils::get_tool_info(dwarf, check_calibrated);
     return xy_float_t { info.dock_x, SAFE_Y_WITH_TOOL };
 }
 

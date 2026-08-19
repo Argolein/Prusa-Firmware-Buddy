@@ -2436,7 +2436,7 @@ static void _server_print_loop(void) {
         if (prusa_toolchanger.is_toolchanger_enabled()) {
             METRIC_DEF(metric_dock_position, "dock_pos", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
             for (auto tool : PhysicalToolIndex::all().skip_all_disabled()) {
-                const xy_float_t pos = prusa_toolchanger.get_tool_dock_position(tool);
+                const xy_float_t pos = prusa_toolchanger.get_tool_dock_position(tool, false);
                 metric_record_custom(&metric_dock_position, ",tool=%u x=%.3f,y=%.3f", static_cast<unsigned int>(tool.to_raw()), (double)pos.x, (double)pos.y);
             }
         }

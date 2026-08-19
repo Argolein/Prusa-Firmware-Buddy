@@ -380,8 +380,8 @@ void PrusaToolChanger::move(const float x, const float y, const feedRate_t feedr
     line_to_current_position(feedrate);
 }
 
-const xy_float_t PrusaToolChanger::get_tool_dock_position(PhysicalToolIndex tool) {
-    const auto info = PrusaToolChangerUtils::get_tool_info(tool, true);
+const xy_float_t PrusaToolChanger::get_tool_dock_position(PhysicalToolIndex tool, bool check_calibrated) {
+    const auto info = PrusaToolChangerUtils::get_tool_info(tool, check_calibrated);
     return xy_float_t { info.dock_x, info.dock_y + DOCK_SAFE_Y_OFFSET };
 }
 
