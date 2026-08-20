@@ -12,10 +12,6 @@ namespace detail {
 using ScreenMenuAdvancedSettings = ScreenMenu<
     GuiDefaults::MenuFooter,
     MI_RETURN,
-    MI_ADV_STEPS_PER_UNIT_X,
-    MI_ADV_STEPS_PER_UNIT_Y,
-    MI_ADV_STEPS_PER_UNIT_Z,
-    MI_ADV_STEPS_PER_UNIT_E,
     MI_ADV_PREHEAT_FOR_UNLOADING,
     MI_ADV_COOLDOWN_AFTER_LOADING_WHEN_IDLE,
     MI_ADV_AUTO_Z_ALIGN_HOMING>;

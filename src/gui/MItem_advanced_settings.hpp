@@ -6,38 +6,6 @@
 
 #include "WindowMenuItems.hpp"
 
-class MI_ADV_STEPS_PER_UNIT_X : public WiSpin {
-public:
-    MI_ADV_STEPS_PER_UNIT_X();
-
-protected:
-    void OnClick() override;
-};
-
-class MI_ADV_STEPS_PER_UNIT_Y : public WiSpin {
-public:
-    MI_ADV_STEPS_PER_UNIT_Y();
-
-protected:
-    void OnClick() override;
-};
-
-class MI_ADV_STEPS_PER_UNIT_Z : public WiSpin {
-public:
-    MI_ADV_STEPS_PER_UNIT_Z();
-
-protected:
-    void OnClick() override;
-};
-
-class MI_ADV_STEPS_PER_UNIT_E : public WiSpin {
-public:
-    MI_ADV_STEPS_PER_UNIT_E();
-
-protected:
-    void OnClick() override;
-};
-
 class MI_ADV_PREHEAT_FOR_UNLOADING : public WI_ICON_SWITCH_OFF_ON_t {
     // ON (default): Prusa behaviour — preheat the nozzle and ram before unloading.
     // OFF: cold unload — skip the preheat AND skip ramming (ramming cold risks a jam).
