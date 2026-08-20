@@ -102,6 +102,7 @@
 #include <option/has_phase_stepping.h>
 #if HAS_PHASE_STEPPING()
 #include "../feature/phase_stepping/phase_stepping.hpp"
+#include "../feature/phase_stepping/axes.hpp"
 #endif // HAS_PHASE_STEPPING()
 
 #include <option/has_emergency_stop.h>
@@ -1925,10 +1926,6 @@ bool Planner::populate_raw_block(block_t *const block, const xyze_msteps_t &targ
     }
 
     block->print_fan_speed = Temperature::print_fan_speed;
-
-    #if EXTRUDERS > 1
-        block->extruder = extruder;
-    #endif
 
     // Same per-move PA snapshot as in _populate_block (raw_block path).
     block->pressure_advance_value = pressure_advance::get_queued_value();

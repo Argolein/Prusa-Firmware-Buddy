@@ -23,7 +23,6 @@ target_sources(
           logger.cpp
           menu_vars.cpp
           MItem_advanced_settings.cpp
-          MItem_basic_selftest.cpp
           MItem_crash.cpp
           MItem_experimental_tools.cpp
           MItem_filament.cpp
@@ -42,8 +41,8 @@ target_sources(
           screen_filebrowser.cpp
           screen_help_fw_update.cpp
           screen_home.cpp
-          screen_menu_advanced_settings.cpp
           screen_menu.cpp
+          screen_menu_advanced_settings.cpp
           screen_menu_control.cpp
           screen_menu_enclosure.cpp
           screen_menu_experimental_settings.cpp
