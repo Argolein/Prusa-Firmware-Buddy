@@ -326,7 +326,9 @@ private:
      * @brief Wiggle E to align teeth, then partial unlock.
      * Shared by open_head and park_procedure. Must be called with EMotorGuard active.
      */
-    void wiggle_and_partial_unlock();
+    /// Aligns the unlock teeth and partially unlocks the head.
+    /// \p unlock_feedrate is the feedrate of the partial-unlock E move (see e_lock_feedrate()).
+    void wiggle_and_partial_unlock(float unlock_feedrate);
 
     /**
      * @brief Verify nozzle presence/absence.
