@@ -81,6 +81,11 @@ public:
     static constexpr float E_UNLOCK_FEEDRATE = 35.0f; ///< Partial unlock E move
     static constexpr float E_FULL_OPEN_FEEDRATE = 40.0f; ///< Full open E move
     static constexpr float E_LOCK_FEEDRATE = 40.0f; ///< Lock E move
+    /// Lock/unlock E moves while a flexible filament is loaded in the tool being parked/picked.
+    /// The E motor drives the head locking mechanism, so these moves drag the filament through
+    /// the extruder as a side effect; flexibles shear at the standard feedrate. Matches the
+    /// 600 mm/min used by the flexible ramming sequences.
+    static constexpr float E_FLEXIBLE_LOCK_FEEDRATE = 10.0f; ///< Lock/unlock E moves with a flexible filament
     static constexpr float FAST_EXIT_FEEDRATE = 250.0f; ///< Fast exit from dock
     static constexpr float SLOW_EXIT_FEEDRATE = 100.0f; ///< slow exit from dock
     static constexpr uint32_t DOCK_DWELL_MS = 150; ///< Dwell time after lock/unlock [ms]

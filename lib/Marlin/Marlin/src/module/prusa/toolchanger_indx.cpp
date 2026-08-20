@@ -27,6 +27,7 @@
 #include <feature/gcode_exception/gcode_exception.hpp>
 #include "module/temperature.h" // for fan control
 #include <tool/hotend/hotend/indx_hotend.hpp>
+#include <filament.hpp>
 #include <raii/auto_restore.hpp>
 #include <mapi/parking.hpp>
 #include <feature/indx_tool_lock_hack/indx_tool_lock_hack.hpp>
@@ -399,6 +400,20 @@ static void e_move(float distance, float feedrate) {
     prepare_move_to(target, feedrate, hints);
 }
 
+/// Feedrate for the E-axis lock/unlock moves of \p tool.
+///
+/// The E motor drives the head locking mechanism, so every lock/unlock move drags that tool's
+/// filament through the extruder as a side effect. Flexible filaments do not survive the standard
+/// feedrate, so they get the slow one; everything else keeps \p standard_feedrate.
+static float e_lock_feedrate(PhysicalToolIndex tool, float standard_feedrate) {
+    static_assert(PhysicalToolIndex::count == VirtualToolIndex::count,
+        "INDX maps virtual to physical tools 1:1, so the raw index can be reused here");
+    const auto virtual_tool = VirtualToolIndex::from_raw(tool.to_raw());
+    return FilamentType::for_tool_heuristic(virtual_tool).parameters().is_flexible
+        ? PrusaToolChanger::E_FLEXIBLE_LOCK_FEEDRATE
+        : standard_feedrate;
+}
+
 /// RAII guard that saves and restores E position and E motor current.
 class EMotorGuard {
 public:
@@ -498,7 +513,7 @@ bool PrusaToolChanger::manual_tool_park(std::optional<PhysicalToolIndex> tool) {
     }
 }
 
-void PrusaToolChanger::wiggle_and_partial_unlock() {
+void PrusaToolChanger::wiggle_and_partial_unlock(float unlock_feedrate) {
     stepperE0.rms_current(E_WIGGLE_CURRENT_MA);
 
     // Wiggle E to align unlock teeth
@@ -510,7 +525,7 @@ void PrusaToolChanger::wiggle_and_partial_unlock() {
     stepperE0.rms_current(E_UNLOCK_CURRENT_MA);
 
     // Partial unlock
-    e_move(-E_PARTIAL_UNLOCK_DISTANCE, E_UNLOCK_FEEDRATE);
+    e_move(-E_PARTIAL_UNLOCK_DISTANCE, unlock_feedrate);
     planner.synchronize();
 }
 
@@ -540,13 +555,13 @@ void PrusaToolChanger::open_head(PhysicalToolIndex tool) {
         // Increase E current for actual unlock
         stepperE0.rms_current(E_UNLOCK_CURRENT_MA);
 
-        e_move(E_FULL_CLOSE_DISTANCE, E_LOCK_FEEDRATE); // Ensure fully closed to start with
+        e_move(E_FULL_CLOSE_DISTANCE, e_lock_feedrate(tool, E_LOCK_FEEDRATE)); // Ensure fully closed to start with
         planner.synchronize();
 
-        wiggle_and_partial_unlock();
+        wiggle_and_partial_unlock(e_lock_feedrate(tool, E_UNLOCK_FEEDRATE));
 
         // Full open (no Y movement needed — no nozzle to release)
-        e_move(-E_FULL_OPEN_DISTANCE, E_FULL_OPEN_FEEDRATE);
+        e_move(-E_FULL_OPEN_DISTANCE, e_lock_feedrate(tool, E_FULL_OPEN_FEEDRATE));
         planner.synchronize();
     }
 
@@ -587,10 +602,10 @@ bool PrusaToolChanger::park_procedure(PhysicalToolIndex tool) {
 
     {
         EMotorGuard guard;
-        wiggle_and_partial_unlock();
+        wiggle_and_partial_unlock(e_lock_feedrate(tool, E_UNLOCK_FEEDRATE));
 
         // Full open — nozzle is released
-        e_move(-E_FULL_OPEN_DISTANCE, E_FULL_OPEN_FEEDRATE);
+        e_move(-E_FULL_OPEN_DISTANCE, e_lock_feedrate(tool, E_FULL_OPEN_FEEDRATE));
         planner.synchronize();
     }
 
@@ -775,7 +790,7 @@ bool PrusaToolChanger::pickup_procedure(PhysicalToolIndex tool) {
         stepperE0.rms_current(E_UNLOCK_CURRENT_MA);
 
         // Lock nozzle in head
-        e_move(+E_FULL_CLOSE_DISTANCE, E_LOCK_FEEDRATE);
+        e_move(+E_FULL_CLOSE_DISTANCE, e_lock_feedrate(tool, E_LOCK_FEEDRATE));
         planner.synchronize();
 
         // Engage the extruder hack - make sure that we don't retract before the head is fully locked
