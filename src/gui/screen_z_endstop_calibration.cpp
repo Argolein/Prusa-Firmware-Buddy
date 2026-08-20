@@ -110,10 +110,10 @@ public:
     }
 };
 
-class FrameProbeFailed final : public FrameInstructions {
+class FrameProbeFailed final : public standard_frame_without_radio::FrameInstructions {
 public:
     explicit FrameProbeFailed(window_t *parent)
-        : FrameInstructions(parent, _(text_probe_failed)) {}
+        : standard_frame_without_radio::FrameInstructions(parent, _(text_probe_failed)) {}
 
     static constexpr const char *text_probe_failed = N_("Probing failed. Make sure the nozzle is clean and try again.");
 };
