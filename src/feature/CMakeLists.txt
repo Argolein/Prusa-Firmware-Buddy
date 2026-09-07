@@ -25,6 +25,10 @@ if(HAS_TOOL_OFFSET_SENSOR)
   add_subdirectory(indx_tool_offsets_calibration)
 endif()
 
+if(HAS_GANTRY_SQUARENESS_CHECK)
+  add_subdirectory(indx_gantry_squareness)
+endif()
+
 if(HAS_INDX)
   add_subdirectory(indx_dock_calibration)
   add_subdirectory(indx_nozzle_cleaner_calibration)

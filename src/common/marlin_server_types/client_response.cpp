@@ -18,6 +18,10 @@
     #include <fsm/nozzle_mismatch_phases.hpp>
 #endif
 
+#if HAS_GANTRY_SQUARENESS_CHECK()
+    #include <fsm/gantry_squareness_phases.hpp>
+#endif
+
 #if HAS_SELFTEST()
     #include <fsm/selftest_fsensors_phases.hpp>
 #endif
@@ -81,6 +85,9 @@ constinit const EnumArray<ClientFSM, std::span<const PhaseResponses>, ClientFSM:
         { ClientFSM::NozzleMismatch, nozzle_mismatch_responses },
         { ClientFSM::DockCalibration, dock_calibration_responses },
         { ClientFSM::NozzleCleanerCalibration, nozzle_cleaner_calibration_responses },
+#endif
+#if HAS_GANTRY_SQUARENESS_CHECK()
+        { ClientFSM::GantrySquareness, gantry_squareness_responses },
 #endif
 #if HAS_TOOL_OFFSET_SENSOR()
         { ClientFSM::ToolOffsetsCalibration, tool_offsets_calibration_responses },

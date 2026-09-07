@@ -3,3 +3,7 @@ target_sources(marlin_server_types PUBLIC filament_change_phases.cpp safety_time
 if(HAS_INDX)
   target_sources(marlin_server_types PUBLIC nozzle_mismatch_phases.cpp)
 endif()
+
+if(HAS_GANTRY_SQUARENESS_CHECK)
+  target_sources(marlin_server_types PUBLIC gantry_squareness_phases.cpp)
+endif()

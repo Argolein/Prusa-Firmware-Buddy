@@ -287,6 +287,9 @@ DeviceState get_state(bool ready) {
     case ClientFSM::DockCalibration:
     case ClientFSM::NozzleCleanerCalibration:
 #endif
+#if HAS_GANTRY_SQUARENESS_CHECK()
+    case ClientFSM::GantrySquareness:
+#endif
 #if HAS_TOOL_OFFSET_SENSOR()
     case ClientFSM::ToolOffsetsCalibration:
 #endif
@@ -536,6 +539,9 @@ StateWithDialog get_state_with_dialog(bool ready) {
 #if HAS_INDX()
     case ClientFSM::DockCalibration:
     case ClientFSM::NozzleCleanerCalibration:
+#endif
+#if HAS_GANTRY_SQUARENESS_CHECK()
+    case ClientFSM::GantrySquareness:
 #endif
 #if HAS_TOOL_OFFSET_SENSOR()
     case ClientFSM::ToolOffsetsCalibration:
