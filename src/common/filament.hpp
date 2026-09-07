@@ -12,6 +12,8 @@
 #include <utils/string/inplace_string.hpp>
 #include <utils/enum_array.hpp>
 #include <utils/compact_optional.hpp>
+#include <utils/algorithm_extensions.hpp>
+#include <utils/variant_utils.hpp>
 #include <tool_index.hpp>
 
 #include <option/has_chamber_api.h>
@@ -195,6 +197,13 @@ public:
 
     constexpr FilamentType()
         : variant(NoFilamentType {}) {}
+
+    template <typename T>
+    static constexpr FilamentType from_optional(std::optional<T> v)
+        requires(stdext::is_in_variant<T, FilamentType_>)
+    {
+        return v.has_value() ? FilamentType(*v) : none;
+    }
 
 public:
     // * Name/parameters
