@@ -1,10 +1,10 @@
-# v6.9.0 Argo migration plan
+# v6.9.1 Argo migration plan
 
 ## Objective
 
-Create an untouched stock `v6.9.0` branch from Prusa's official tag and a
-`v6.9.0-Argo-stable` branch containing the Argo changes from
-`v6.6.3-Argo-stable`, rebased onto that stock release.
+Create an untouched stock `v6.9.1` branch from Prusa's official tag and a
+`v6.9.1-Argo-stable` branch containing the Argo changes from
+`v6.9.0-Argo-stable`, rebased onto that stock release.
 
 ## Open questions
 
@@ -12,27 +12,26 @@ Create an untouched stock `v6.9.0` branch from Prusa's official tag and a
 
 ## Approved plan
 
-- Verify Prusa's official `v6.9.0` tag and its relationship to `v6.6.3`.
-- Create `v6.9.0` directly at the verified upstream tag without modifying the
+- Verify Prusa's official `v6.9.1` tag and its relationship to `v6.9.0`.
+- Create `v6.9.1` directly at the verified upstream tag without modifying the
   stock tree.
-- Replay the `v6.6.3-Argo-stable` commit series onto `v6.9.0`, excluding the
-  explicitly non-portable `rebase repair` commit.
-- Resolve conflicts commit-by-commit, preserving both upstream behavior and the
-  intended Argo features, and create a new repair commit for the fixes that are
-  specific to this base.
-- Where upstream has absorbed an Argo feature, prefer the upstream
-  implementation and record the decision.
+- Replay the `v6.9.0-Argo-stable` commit series onto `v6.9.1` with
+  `git rebase --onto`, resolving conflicts commit-by-commit and preserving both
+  upstream behavior and the intended Argo features.
+- Carry the `rebase repair` commit unchanged if none of its files changed
+  upstream; otherwise re-derive it against 6.9.1.
 - Build both `coreone` and `coreone_indx` in the documented Docker toolchain
   with `-Werror`.
-- Update `ARGO-DEVELOPMENT.md` with the new branch model, migration notes and
+- Update `ARGO-DEVELOPMENT.md` with the new branch model, migration note and
   refreshed commit hashes, then push both branches to `origin`.
 
 ## Acceptance checks
 
-- [x] `v6.9.0` is bit-identical to `refs/tags/v6.9.0`.
-- [x] All 39 portable Argo commits are present on `v6.9.0-Argo-stable`.
-- [x] The 6.6.3-specific repair commit is absent; a fresh 6.9.0 repair commit
-      documents each re-derived fix and the feature commit it belongs to.
+- [x] `v6.9.1` is identical to `refs/tags/v6.9.1` (`f1a123aba`).
+- [x] All 44 Argo commits are present on `v6.9.1-Argo-stable`; `git range-diff`
+      shows 43 patch-identical and one adapted (the `M1989` rename).
+- [x] The repair commit is carried unchanged; none of its files changed between
+      6.9.0 and 6.9.1.
 - [x] `coreone` builds green with `-Werror`.
 - [x] `coreone_indx` builds green with `-Werror`.
 - [ ] Flashed and exercised on the printer.
@@ -45,43 +44,34 @@ Create an untouched stock `v6.9.0` branch from Prusa's official tag and a
 
 ## Decisions
 
-- **Dropped the 6.6.3 repair commit** (`3bf37e497`, subject `v6.6.3`) as the
-  convention requires, and re-derived its still-relevant fixes against the 6.9.0
-  APIs in `a52622186`. Its documentation content (`AGENTS.md`, `PLANS.md`,
-  `ARGO-DEVELOPMENT.md`) was carried forward separately.
-- **Adopted upstream's 1.5GT belt support** instead of the fork's hardcoded
-  steps/mm. Prusa 6.9.0 added `HAS_15GT_BELTS()` with a Settings → Hardware
-  switch that also invalidates the calibrations a belt change makes stale. Its
-  1.5GT value (101.587) matches the fork's old 101.5873 to within
-  0.0003 steps/mm.
-- **Removed the Advanced Settings steps/mm block** (`7dd4bdcc9`). Upstream
-  deleted `set_steps_per_unit_x/y` and moved the Z setter behind the debug-only
-  `HAS_EXTRA_EXPERIMENTAL_SETTINGS`; a second, unsynchronised X/Y editor next to
-  the belt switch could disagree with it. Advanced Settings keeps its three
-  toggles.
-- **Left `belts_15gt_installed` at its upstream default (off / 2GT)** rather than
-  patching the config-store default, so the belt type stays an explicit,
-  per-printer choice made through the UI that performs the calibration resets.
-- **Kept `M1988`** for the Z endstop calibration wizard — still unused upstream.
+- **Moved the Z endstop calibration wizard from `M1988` to `M1989`.** Upstream
+  6.9.1 assigned `M1988` to the INDX gantry squareness wizard. Upstream keeps its
+  number; the rename is folded into the Z-endstop feature commit because it is
+  permanent, not specific to this base. The menu entry is unchanged.
+- **Carried the 6.9.0 rebase repair commit unchanged** (6.6.1 precedent): 6.9.1
+  is a direct descendant of 6.9.0 and touches none of the repaired files.
+- The 6.9.0 decisions (upstream 1.5GT belt support, steps/mm menu removal, belt
+  flag left at its 2GT default) still hold; see the 6.6.3 → 6.9.0 note in
+  `ARGO-DEVELOPMENT.md`.
 
 ## Handoff
 
-- Date: 2026-08-20
+- Date: 2026-09-27
 - Completed this session:
-  - Created stock `v6.9.0` at `refs/tags/v6.9.0` and pushed it to `origin`.
-  - Replayed all 39 portable Argo commits onto it as `v6.9.0-Argo-stable`,
-    resolving 15 conflicting commits.
-  - Removed the superseded steps/mm menu and committed the 6.9.0 rebase repair.
+  - Created stock `v6.9.1` at `refs/tags/v6.9.1` and pushed it to `origin`.
+  - Replayed all 44 Argo commits onto it as `v6.9.1-Argo-stable`; the only
+    conflict was the `M1988` clash.
   - Built `coreone` and `coreone_indx` green with `-Werror`.
-  - Updated `ARGO-DEVELOPMENT.md`, `PLANS.md`, `AGENTS.md`.
+  - Updated `ARGO-DEVELOPMENT.md`, `docs/planning/z-endstop-calibration.md`,
+    `PLANS.md`.
 - Next step:
-  - Flash `coreone_release_boot.bbf`, then set
-    **Settings → Hardware → "1.5GT Belts" → On** and confirm the warning. It
-    resets XY homing calibration, the CoreXY grid origin, belt tuning and the
-    X/Y axis selftest results — re-run those.
-  - Re-verify the fork features on hardware, especially Adaptive PA, the Z
-    endstop calibration wizard, the Filament Color Manager and the PrusaLink
-    web tool mapping (the latter still needs a real multi-material print).
+  - Flash `coreone_release_boot.bbf`. If the printer has 1.5GT belts and the
+    switch is not already on, set **Settings → Hardware → "1.5GT Belts" → On**
+    and re-run the calibrations it resets.
+  - Re-verify the fork features on hardware, especially the Z endstop
+    calibration wizard (now `M1989`), the TPU-safe INDX tool lock, Adaptive PA,
+    the Filament Color Manager and the PrusaLink web tool mapping (the latter
+    still needs a real multi-material print).
 - Open blockers:
   - none
 

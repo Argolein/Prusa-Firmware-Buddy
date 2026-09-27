@@ -137,14 +137,16 @@ Defined symbolically from the `MESH_*` macros so they stay valid if bed/grid cha
 ## Implementation (as built)
 
 Feature gated by a new `HAS_Z_ENDSTOP_CALIBRATION()` option (Core One family), driven by the
-internal G-code **M1988**, with results passed to the GUI via the extended-FSM-data channel
+internal G-code **M1989**, with results passed to the GUI via the extended-FSM-data channel
 (`ZEndstopCalibResult_t`, 16 B ≤ 37 B buffer — the 4-byte FSM payload was too small).
 
 New files:
 - `src/common/z_endstop_calibration_result.hpp` — `ZEndstopCalibResult_t` (3 heights + spread)
   plus the shared `z_endstop_calib_tolerance_mm` (0.10) and `z_endstop_screw_pitch_mm` (0.5).
-- `src/marlin_stubs/M1988.{hpp,cpp}` — the procedure/FSM driver. The command moved from
-  `M1987` during the 6.6.3 rebase because upstream assigned `M1987` to the heater selftest.
+- `src/marlin_stubs/M1989.{hpp,cpp}` — the procedure/FSM driver. The command moved from
+  `M1987` to `M1988` during the 6.6.3 rebase because upstream assigned `M1987` to the heater
+  selftest, and from `M1988` to `M1989` during the 6.9.1 rebase because upstream assigned
+  `M1988` to the INDX gantry squareness wizard.
 - `src/gui/screen_z_endstop_calibration.{hpp,cpp}` — screen + busy/result/error frames.
 
 Edited:
@@ -152,13 +154,13 @@ Edited:
 - `client_fsm_types.h` — `ClientFSM::ZEndstopCalibration`.
 - `client_response.hpp` — `PhasesZEndstopCalib` enum + `z_endstop_calib_responses`.
 - `client_response.cpp` — dispatch entry.
-- `marlin_stubs/gcode.cpp` — `case 1988`.
+- `marlin_stubs/gcode.cpp` — `case 1989`.
 - `gui/dialogs/DialogHandler.cpp` — screen registration.
 - `gui/screen_menu_selftest_snake.{hpp,cpp}` — `MI_Z_ENDSTOP_CALIB` injected into the
   Calibrations & Tests menu builder ("12 Z endstop calibration"); its `Loop()` shows the green
   `ok_color_16x16` icon when the persisted result is `passed`.
 - `persistent_stores/.../config_store/store_definition.hpp` — `selftest_result_z_endstop_calibration`
-  (`TestResult`, `ItemFlag::calibrations`); set by M1988 (passed if spread ≤ tolerance).
+  (`TestResult`, `ItemFlag::calibrations`); set by M1989 (passed if spread ≤ tolerance).
 - `src/common/fsm_states.cpp`, `src/state/printer_state.cpp` — added the new enumerator to the
   three exhaustive `ClientFSM` switches (required by `-Werror=switch`).
 - `src/marlin_stubs/CMakeLists.txt`, `src/gui/CMakeLists.txt` — register the new sources.

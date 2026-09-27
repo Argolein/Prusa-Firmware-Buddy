@@ -22,7 +22,9 @@ top of stock Prusa firmware, and where to continue. Per-feature design records l
 | `v6.6.3` | Stock Prusa release (upstream, untouched) |
 | `v6.6.3-Argo-stable` | Argo features on top of `v6.6.3` (previous working branch) |
 | `v6.9.0` | Stock Prusa release (upstream, untouched; exactly `refs/tags/v6.9.0`) |
-| `v6.9.0-Argo-stable` | **Current working branch** — Argo features rebased onto `v6.9.0` |
+| `v6.9.0-Argo-stable` | Argo features on top of `v6.9.0` (previous working branch) |
+| `v6.9.1` | Stock Prusa release (upstream, untouched; exactly `refs/tags/v6.9.1`) |
+| `v6.9.1-Argo-stable` | **Current working branch** — Argo features rebased onto `v6.9.1` |
 
 The `*-Argo-stable` branches carry the same set of personal features, re-based onto each new
 stock Prusa release.
@@ -93,6 +95,21 @@ stock Prusa release.
 > kept that number. Both `coreone` and `coreone_indx` pass the documented Docker build with
 > `-Werror`.
 
+> **6.9.0 → 6.9.1 note (patch bump):** `v6.9.1` is a direct descendant of `v6.9.0` (23 upstream
+> commits — INDX tool-offset sensor/calibration fixes, parking, filament-preset refactors,
+> Core One diagonal-homing currents, and the new INDX **gantry squareness** wizard). All 44 Argo commits replayed onto `v6.9.1` with `git rebase --onto`. The only
+> conflict was an add/add on `src/marlin_stubs/M1988.cpp`: upstream 6.9.1 took **`M1988`** for
+> the gantry squareness wizard (`indx_gantry_squareness`, Calibrations & Tests snake entry on
+> `coreone_indx`). Upstream's `M1988` is kept unchanged, and the Argo Z-endstop wizard moved to
+> the previously unused **`M1989`** (`M1989.{hpp,cpp}`, `PrusaGcodeSuite::M1989`, `case 1989`,
+> its CMake entry and the menu launcher). The rename is folded into the Z-endstop feature commit
+> because it is permanent, not base-specific. Everything else auto-merged, including the
+> TPU-safe tool lock next to upstream's new `get_tool_dock_position(tool, check_calibrated)`.
+> None of the `rebase repair` commit's files changed between 6.9.0 and 6.9.1, so the repair was
+> **carried unchanged** (6.6.1 precedent). `git range-diff` shows 43 commits patch-identical and
+> only the Z-endstop commit adapted (the M1989 rename). Both `coreone` and `coreone_indx` pass
+> the documented Docker build with `-Werror`.
+
 ---
 
 ## Rebase workflow (read before rebasing onto a new Prusa release)
@@ -148,38 +165,38 @@ run in the `prusa-buddy-build:gcc13` Docker image to match Prusa's toolchain.
 
 ---
 
-## Feature log (Argo additions on top of stock `v6.9.0`)
+## Feature log (Argo additions on top of stock `v6.9.1`)
 
-Oldest → newest. These hashes are from `v6.9.0-Argo-stable` and change on every rebase; obtain
+Oldest → newest. These hashes are from `v6.9.1-Argo-stable` and change on every rebase; obtain
 the current range with
-`git log --oneline refs/tags/v6.9.0..refs/heads/v6.9.0-Argo-stable`. The `custom current` commit (custom X/Y
+`git log --oneline refs/tags/v6.9.1..refs/heads/v6.9.1-Argo-stable`. The `custom current` commit (custom X/Y
 motor-current + homing StallGuard-sensitivity editing) was **dropped** at the 6.6.2 rebase.
 
 | Area | Feature | Commit(s) | Notes |
 |------|---------|-----------|-------|
-| Mechanics | ~~1.5GT belt support + default steps/mm~~ — **superseded upstream** | `a90218cb5`, `e69fbdd88`, `315d253ca`, `7dd4bdcc9` | Since 6.9.0 use **Settings → Hardware → "1.5GT Belts"** (`HAS_15GT_BELTS()`, default off). The three original commits keep only their build-environment hunks and the Advanced Settings screen itself; `7dd4bdcc9` removed the steps/mm items. See the 6.6.3 → 6.9.0 note. |
-| Mechanics | Increased XY/Z park speed | `88652d79d` | |
-| Chamber | Higher max chamber temp + safety margins | `08677ab62`, `48c004e9b` | up to 65 °C |
-| Motion | Adaptive Pressure Advance (no planner flush on `M572 S`) | `383455fa5` | design: [`docs/planning/adaptive-pressure-advance.md`](docs/planning/adaptive-pressure-advance.md) |
-| Motion | CoreXY selftest axis-length calibration fix | `317648b84` | adds `phase_stepping::update_axis_motor_params` |
-| Homing | Automatic Z-alignment during `G28` | `829854f48` | |
-| Network | Wi-Fi / Ethernet mutually exclusive at runtime | `6a5ae02a9`, `ec2a9cc1f` | |
-| Filament | Toggle "Preheat & ram before unload" (Advanced Settings): OFF = cold unload, skips BOTH preheat and ramming | `df80d84d1`, `fbffa460e` | ramming skipped in `ram_sequence_process` because Prusa 6.6.0 rams even when cold |
-| Filament | Cool down nozzle after load when idle | `f940f1d3b` | |
-| Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `a83f7eaa3`, `74ba815fa` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
-| Network | **Bed Mesh Viewer** (`GET/POST /api/v1/mesh` + embedded `mesh.html` heatmap with "Run bed leveling") | `df33a0be6`–`4d5492aaf` | design: [`docs/planning/bed-mesh-viewer.md`](docs/planning/bed-mesh-viewer.md); served at `http://<printer>/mesh.html` |
-| Network | **PrusaLink Chamber Temperature** (Dashboard sidebar row below Heatbed) | `38268adbb` | `temp_chamber`/`target_chamber` in `/api/v1/status` (`HAS_CHAMBER_API()` guard) + web bundle telemetry map + `index.html` row; design: [`docs/planning/prusalink-chamber-temperature.md`](docs/planning/prusalink-chamber-temperature.md) |
-| Calibration | **Z endstop calibration** (Control → Calibrations & Tests → "12 Z endstop calibration") | `04ecb7889` | `HAS_Z_ENDSTOP_CALIBRATION()` option (Core One family); M1988 wizard homes → explicit `calib_Z` → probes one point per Z motor → shows heights + spread with Try again / Quit; design: [`docs/planning/z-endstop-calibration.md`](docs/planning/z-endstop-calibration.md) |
-| Chamber | **Filtration only while printing** (no fan during filament load/unload or chamber pre-heat) | `2cb2648c6` | Restores pre-BFW-7026 gate in `ChamberFiltration::needs_filtration()` (`is_printing_state() && planner.max_printed_z > 0`); undoes upstream `a97474829` + `74b85ea7b` side effect that spun the xBuddy-Ext filtration fan whenever the nozzle was hot (incl. attributing previously-loaded ASA via `for_tool_heuristic`); design: [`docs/planning/chamber-filtration-printing-gate.md`](docs/planning/chamber-filtration-printing-gate.md) |
-| Network | **PrusaLink temperature control** (click Nozzle/Heatbed sidebar rows → preset + numeric target) | `4abd9e3b4` | `POST /api/v1/printer/{nozzle,bed}/<°C>` (clamp 295/115, `set_target_*`) + `link-controls.js` floating dropdown; no main-bundle patch; design: [`docs/planning/prusalink-temperature-control.md`](docs/planning/prusalink-temperature-control.md) |
-| Network | **PrusaLink chamber light switch** (sidebar on/off toggle for the side LED) | `4abd9e3b4` | `POST /api/v1/printer/chamber-light/<0\|1>` via `SideStripHandler` (RAM-shadow restore) + `chamber_light` in `/api/v1/status` (`HAS_SIDE_LEDS()` guard); design: [`docs/planning/prusalink-chamber-light.md`](docs/planning/prusalink-chamber-light.md) |
-| Network | **PrusaLink per-tool Filament row** (sidebar; type in tool's Color-Manager color, adapts to 1/4/8 tools) | `4abd9e3b4` | Frontend-only: `link-controls.js` consumes existing `GET /api/v1/filament` (already one entry per `PhysicalToolIndex::count`); swatch+type chips, empty slots shown; design: [`docs/planning/prusalink-filament-tools.md`](docs/planning/prusalink-filament-tools.md) |
-| Network | **PrusaLink tool color picker** (click a tool's swatch → pick from the 15 printer colors) | `4abd9e3b4` | `GET /api/v1/filament` gains a `palette` array (`filament_renderer`, single source of truth); picker `PUT /api/v1/filament/<tool>` `{color:NAME\|null}`; design: [`docs/planning/prusalink-filament-color-picker.md`](docs/planning/prusalink-filament-color-picker.md) |
-| Network | **PrusaLink web tool mapping** (browser version of the LCD Tools-Mapping screen: after an OrcaSlicer upload-and-print, a mapping-capable print now HOLDS at the `tools_mapping` preview; map G-code filaments → tools + spool join in an overlay, then Print) | `7a357bc6f` | `GET/PUT /api/v1/mapping` + `POST /api/v1/mapping/{confirm,cancel}` (`nhttp/tool_mapping_renderer.*`, `tool_mapping_command.*`); web start-path holds via `PreviewSkipIfAble::preview` (`wui_api.cpp`); frontend `src/resources/web/tool-mapping.js` overlay; design: [`docs/planning/prusalink-tools-mapping.md`](docs/planning/prusalink-tools-mapping.md) |
-| Filament | **Single-tool collapse** (a single-enabled-tool machine resolves EVERY G-code tool to its one tool + skips the tool-count/wrong-filament preview blocks, so a multi-filament G-code prints mono-color instead of the "Not enough tools" abort) | `7a357bc6f` | `get_virtual_tool_from_command` → `single_enabled_tool()` (`gcode.cpp`) + suppress fatal `not_enough_tools` (`gcode_compatibility.cpp`) + skip wrong-filament screen (`marlin_print_preview.cpp::stateFromFilamentType`); all gated on `single_enabled_tool()`; needed because `ToolMapper` is a strict bijection (can't collapse many→one); **needs a real print to validate**; same design doc |
-| Filament | **TPU-safe INDX tool lock** (lock/unlock E moves run at 10 mm/s when the tool holds a flexible filament) | `2d2e55347` | On INDX the E motor drives the head clamp, so a park pulls 12.5 mm and a pickup pushes 12.3 mm of filament at 35–40 mm/s — 4× Prusa's own flexible ramming feedrate. `e_lock_feedrate()` in `toolchanger_indx.cpp` picks `E_FLEXIBLE_LOCK_FEEDRATE` per tool via `FilamentType::for_tool_heuristic().parameters().is_flexible`; non-flexible tool changes are unchanged. Distances untouched — they are clamp travel, and the release point is not recorded anywhere (no lock sensor, only induction nozzle-presence). |
-| Network | PrusaLink dashboard polling hardening | `b857f5e4a` | protects Prusa Connect by reducing and serializing status polling |
-| — | **Rebase repair (drop on next rebase)** | `a52622186` | 6.9.0-specific API/build fixes; see "Rebase workflow" |
+| Mechanics | ~~1.5GT belt support + default steps/mm~~ — **superseded upstream** | `22f6989b8`, `903d061fb`, `72e3b8029`, `3693a3006` | Since 6.9.0 use **Settings → Hardware → "1.5GT Belts"** (`HAS_15GT_BELTS()`, default off). The three original commits keep only their build-environment hunks and the Advanced Settings screen itself; `3693a3006` removed the steps/mm items. See the 6.6.3 → 6.9.0 note. |
+| Mechanics | Increased XY/Z park speed | `1ca833f34` | |
+| Chamber | Higher max chamber temp + safety margins | `607a8bb4b`, `25696fbcb` | up to 65 °C |
+| Motion | Adaptive Pressure Advance (no planner flush on `M572 S`) | `2e84604cd` | design: [`docs/planning/adaptive-pressure-advance.md`](docs/planning/adaptive-pressure-advance.md) |
+| Motion | CoreXY selftest axis-length calibration fix | `dc6b7f610` | adds `phase_stepping::update_axis_motor_params` |
+| Homing | Automatic Z-alignment during `G28` | `17ced93ae` | |
+| Network | Wi-Fi / Ethernet mutually exclusive at runtime | `2268cdee5`, `ddfe0d9cc` | |
+| Filament | Toggle "Preheat & ram before unload" (Advanced Settings): OFF = cold unload, skips BOTH preheat and ramming | `8b67a1c81`, `168a2121b` | ramming skipped in `ram_sequence_process` because Prusa 6.6.0 rams even when cold |
+| Filament | Cool down nozzle after load when idle | `b5e075844` | |
+| Filament | **Filament Color Manager** (per-tool color, autoload prompt, PrusaLink) | `87369df20`, `807fc5633` | design: [`docs/planning/filament-color-manager.md`](docs/planning/filament-color-manager.md); user docs: [`doc/filament_color_manager.md`](doc/filament_color_manager.md) |
+| Network | **Bed Mesh Viewer** (`GET/POST /api/v1/mesh` + embedded `mesh.html` heatmap with "Run bed leveling") | `134a74d8b`–`2c779b073` | design: [`docs/planning/bed-mesh-viewer.md`](docs/planning/bed-mesh-viewer.md); served at `http://<printer>/mesh.html` |
+| Network | **PrusaLink Chamber Temperature** (Dashboard sidebar row below Heatbed) | `ec4f21e44` | `temp_chamber`/`target_chamber` in `/api/v1/status` (`HAS_CHAMBER_API()` guard) + web bundle telemetry map + `index.html` row; design: [`docs/planning/prusalink-chamber-temperature.md`](docs/planning/prusalink-chamber-temperature.md) |
+| Calibration | **Z endstop calibration** (Control → Calibrations & Tests → "12 Z endstop calibration") | `901c9f02b` | `HAS_Z_ENDSTOP_CALIBRATION()` option (Core One family); M1989 wizard (was `M1988` until the 6.9.1 rebase) homes → explicit `calib_Z` → probes one point per Z motor → shows heights + spread with Try again / Quit; design: [`docs/planning/z-endstop-calibration.md`](docs/planning/z-endstop-calibration.md) |
+| Chamber | **Filtration only while printing** (no fan during filament load/unload or chamber pre-heat) | `4ccbe1d80` | Restores pre-BFW-7026 gate in `ChamberFiltration::needs_filtration()` (`is_printing_state() && planner.max_printed_z > 0`); undoes upstream `a97474829` + `74b85ea7b` side effect that spun the xBuddy-Ext filtration fan whenever the nozzle was hot (incl. attributing previously-loaded ASA via `for_tool_heuristic`); design: [`docs/planning/chamber-filtration-printing-gate.md`](docs/planning/chamber-filtration-printing-gate.md) |
+| Network | **PrusaLink temperature control** (click Nozzle/Heatbed sidebar rows → preset + numeric target) | `7a90ee677` | `POST /api/v1/printer/{nozzle,bed}/<°C>` (clamp 295/115, `set_target_*`) + `link-controls.js` floating dropdown; no main-bundle patch; design: [`docs/planning/prusalink-temperature-control.md`](docs/planning/prusalink-temperature-control.md) |
+| Network | **PrusaLink chamber light switch** (sidebar on/off toggle for the side LED) | `7a90ee677` | `POST /api/v1/printer/chamber-light/<0\|1>` via `SideStripHandler` (RAM-shadow restore) + `chamber_light` in `/api/v1/status` (`HAS_SIDE_LEDS()` guard); design: [`docs/planning/prusalink-chamber-light.md`](docs/planning/prusalink-chamber-light.md) |
+| Network | **PrusaLink per-tool Filament row** (sidebar; type in tool's Color-Manager color, adapts to 1/4/8 tools) | `7a90ee677` | Frontend-only: `link-controls.js` consumes existing `GET /api/v1/filament` (already one entry per `PhysicalToolIndex::count`); swatch+type chips, empty slots shown; design: [`docs/planning/prusalink-filament-tools.md`](docs/planning/prusalink-filament-tools.md) |
+| Network | **PrusaLink tool color picker** (click a tool's swatch → pick from the 15 printer colors) | `7a90ee677` | `GET /api/v1/filament` gains a `palette` array (`filament_renderer`, single source of truth); picker `PUT /api/v1/filament/<tool>` `{color:NAME\|null}`; design: [`docs/planning/prusalink-filament-color-picker.md`](docs/planning/prusalink-filament-color-picker.md) |
+| Network | **PrusaLink web tool mapping** (browser version of the LCD Tools-Mapping screen: after an OrcaSlicer upload-and-print, a mapping-capable print now HOLDS at the `tools_mapping` preview; map G-code filaments → tools + spool join in an overlay, then Print) | `2f5c26796` | `GET/PUT /api/v1/mapping` + `POST /api/v1/mapping/{confirm,cancel}` (`nhttp/tool_mapping_renderer.*`, `tool_mapping_command.*`); web start-path holds via `PreviewSkipIfAble::preview` (`wui_api.cpp`); frontend `src/resources/web/tool-mapping.js` overlay; design: [`docs/planning/prusalink-tools-mapping.md`](docs/planning/prusalink-tools-mapping.md) |
+| Filament | **Single-tool collapse** (a single-enabled-tool machine resolves EVERY G-code tool to its one tool + skips the tool-count/wrong-filament preview blocks, so a multi-filament G-code prints mono-color instead of the "Not enough tools" abort) | `2f5c26796` | `get_virtual_tool_from_command` → `single_enabled_tool()` (`gcode.cpp`) + suppress fatal `not_enough_tools` (`gcode_compatibility.cpp`) + skip wrong-filament screen (`marlin_print_preview.cpp::stateFromFilamentType`); all gated on `single_enabled_tool()`; needed because `ToolMapper` is a strict bijection (can't collapse many→one); **needs a real print to validate**; same design doc |
+| Filament | **TPU-safe INDX tool lock** (lock/unlock E moves run at 10 mm/s when the tool holds a flexible filament) | `18a734b92` | On INDX the E motor drives the head clamp, so a park pulls 12.5 mm and a pickup pushes 12.3 mm of filament at 35–40 mm/s — 4× Prusa's own flexible ramming feedrate. `e_lock_feedrate()` in `toolchanger_indx.cpp` picks `E_FLEXIBLE_LOCK_FEEDRATE` per tool via `FilamentType::for_tool_heuristic().parameters().is_flexible`; non-flexible tool changes are unchanged. Distances untouched — they are clamp travel, and the release point is not recorded anywhere (no lock sensor, only induction nozzle-presence). |
+| Network | PrusaLink dashboard polling hardening | `5a0cd9ffa` | protects Prusa Connect by reducing and serializing status polling |
+| — | **Rebase repair (drop on next rebase)** | `1d4db20a1` | 6.9.0-specific API/build fixes (carried unchanged onto 6.9.1); see "Rebase workflow" |
 
 ---
 
