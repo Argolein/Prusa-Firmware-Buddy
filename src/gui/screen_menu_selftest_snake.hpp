@@ -51,12 +51,17 @@ protected:
 #if HAS_Z_ENDSTOP_CALIBRATION()
 /// Standalone "Z endstop calibration" entry (not a snake Action): launches the M1989 wizard.
 class MI_Z_ENDSTOP_CALIB : public IWindowMenuItem {
-    static constexpr const char *label = N_("12 Z endstop calibration");
+    static constexpr const char *label = N_("Z endstop calibration");
 
 public:
     MI_Z_ENDSTOP_CALIB();
     void click(IWindowMenu &window_menu) override;
     void Loop() override;
+
+private:
+    /// Numbers the entry right after the snake actions, which differ per printer variant.
+    string_view_utf8 get_filled_label();
+    char label_buffer[I_MI_STS::max_label_len];
 };
 #endif
 
