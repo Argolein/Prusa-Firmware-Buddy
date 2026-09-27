@@ -112,8 +112,21 @@ static const img::Resource *z_endstop_calib_icon() {
         : nullptr;
 }
 
+string_view_utf8 MI_Z_ENDSTOP_CALIB::get_filled_label() {
+    int idx { 1 };
+    for ([[maybe_unused]] Action act : valid_actions()) {
+        ++idx;
+    }
+
+    char name[I_MI_STS::max_label_len];
+    _(label).copyToRAM(name, sizeof(name));
+    snprintf(label_buffer, sizeof(label_buffer), "%d %s", idx, name);
+
+    return string_view_utf8::MakeRAM(label_buffer);
+}
+
 MI_Z_ENDSTOP_CALIB::MI_Z_ENDSTOP_CALIB()
-    : IWindowMenuItem(_(label), z_endstop_calib_icon(), is_enabled_t::yes, marlin_client::is_printing() ? is_hidden_t::yes : is_hidden_t::no) {
+    : IWindowMenuItem(get_filled_label(), z_endstop_calib_icon(), is_enabled_t::yes, marlin_client::is_printing() ? is_hidden_t::yes : is_hidden_t::no) {
     set_icon_position(IconPosition::before_extension);
 }
 

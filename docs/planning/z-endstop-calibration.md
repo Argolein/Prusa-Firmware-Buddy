@@ -116,7 +116,7 @@ Defined symbolically from the `MESH_*` macros so they stay valid if bed/grid cha
 - **GUI:** a frame derived from `SelftestFrameNamedWithRadio` (title + numeric rows + `RadioButtonFSM`)
   for the ShowResult screen; reuse existing in-progress/spinner frames for Homing/Aligning/Probing.
 - **Menu item:** `MI_Z_ENDSTOP_CALIB` added to the `ScreenMenuSTSCalibrations` container
-  (`src/gui/screen_menu_selftest_snake.hpp`), label "12 Z endstop calibration", `click()` enqueues
+  (`src/gui/screen_menu_selftest_snake.hpp`), label "<N> Z endstop calibration", `click()` enqueues
   the new G-code. (A plain item can coexist with the `MI_STS<Action>` items in that screen's tuple.)
 
 ---
@@ -157,7 +157,8 @@ Edited:
 - `marlin_stubs/gcode.cpp` — `case 1989`.
 - `gui/dialogs/DialogHandler.cpp` — screen registration.
 - `gui/screen_menu_selftest_snake.{hpp,cpp}` — `MI_Z_ENDSTOP_CALIB` injected into the
-  Calibrations & Tests menu builder ("12 Z endstop calibration"); its `Loop()` shows the green
+  Calibrations & Tests menu builder ("<N> Z endstop calibration", where N is one past the
+  printer's snake actions, counted at runtime); its `Loop()` shows the green
   `ok_color_16x16` icon when the persisted result is `passed`.
 - `persistent_stores/.../config_store/store_definition.hpp` — `selftest_result_z_endstop_calibration`
   (`TestResult`, `ItemFlag::calibrations`); set by M1989 (passed if spread ≤ tolerance).
