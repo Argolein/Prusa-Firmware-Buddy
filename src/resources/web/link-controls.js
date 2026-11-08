@@ -72,6 +72,10 @@
     ".lc-color-sw.sel{border-color:#fa6831;box-shadow:0 0 0 2px rgba(250,104,49,.35)}",
     ".lc-color-none{background:transparent;border-style:dashed;position:relative}",
     ".lc-color-none::after{content:'';position:absolute;left:3px;right:3px;top:10px;height:2px;background:#c0504a;transform:rotate(-45deg)}",
+    ".lc-color-custom{-webkit-appearance:none;appearance:none;background:none}",
+    ".lc-color-custom::-webkit-color-swatch-wrapper{padding:0}",
+    ".lc-color-custom::-webkit-color-swatch{border:0;border-radius:50%}",
+    ".lc-color-custom::-moz-color-swatch{border:0;border-radius:50%}",
   ].join("");
 
   var panel, titleEl, presetsEl, inputEl, setBtn, hintEl, toastEl;
@@ -267,8 +271,8 @@
   }
 
   // ---------- per-tool filament (Filament Color Manager) ----------
-  // GET /api/v1/filament returns one entry per physical tool (1 on Core One, up
-  // to 8 on INDX), so the row adapts to the tool count for free. Each tool's type
+  // GET /api/v1/filament returns one entry per tool up to the last enabled one (1 on
+  // Core One, 5 MMU slots, up to 8 on INDX), so the row adapts to the tool count. Each tool's type
   // is shown with a swatch in its assigned color; empty slots are still listed.
   function renderFilament(tools) {
     var wrap = document.getElementById("lc-filament");
@@ -354,29 +358,37 @@
       b.className = "lc-color-sw" + (c.name === currentName ? " sel" : "");
       b.style.background = c.color_rgb && /^#[0-9a-f]{6}$/i.test(c.color_rgb) ? c.color_rgb : "#888";
       b.title = c.name;
-      b.addEventListener("click", function () { applyColor(tool, c.name); });
+      b.addEventListener("click", function () { applyColor(tool, { color: c.name }); });
       grid.appendChild(b);
     });
     var none = document.createElement("button");
     none.type = "button";
     none.className = "lc-color-sw lc-color-none" + (currentHex ? "" : " sel");
     none.title = "No color";
-    none.addEventListener("click", function () { applyColor(tool, null); });
+    none.addEventListener("click", function () { applyColor(tool, { color: null }); });
     grid.appendChild(none);
+    // Any other color: the printer stores RGB, the palette is only a shortcut.
+    var custom = document.createElement("input");
+    custom.type = "color";
+    custom.className = "lc-color-sw lc-color-custom" + (currentHex && !currentName ? " sel" : "");
+    custom.title = "Custom color";
+    custom.value = currentHex || "#888888";
+    custom.addEventListener("change", function () { applyColor(tool, { color_rgb: custom.value }); });
+    grid.appendChild(custom);
     colorPanel.classList.add("open");
     placeNear(colorPanel, anchor);
   }
 
-  function applyColor(tool, name) {
+  function applyColor(tool, body) {
     timedFetch("/api/v1/filament/" + tool, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ color: name }),
+      body: JSON.stringify(body),
     })
       .then(function (r) {
         if (r.status === 401 || r.status === 403) { toast("Sign in to PrusaLink first"); return; }
         if (!r.ok) { throw new Error("HTTP " + r.status); }
-        toast("Tool " + (tool + 1) + (name ? " color set" : " color cleared"));
+        toast("Tool " + (tool + 1) + (body.color === null ? " color cleared" : " color set"));
         pollFilament();
       })
       .catch(function () { toast("Couldn’t reach the printer"); });
