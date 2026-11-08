@@ -101,7 +101,6 @@
 #include <feature/print_status_message/print_status_message_guard.hpp>
 #include <config_store/store_instance.hpp>
 #include <calibration_z.hpp>
-#include <buddy/unreachable.hpp>
 
 #include <option/has_ceiling_clearance.h>
 #if HAS_CEILING_CLEARANCE()

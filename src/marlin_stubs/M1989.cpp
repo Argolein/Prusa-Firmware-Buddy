@@ -60,9 +60,12 @@ PhasesZEndstopCalib do_aligning() {
 
     // Run the Z alignment explicitly on every iteration. We must NOT rely on G28's auto-align:
     // it only fires once per power cycle (gated by z_auto_align_done) and would be skipped on
-    // retries. calib_Z rams the gantry to the top against the adjustable endstops and leaves Z
+    // retries. auto_calib_Z rams the gantry to the top against the adjustable endstops without
+    // switching to the selftest screen, backs off if something blocks the lift, and leaves Z
     // unhomed.
-    selftest::calib_Z(false, false);
+    if (!selftest::auto_calib_Z(false)) {
+        return PhasesZEndstopCalib::probe_failed;
+    }
 
     // Home Z for an absolute probing reference, but suppress G28's auto-align so it does not run
     // a second alignment. Restore the flag afterwards so a later print homes/aligns normally.
