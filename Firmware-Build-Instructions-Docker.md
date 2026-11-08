@@ -4,16 +4,18 @@ Build:
 
 cd /Users/ArgoMac/GitHub-Development/Prusa-Firmware-Buddy
 
-docker build \
+# Since 8.0.1 the image builds the ESP Wi-Fi SDKs, whose compilers exist only
+# for x86-64 Linux: build and run it as linux/amd64 on Apple Silicon.
+docker build --platform linux/amd64 \
   -f utils/holly/Dockerfile \
-  -t prusa-buddy-build:gcc13 .
+  -t prusa-buddy-build:gcc13-v8 .
 
 mkdir -p build/products-docker-gcc13-coreone
 
-docker run --rm \
+docker run --rm --platform linux/amd64 \
   -v "$PWD":/host:ro \
   -v "$PWD/build/products-docker-gcc13-coreone":/out \
-  prusa-buddy-build:gcc13 \
+  prusa-buddy-build:gcc13-v8 \
   bash -lc '
 set -euo pipefail
 

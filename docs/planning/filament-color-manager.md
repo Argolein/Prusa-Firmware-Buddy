@@ -1,5 +1,10 @@
 # Filament Color Manager — planning notes (ARCHIVED)
 
+> **Superseded at the 8.0.1 rebase.** Prusa 8.0 ships its own per-tool filament color
+> (`FilamentTypeParameters::color`, load prompt, Customize → Color). The printer-side Filament
+> Color Manager described below was dropped; only its PrusaLink API remains, rebuilt on Prusa's
+> storage — see [`doc/filament_color_manager.md`](../../doc/filament_color_manager.md).
+
 > **Status: DONE / merged.** Implemented and build-validated (coreone + coreone_indx,
 > -Werror); committed as `25780ffad` ("feat(filament): Filament Color Manager"). Pre-existing
 > rebase breakage fixed separately in `f8f75a630`. User-facing docs:

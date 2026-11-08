@@ -1,10 +1,11 @@
-# v6.9.1 Argo migration plan
+# v8.0.1 Argo migration plan
 
 ## Objective
 
-Create an untouched stock `v6.9.1` branch from Prusa's official tag and a
-`v6.9.1-Argo-stable` branch containing the Argo changes from
-`v6.9.0-Argo-stable`, rebased onto that stock release.
+Create an untouched stock `v8.0.1` branch from Prusa's official tag and a
+`v8.0.1-Argo-stable` branch containing the Argo changes from
+`v6.9.1-Argo-stable`, rebased onto that stock release, reusing Prusa's new
+filament-color system instead of carrying our own.
 
 ## Open questions
 
@@ -12,26 +13,27 @@ Create an untouched stock `v6.9.1` branch from Prusa's official tag and a
 
 ## Approved plan
 
-- Verify Prusa's official `v6.9.1` tag and its relationship to `v6.9.0`.
-- Create `v6.9.1` directly at the verified upstream tag without modifying the
-  stock tree.
-- Replay the `v6.9.0-Argo-stable` commit series onto `v6.9.1` with
-  `git rebase --onto`, resolving conflicts commit-by-commit and preserving both
-  upstream behavior and the intended Argo features.
-- Carry the `rebase repair` commit unchanged if none of its files changed
-  upstream; otherwise re-derive it against 6.9.1.
-- Build both `coreone` and `coreone_indx` in the documented Docker toolchain
-  with `-Werror`.
-- Update `ARGO-DEVELOPMENT.md` with the new branch model, migration note and
-  refreshed commit hashes, then push both branches to `origin`.
+- Verify Prusa's official `v8.0.1` tag (`077276b6e`); it is not a descendant of
+  `v6.9.1` (merge base `a3d6bca45`, 764 upstream commits).
+- Create `v8.0.1` directly at the tag without modifying the stock tree.
+- Replay the Argo commits with `git rebase --onto`, dropping the 6.9.x repair
+  commit and re-deriving its fixes against 8.0.1.
+- Filament color (Owner, 2026-11-08): drop the printer side of the Filament
+  Color Manager, keep only the PrusaLink API, dashboard picker and web tool
+  mapping on top of Prusa's `FilamentTypeParameters::color`; `color_rgb` is the
+  main API field; the palette is Prusa's printer palette.
+- Build `coreone` and `coreone_indx` (8-tool INDX) in Docker with `-Werror`
+  (new image `prusa-buddy-build:gcc13-v8`, `linux/amd64`).
+- Follow-ups approved by Owner: MMU slots reachable over the filament API, a
+  free color input in the web picker, history clean-up (README build-doc
+  duplicate, unused system-compiler hunk, `start.md` churn), pre-commit hook
+  repair on the Mac.
 
 ## Acceptance checks
 
-- [x] `v6.9.1` is identical to `refs/tags/v6.9.1` (`f1a123aba`).
-- [x] All 44 Argo commits are present on `v6.9.1-Argo-stable`; `git range-diff`
-      shows 43 patch-identical and one adapted (the `M1989` rename).
-- [x] The repair commit is carried unchanged; none of its files changed between
-      6.9.0 and 6.9.1.
+- [x] `v8.0.1` is identical to `refs/tags/v8.0.1` (`077276b6e`).
+- [x] Argo commits replayed; `git range-diff` against `v6.9.1-Argo-stable`
+      shows only the adaptations listed in `ARGO-DEVELOPMENT.md`.
 - [x] `coreone` builds green with `-Werror`.
 - [x] `coreone_indx` builds green with `-Werror`.
 - [ ] Flashed and exercised on the printer.
@@ -44,38 +46,29 @@ Create an untouched stock `v6.9.1` branch from Prusa's official tag and a
 
 ## Decisions
 
-- **Moved the Z endstop calibration wizard from `M1988` to `M1989`.** Upstream
-  6.9.1 assigned `M1988` to the INDX gantry squareness wizard. Upstream keeps its
-  number; the rename is folded into the Z-endstop feature commit because it is
-  permanent, not specific to this base. The menu entry is unchanged.
-- **Carried the 6.9.0 rebase repair commit unchanged** (6.6.1 precedent): 6.9.1
-  is a direct descendant of 6.9.0 and touches none of the repaired files.
-- The 6.9.0 decisions (upstream 1.5GT belt support, steps/mm menu removal, belt
-  flag left at its 2GT default) still hold; see the 6.6.3 → 6.9.0 note in
-  `ARGO-DEVELOPMENT.md`.
+- **Filament Color Manager reduced to its PrusaLink layer.** Prusa 8.0 stores,
+  prompts for and edits a per-tool filament color itself but exposes nothing
+  over PrusaLink. About 525 lines of ours left Prusa's preheat / pause /
+  config_store / `color.cpp` files. Colors saved under 6.9.1-Argo do not carry
+  over.
+- **Z-align on G28 and the Z endstop wizard use Prusa's `auto_calib_Z()`**
+  (screen-less, backs off on an obstruction) instead of our `show_ui` patches.
+- **INDX "color a docked tool on insertion" screen dropped**: Prusa has no
+  color for filament that is not loaded.
 
 ## Handoff
 
-- Date: 2026-09-27
-- Completed this session:
-  - Created stock `v6.9.1` at `refs/tags/v6.9.1` and pushed it to `origin`.
-  - Replayed all 44 Argo commits onto it as `v6.9.1-Argo-stable`; the only
-    conflict was the `M1988` clash.
-  - Built `coreone` and `coreone_indx` green with `-Werror`.
-  - Updated `ARGO-DEVELOPMENT.md`, `docs/planning/z-endstop-calibration.md`,
-    `PLANS.md`.
+- Date: 2026-11-08
+- Completed this session: everything above; both branches pushed to `origin`.
 - Next step:
-  - Flash `coreone_release_boot.bbf`. If the printer has 1.5GT belts and the
-    switch is not already on, set **Settings → Hardware → "1.5GT Belts" → On**
-    and re-run the calibrations it resets.
-  - Re-verify the fork features on hardware, especially the Z endstop
-    calibration wizard (now `M1989`), the TPU-safe INDX tool lock, Adaptive PA,
-    the Filament Color Manager and the PrusaLink web tool mapping (the latter
-    still needs a real multi-material print).
+  - Flash the `coreone` / `coreone_indx` `.bbf`. Check Z-align on the first
+    home, the Z endstop calibration wizard, and setting a tool color from
+    PrusaLink (palette and custom color; MMU slots if an MMU is attached).
+  - Pick tool colors again once (old colors are not migrated).
 - Open blockers:
   - none
 
 ## Notes
 
-- Build with the Docker/GCC13 workflow in
+- Build with the Docker workflow in
   [`Firmware-Build-Instructions-Docker.md`](Firmware-Build-Instructions-Docker.md).

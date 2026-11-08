@@ -1,5 +1,9 @@
 # PrusaLink Dashboard — tool color picker — planning notes
 
+> **Since the 8.0.1 rebase** the picker shows Prusa's printer palette (Black … Silver, incl.
+> Beige and Turquoise) and the color is stored on Prusa's per-tool ad-hoc filament; see
+> [`doc/filament_color_manager.md`](../../doc/filament_color_manager.md).
+
 > **Status: implemented.** Design record for making each tool's color swatch in the PrusaLink
 > "Filament" row clickable, opening a picker of the printer's 15 built-in filament colors that
 > reassigns the tool's color via the Filament Color Manager. Extends
