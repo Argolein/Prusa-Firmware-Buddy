@@ -12,6 +12,12 @@ docker build --platform linux/amd64 \
 
 mkdir -p build/products-docker-gcc13-coreone
 
+# Building from a worktree (.claude/worktrees/...): its .git file points at the
+# main repo's .git, which the container cannot see. git then fails, the build
+# number falls back to 0 (8.0.1+0) and the printer skips the file as "not
+# newer". Add this mount and run
+# `git config --global --add safe.directory "*"` first inside the container:
+#   -v "$(git rev-parse --git-common-dir)":"$(git rev-parse --git-common-dir)":ro
 docker run --rm --platform linux/amd64 \
   -v "$PWD":/host:ro \
   -v "$PWD/build/products-docker-gcc13-coreone":/out \
