@@ -81,14 +81,20 @@ PhasesZEndstopCalib do_aligning() {
 PhasesZEndstopCalib do_probing(ZEndstopCalibResult_t &result) {
     marlin_server::fsm_change(PhasesZEndstopCalib::probing);
 
+    // probe_at_point travels at the current Z and lifts only Z_CLEARANCE_BETWEEN_PROBES (0.3 mm)
+    // after a touch. The bed tilt this wizard measures can exceed that, so lift to the homing
+    // travel height before moving to each point and before handing the printer back.
     for (size_t i = 0; i < std::size(probe_points); ++i) {
+        do_z_clearance(Z_HOMING_HEIGHT);
         const xy_pos_t pos = { probe_points[i].x, probe_points[i].y };
         const float z = probe_at_point(pos, PROBE_PT_RAISE);
         if (std::isnan(z)) {
+            do_z_clearance(Z_HOMING_HEIGHT);
             return PhasesZEndstopCalib::probe_failed;
         }
         result.z[i] = z;
     }
+    do_z_clearance(Z_HOMING_HEIGHT);
 
     const auto [min_it, max_it] = std::minmax_element(result.z.begin(), result.z.end());
     result.spread = *max_it - *min_it;
