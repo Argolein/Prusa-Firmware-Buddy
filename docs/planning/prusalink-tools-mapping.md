@@ -142,9 +142,9 @@ which is the point of the feature.
       { "index": 2, "type": "PLA", "color_rgb": "#c8506e", "tool": 2 }
     ],
     "tools": [
-      { "index": 1, "enabled": true,  "type": "PLA", "color_rgb": "#…" },
-      { "index": 4, "enabled": false, "type": null,  "color_rgb": null }, // empty slot placeholder
-      { "index": 5, "enabled": true,  "type": "PLA", "color_rgb": "#…" }
+      { "index": 1, "enabled": true,  "type": "PLA", "color_rgb": "#ff0000", "color_name": "Red" },
+      { "index": 4, "enabled": false, "type": null,  "color_rgb": null, "color_name": null }, // empty slot placeholder
+      { "index": 5, "enabled": true,  "type": "PLA", "color_rgb": null, "color_name": null }  // no Color Manager color
     ],
     "spool_join": [ /* { "from": <tool>, "to": <tool> } … optional chains */ ]
   }
@@ -154,7 +154,10 @@ which is the point of the feature.
   **re-validate the phase server-side** instead (simpler, and still rejects a stale confirm).
   Tool type comes from `config_store().get_filament_type(virtual)`, color from
   `get_filament_color(virtual.to_physical())` (the Argo Color Manager — the LCD leaves tool color
-  blank; the web fills it). `to_physical()` is only called for **enabled** tools.
+  blank; the web fills it). `color_name` is the `filament_color_palette` name (`null` for a
+  custom color that is not a palette entry); the overlay shows it in the
+  dropdown label (an `<option>` cannot hold a swatch) and draws the chosen tool's swatch beside
+  the dropdown. `to_physical()` is only called for **enabled** tools.
 - **`PUT /api/v1/mapping`** — `ToolMappingCommand` (body-parse like `FilamentCommand`, guarded so it
   is only accepted while holding at the phase → else `409`). **Compact positional** body (chosen to
   stay well under the shared `MAX_TOKENS=30` jsmn cap and to parse trivially with the flat event

@@ -138,9 +138,14 @@
     return sw;
   }
 
-  // Option label like "Tool 2 — PETG".
+  // Option label like "Tool 2 — PETG — Red". A <select> option cannot show a
+  // swatch, so the color is also named in text.
   function toolLabel(t) {
-    return "Tool " + t.index + (t.type ? " — " + t.type : "");
+    var label = "Tool " + t.index + (t.type ? " — " + t.type : "");
+    if (t.color_name) {
+      label += " — " + t.color_name.charAt(0) + t.color_name.slice(1).toLowerCase();
+    }
+    return label;
   }
 
   function toolByIndex(idx) {
@@ -175,6 +180,9 @@
       arrow.textContent = "→";
       row.appendChild(arrow);
 
+      var toolSw = makeSwatch(null);
+      row.appendChild(toolSw);
+
       var sel = document.createElement("select");
       sel.className = "tm-sel";
       sel.setAttribute("data-gc", String(f.index));
@@ -197,14 +205,17 @@
       warn.textContent = "⚠";
       row.appendChild(warn);
 
-      var updateWarn = function () {
+      var updateRow = function () {
         var t = toolByIndex(parseInt(sel.value, 10));
+        var hex = validColor(t && t.color_rgb);
+        toolSw.className = "tm-sw" + (hex ? "" : " none");
+        toolSw.style.background = hex || "";
         var mismatch = f.type && t && t.type && f.type !== t.type;
         warn.classList.toggle("hidden", !mismatch);
         if (mismatch) { warn.title = "G-code wants " + f.type + " but this tool has " + t.type; }
       };
-      sel.addEventListener("change", updateWarn);
-      updateWarn();
+      sel.addEventListener("change", updateRow);
+      updateRow();
 
       bodyEl.appendChild(row);
     });

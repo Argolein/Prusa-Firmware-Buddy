@@ -1,4 +1,5 @@
 #include "tool_mapping_renderer.h"
+#include "filament_renderer.h"
 
 #include <segmented_json_macros.h>
 
@@ -103,6 +104,12 @@ ToolMappingRenderState::ToolMappingRenderState() {
         if (t.has_color) {
             const Color color = *params.color;
             snprintf(t.color_rgb.data(), t.color_rgb.size(), "#%02x%02x%02x", color.r, color.g, color.b);
+            for (const auto &preset : filament_color_palette) {
+                if (preset.color == color) {
+                    snprintf(t.color_name.data(), t.color_name.size(), "%.*s", static_cast<int>(preset.name.size()), preset.name.data());
+                    break;
+                }
+            }
         }
     }
 
@@ -180,6 +187,12 @@ JsonResult ToolMappingRenderer::renderState(size_t resume_point, JsonOutput &out
                     JSON_FIELD_STR("color_rgb", state.tools[state.ti].color_rgb.data());
                 } else {
                     JSON_CONTROL("\"color_rgb\":null");
+                }
+                JSON_COMMA;
+                if (state.tools[state.ti].color_name[0] != '\0') {
+                    JSON_FIELD_STR("color_name", state.tools[state.ti].color_name.data());
+                } else {
+                    JSON_CONTROL("\"color_name\":null");
                 }
             JSON_OBJ_END;
         }
