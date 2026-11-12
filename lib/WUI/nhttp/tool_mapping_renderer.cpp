@@ -56,15 +56,9 @@ ToolMappingRenderState::ToolMappingRenderState() {
         GcodeFilament &f = gcode_filaments[gcode_count++];
         f.index = gcode_tool.display_index();
 
-        f.has_type = ei.filament_name.size() > 0;
-        if (f.has_type) {
-            snprintf(f.type.data(), f.type.size(), "%s", ei.filament_name.data());
-        }
-
         f.has_color = ei.extruder_colour.has_value();
         if (f.has_color) {
-            const Color c = *ei.extruder_colour;
-            snprintf(f.color_rgb.data(), f.color_rgb.size(), "#%02x%02x%02x", c.r, c.g, c.b);
+            f.color = *ei.extruder_colour;
         }
 
         const auto virtual_tool = stdext::get_optional<VirtualToolIndex>(tool_mapper.to_virtual(gcode_tool));
@@ -83,6 +77,9 @@ ToolMappingRenderState::ToolMappingRenderState() {
         Tool &t = tools[tool_count++];
         t.index = virtual_tool.display_index();
         t.enabled = virtual_tool.is_enabled();
+        t.type = FilamentType::none;
+        t.has_color = false;
+        t.palette_index = no_palette_color;
 
         // Only resolve type/color for enabled tools — a disabled placeholder slot
         // (e.g. an empty MMU slot in the middle of the range) has no physical tool
@@ -91,22 +88,18 @@ ToolMappingRenderState::ToolMappingRenderState() {
             continue;
         }
 
-        const auto type = config_store().get_filament_type(virtual_tool);
-        t.has_type = (type != FilamentType::none);
-        t.has_color = false;
-        if (!t.has_type) {
+        t.type = config_store().get_filament_type(virtual_tool);
+        if (t.type == FilamentType::none) {
             continue;
         }
-        const FilamentTypeParameters params = type.parameters();
-        snprintf(t.type.data(), t.type.size(), "%s", params.name.data());
 
+        const FilamentTypeParameters params = t.type.parameters();
         t.has_color = params.color.has_value();
         if (t.has_color) {
-            const Color color = *params.color;
-            snprintf(t.color_rgb.data(), t.color_rgb.size(), "#%02x%02x%02x", color.r, color.g, color.b);
-            for (const auto &preset : filament_color_palette) {
-                if (preset.color == color) {
-                    snprintf(t.color_name.data(), t.color_name.size(), "%.*s", static_cast<int>(preset.name.size()), preset.name.data());
+            t.color = *params.color;
+            for (uint8_t p = 0; p < filament_color_palette.size(); p++) {
+                if (filament_color_palette[p].color == t.color) {
+                    t.palette_index = p;
                     break;
                 }
             }
@@ -125,6 +118,21 @@ ToolMappingRenderState::ToolMappingRenderState() {
     #endif
 #endif // HAS_TOOL_MAPPING()
 }
+
+namespace {
+
+    /// Type name of a G-code filament, or nullptr when the file names none.
+    /// GCodeInfo holds the previewed file for the whole tools-mapping phase.
+    const char *gcode_filament_type([[maybe_unused]] uint8_t display_index) {
+#if HAS_TOOL_MAPPING()
+        const auto &name = GCodeInfo::getInstance().get_extruder_info(GcodeToolIndex::from_raw(display_index - 1)).filament_name;
+        return name.size() > 0 ? name.data() : nullptr;
+#else
+        return nullptr;
+#endif
+    }
+
+} // namespace
 
 JsonResult ToolMappingRenderer::renderState(size_t resume_point, JsonOutput &output, ToolMappingRenderState &state) const {
     // clang-format off
@@ -145,14 +153,15 @@ JsonResult ToolMappingRenderer::renderState(size_t resume_point, JsonOutput &out
 
             JSON_OBJ_START;
                 JSON_FIELD_INT("index", state.gcode_filaments[state.gi].index) JSON_COMMA;
-                if (state.gcode_filaments[state.gi].has_type) {
-                    JSON_FIELD_STR("type", state.gcode_filaments[state.gi].type.data());
+                if (gcode_filament_type(state.gcode_filaments[state.gi].index)) {
+                    // Re-evaluated on resume; the next file scan may have reset GCodeInfo since.
+                    JSON_FIELD_STR("type", gcode_filament_type(state.gcode_filaments[state.gi].index) ?: "");
                 } else {
                     JSON_CONTROL("\"type\":null");
                 }
                 JSON_COMMA;
                 if (state.gcode_filaments[state.gi].has_color) {
-                    JSON_FIELD_STR("color_rgb", state.gcode_filaments[state.gi].color_rgb.data());
+                    JSON_FIELD_STR_FORMAT("color_rgb", "#%02x%02x%02x", state.gcode_filaments[state.gi].color.r, state.gcode_filaments[state.gi].color.g, state.gcode_filaments[state.gi].color.b);
                 } else {
                     JSON_CONTROL("\"color_rgb\":null");
                 }
@@ -177,20 +186,20 @@ JsonResult ToolMappingRenderer::renderState(size_t resume_point, JsonOutput &out
             JSON_OBJ_START;
                 JSON_FIELD_INT("index", state.tools[state.ti].index) JSON_COMMA;
                 JSON_FIELD_BOOL("enabled", state.tools[state.ti].enabled) JSON_COMMA;
-                if (state.tools[state.ti].has_type) {
-                    JSON_FIELD_STR("type", state.tools[state.ti].type.data());
+                if (state.tools[state.ti].type != FilamentType::none) {
+                    JSON_FIELD_STR("type", state.tools[state.ti].type.parameters().name.data());
                 } else {
                     JSON_CONTROL("\"type\":null");
                 }
                 JSON_COMMA;
                 if (state.tools[state.ti].has_color) {
-                    JSON_FIELD_STR("color_rgb", state.tools[state.ti].color_rgb.data());
+                    JSON_FIELD_STR_FORMAT("color_rgb", "#%02x%02x%02x", state.tools[state.ti].color.r, state.tools[state.ti].color.g, state.tools[state.ti].color.b);
                 } else {
                     JSON_CONTROL("\"color_rgb\":null");
                 }
                 JSON_COMMA;
-                if (state.tools[state.ti].color_name[0] != '\0') {
-                    JSON_FIELD_STR("color_name", state.tools[state.ti].color_name.data());
+                if (state.tools[state.ti].palette_index != ToolMappingRenderState::no_palette_color) {
+                    JSON_FIELD_STR("color_name", filament_color_palette[state.tools[state.ti].palette_index].name.data());
                 } else {
                     JSON_CONTROL("\"color_name\":null");
                 }
