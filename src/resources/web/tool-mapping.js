@@ -247,9 +247,10 @@
     tools.forEach(function (t) {
       var srow = document.createElement("div");
       srow.className = "tm-srow";
+      srow.appendChild(makeSwatch(t.color_rgb));
       var label = document.createElement("span");
       label.className = "tm-slabel";
-      label.textContent = "When Tool " + t.index + " runs out";
+      label.textContent = "When " + toolLabel(t) + " runs out";
       srow.appendChild(label);
 
       var arrow = document.createElement("span");
@@ -268,7 +269,7 @@
         if (o.index === t.index) { return; }
         var opt = document.createElement("option");
         opt.value = String(o.index);
-        opt.textContent = "continue on Tool " + o.index;
+        opt.textContent = "continue on " + toolLabel(o);
         sel.appendChild(opt);
       });
       if (joinByFrom[t.index]) { sel.value = String(joinByFrom[t.index]); }
