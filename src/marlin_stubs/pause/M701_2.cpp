@@ -291,6 +291,18 @@ void filament_gcodes::M1701_autoload(const std::optional<float> &fast_load_lengt
     }
 
 #if HAS_INDX()
+    // Empty head: the regular load asks for the filament type before the head moves,
+    // then picks up the tool, loads and docks it again.
+    if (std::holds_alternative<NoTool>(PhysicalToolIndex::currently_selected())) {
+        M701_load(M701LoadArgs {
+            .fast_load_length = fast_load_length,
+            .z_min_pos = z_min_pos,
+            .op_preheat = RetAndCool_t::Return,
+            .virtual_tool = virtual_tool,
+        });
+        return;
+    }
+
     // Park the tool back to its dock after autoload (covers all early-return paths)
     ScopeGuard park_after_autoload = [&] {
         tool_change(NoTool {}, tool_return_t::dock_backoff);

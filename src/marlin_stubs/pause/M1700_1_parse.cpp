@@ -7,6 +7,7 @@
 #include "../PrusaGcodeSuite.hpp"
 #include "../../../lib/Marlin/Marlin/src/gcode/gcode.h"
 #include "M70X.hpp"
+#include <feature/filament_sensor/filament_sensors_handler.hpp>
 #include <utils/variant_utils.hpp>
 
 /** \addtogroup G-Codes
@@ -78,12 +79,13 @@ void PrusaGcodeSuite::M1700() {
  *
  *#### Usage
  *
- *    M1701 [ T | Z | L ]
+ *    M1701 [ T | P | Z | L ]
  *
  *#### Parameters
  *
  * - `T` - Extruder number. Required for mixing extruder.
  *        For non-mixing, current extruder if omitted.
+ * - `P` - `1` - `T` is a printer tool, not a G-code tool (skips tool mapping)
  * - `Z` - Minimum Z park position
  * - `L` - Extrude distance for insertion (positive value) (manual reload)
  *
@@ -94,8 +96,10 @@ void PrusaGcodeSuite::M1701() {
     const std::optional<float> fast_load_length = std::abs(isL ? parser.value_axis_units(E_AXIS) : FILAMENT_CHANGE_FAST_LOAD_LENGTH);
     const float min_Z_pos = parser.linearval('Z', Z_AXIS_LOAD_POS);
 
-    const std::optional<VirtualToolIndex> virtual_tool = stdext::get_optional<VirtualToolIndex>(GcodeSuite::get_target_virtual_from_command());
+    const std::optional<VirtualToolIndex> virtual_tool = stdext::get_optional<VirtualToolIndex>(GcodeSuite::get_target_virtual_from_command_p());
     if (!virtual_tool.has_value()) {
+        // M1701_autoload clears this on its own paths; an injected autoload must not stay pending.
+        FSensors_instance().ClrAutoloadSent();
         return;
     }
 
