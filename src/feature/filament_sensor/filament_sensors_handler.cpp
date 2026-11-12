@@ -33,6 +33,8 @@
     #include <feature/prusa/crash_recovery.hpp>
 #endif
 
+#include <option/has_indx.h>
+
 #include <option/has_anfc.h>
 #if HAS_ANFC()
     #include <feature/openprinttag/tool_tag.hpp>
@@ -291,6 +293,32 @@ void FilamentSensors::process_events() {
         return true;
     };
 
+#if HAS_INDX()
+    // INDX docks the tool after every print and load, which leaves the logical
+    // sensors unbound. Autoload the slot whose own sensor saw the insertion instead;
+    // M1701 then asks for the filament type before the head moves for the tool.
+    const auto check_empty_head_autoload = [&]() {
+        if (tool_index < PhysicalToolIndex::count
+            || autoload_sent
+            || marlin_server::is_processing()
+            || isAutoloadLocked()
+            || !config_store().fs_autoload_enabled.get()) {
+            return false;
+        }
+
+        for (const auto tool : PhysicalToolIndex::all()) {
+            IFSensor *side_fs = GetSideFSensor(tool);
+            if (tool.is_enabled() && side_fs && side_fs->is_enabled() && side_fs->last_event() == IFSensor::Event::filament_inserted) {
+                autoload_sent = true;
+                marlin_server::inject(GCodeLiteral { .gcode = "M1701 P1 T%.0f", .parameter = static_cast<float>(tool.to_raw()) });
+                log_info(FSensor, "Injected empty-head autoload for tool %d", tool.display_index());
+                return true;
+            }
+        }
+        return false;
+    };
+#endif
+
     if (marlin_server::is_printing()) {
         if (check_runout(LogicalFilamentSensor::primary_runout)) {
             return;
@@ -314,6 +342,12 @@ void FilamentSensors::process_events() {
         if (check_autoload()) {
             return;
         }
+
+#if HAS_INDX()
+        if (check_empty_head_autoload()) {
+            return;
+        }
+#endif
     }
 }
 

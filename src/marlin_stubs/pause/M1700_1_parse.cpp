@@ -85,12 +85,13 @@ void PrusaGcodeSuite::M1700() {
  *
  *#### Usage
  *
- *    M1701 [ T ]
+ *    M1701 [ T | P ]
  *
  *#### Parameters
  *
  * - `T` - Extruder number. Required for mixing extruder.
  *        For non-mixing, current extruder if omitted.
+ * - `P` - `1` - `T` is a printer tool, not a G-code tool (skips tool mapping)
  * - `G` - Use filament data from an OpenPrintTag with the specific UID hash (internal parameter)
  *
  * Default values are used for omitted arguments.
@@ -112,8 +113,10 @@ void PrusaGcodeSuite::M1701() {
     // * We take a physical tool to load into by independently using
     //   PhysicalToolIndex::currently_selected, which seems completely wrong in
     //   principle.
-    const std::optional<VirtualToolIndex> virtual_tool = stdext::get_optional<VirtualToolIndex>(GcodeSuite::get_target_virtual_from_command());
+    const std::optional<VirtualToolIndex> virtual_tool = stdext::get_optional<VirtualToolIndex>(GcodeSuite::get_target_virtual_from_command_p());
     if (!virtual_tool.has_value()) {
+        // The pending-autoload flag is otherwise cleared below; an injected autoload must not stay pending.
+        FSensors_instance().ClrAutoloadSent();
         return;
     }
 
@@ -148,6 +151,21 @@ void PrusaGcodeSuite::M1701() {
     }
 
 #if HAS_INDX()
+    // Empty head: the regular load asks for the filament type before the head moves,
+    // then picks up the tool, loads and docks it again.
+    if (std::holds_alternative<NoTool>(PhysicalToolIndex::currently_selected())) {
+        M701_load(M701LoadArgs {
+            .fast_load_length = fast_load_length,
+            .z_min_pos = z_min_pos,
+            .op_preheat = RetAndCool_t::Return,
+            .virtual_tool = *virtual_tool,
+    #if HAS_ANFC()
+            .openprinttag_uid_hash = tool_tag_hash,
+    #endif
+        });
+        return;
+    }
+
     // Park the tool back to its dock after autoload (covers all early-return paths)
     ScopeGuard park_after_autoload = [&] {
         tool_change(NoTool {}, tool_return_t::dock_backoff);
