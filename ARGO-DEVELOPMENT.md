@@ -208,7 +208,7 @@ run in the `prusa-buddy-build:gcc13-v8` Docker image (built from the 8.0.1
 compilers exist only for x86-64 Linux) to match Prusa's toolchain. From a worktree, also mount
 the main repo's `.git` read-only at its own path so the build's `git show` works.
 
-- Validate firmware changes on **both** `--preset coreone` and `--preset coreone_indx`.
+- Validate firmware changes on `--preset coreone_indx` only (Owner, 2026-11-12: the printer is an INDX).
 - `-DCUSTOM_COMPILE_OPTIONS:STRING="-Werror"` is the intended strictness. If a fresh rebase
   has pre-existing `-Werror` debt unrelated to your change, that belongs in the rebase-repair
   commit — don't silently drop `-Werror`.

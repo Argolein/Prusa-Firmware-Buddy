@@ -12,6 +12,6 @@
   release, build/validation), read `ARGO-DEVELOPMENT.md` (repo root) FIRST. It holds the
   branch model, the rebase workflow (incl. the "rebase repair — NOT for cherry-picks"
   convention), the feature log, and where to continue.
-* Validate firmware changes with the Docker build on BOTH `--preset coreone` and
-  `--preset coreone_indx`, with `-Werror` (see `Firmware-Build-Instructions-Docker.md`).
+* Validate firmware changes with the Docker build on `--preset coreone_indx` only
+  (Owner, 2026-11-12: the printer is an INDX), with `-Werror` (see `Firmware-Build-Instructions-Docker.md`).
 * Per-feature design notes live in `docs/planning/`; user-facing feature docs in `doc/`.
