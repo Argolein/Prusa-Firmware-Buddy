@@ -103,6 +103,7 @@ ToolMappingRenderState::ToolMappingRenderState() {
         if (t.has_color) {
             const auto &preset = filament_color_presets[*color_index];
             snprintf(t.color_rgb.data(), t.color_rgb.size(), "#%02x%02x%02x", preset.color.r, preset.color.g, preset.color.b);
+            snprintf(t.color_name.data(), t.color_name.size(), "%.*s", static_cast<int>(preset.name.size()), preset.name.data());
         }
     }
 
@@ -177,9 +178,10 @@ JsonResult ToolMappingRenderer::renderState(size_t resume_point, JsonOutput &out
                 }
                 JSON_COMMA;
                 if (state.tools[state.ti].has_color) {
-                    JSON_FIELD_STR("color_rgb", state.tools[state.ti].color_rgb.data());
+                    JSON_FIELD_STR("color_rgb", state.tools[state.ti].color_rgb.data()) JSON_COMMA;
+                    JSON_FIELD_STR("color_name", state.tools[state.ti].color_name.data());
                 } else {
-                    JSON_CONTROL("\"color_rgb\":null");
+                    JSON_CONTROL("\"color_rgb\":null,\"color_name\":null");
                 }
             JSON_OBJ_END;
         }

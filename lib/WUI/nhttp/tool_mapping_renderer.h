@@ -41,6 +41,7 @@ public:
         std::array<char, 16> type;
         bool has_color;
         std::array<char, 8> color_rgb;
+        std::array<char, 12> color_name; ///< palette name, valid when has_color
     };
 
     /// One spool-join link: when `from` runs out, `to` continues (display indices).
