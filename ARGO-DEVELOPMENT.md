@@ -203,10 +203,6 @@ motor-current + homing StallGuard-sensitivity editing) was **dropped** at the 6.
 
 ## Open / future work
 
-- **Keep the chamber vents as they are after a print** —
-  [`docs/planning/keep-chamber-vents-after-print.md`](docs/planning/keep-chamber-vents-after-print.md):
-  remove upstream `7190ab828` (BFW-9080), which closes open vents at print end and on INDX
-  homes, picks T4 and parks it again after every PLA/PETG print. Not started.
 - **Prusa Link web modernization** — [`PLANS-Web.md`](PLANS-Web.md): Bed Mesh API + viewer
   **done** (`801f77f55`, `37f11dacb`); G-code console etc. still open. The Filament Color
   Manager's `GET/PUT /api/v1/filament` endpoints
