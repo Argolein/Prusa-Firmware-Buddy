@@ -1099,10 +1099,6 @@ static bool pre_finalize_print([[maybe_unused]] bool finished) {
     prusa_toolchanger.persist_last_picked_tool(PhysicalToolIndex::currently_selected(), true);
 #endif
 
-#if HAS_CHAMBER_VENTS()
-    buddy::chamber().close_vents_after_print();
-#endif
-
     disable_e_steppers();
     disable_xy_steppers();
 

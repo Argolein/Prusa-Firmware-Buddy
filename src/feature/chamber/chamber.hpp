@@ -95,11 +95,6 @@ public: // Temperature control
     /// !HAS TO BE CALLED FROM DEFAULT THREAD ONLY!
     void manage_ventilation_state(std::optional<Temperature> fil_target);
 
-    /// Close the vents at the end of a print, if they are known to be open
-    /// and vent control is set to automatic.
-    /// !HAS TO BE CALLED FROM DEFAULT THREAD ONLY!
-    void close_vents_after_print();
-
     enum class VentState : uint8_t {
         open,
         closed,
