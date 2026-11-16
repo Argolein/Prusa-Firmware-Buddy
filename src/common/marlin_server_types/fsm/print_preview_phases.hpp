@@ -57,6 +57,7 @@ inline constexpr EnumArray<PhasesPrintPreview, PhaseResponses, CountPhases<Phase
         { PhasesPrintPreview::unfinished_selftest, {
                                                        Response::Ignore,
                                                        Response::Calibrate,
+                                                       Response::Never,
                                                    } },
         { PhasesPrintPreview::new_firmware_available, {
                                                           Response::Continue,

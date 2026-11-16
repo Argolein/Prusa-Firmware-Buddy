@@ -549,6 +549,11 @@ PrintPreview::Result PrintPreview::Loop() {
     case State::unfinished_selftest_wait_user:
         switch (response) {
 
+        case Response::Never:
+#if HAS_SELFTEST()
+            config_store().selftest_warning.set(false);
+#endif
+            [[fallthrough]];
         case Response::Ignore:
             ChangeState(stateFromUpdateCheck());
             break;
@@ -895,7 +900,7 @@ void PrintPreview::Init() {
 
 IPrintPreview::State PrintPreview::stateFromSelftestCheck() {
 #if HAS_SELFTEST()
-    if (!is_selftest_successfully_completed()) {
+    if (config_store().selftest_warning.get() && !is_selftest_successfully_completed()) {
         return State::unfinished_selftest_wait_user;
     }
 #endif

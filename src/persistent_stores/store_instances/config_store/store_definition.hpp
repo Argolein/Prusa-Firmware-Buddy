@@ -750,6 +750,8 @@ struct CurrentStore
     #else
     StoreItem<SelftestResult, defaults::selftest_result, ItemFlag::calibrations, journal::hash("Selftest Result Gears")> selftest_result;
     #endif
+    /// Whether starting a print warns about unfinished Calibrations & Tests.
+    StoreItem<bool, true, ItemFlag::features, journal::hash("Selftest Warning")> selftest_warning;
 #endif
 
 #if HAS_PHASE_STEPPING()

@@ -13,6 +13,7 @@
 #include <option/has_nozzle_cleaner_lite.h>
 #include <option/has_15gt_belts.h>
 #include <option/has_switchable_homing_calibration.h>
+#include <option/has_selftest.h>
 #include <common/extended_printer_type.hpp>
 #include <common/printer_variant/printer_variant.hpp>
 #include <dynamic_index_mapping.hpp>
@@ -28,6 +29,19 @@ protected:
 private:
     const HWCheckType check_type;
 };
+
+#if HAS_SELFTEST()
+/// Warn about unfinished Calibrations & Tests when starting a print
+class MI_SELFTEST_WARNING : public WI_ICON_SWITCH_OFF_ON_t {
+    static constexpr const char *const label = N_("Selftest Warning");
+
+public:
+    MI_SELFTEST_WARNING();
+
+protected:
+    void OnChange(size_t old_index) override;
+};
+#endif
 
 #if HAS_SIDE_FSENSOR_REMAP()
 class MI_SIDE_FSENSOR_REMAP : public WI_ICON_SWITCH_OFF_ON_t {

@@ -10,7 +10,12 @@ struct ScreenMenuGcodeChecks_;
 template <size_t... ix>
 struct ScreenMenuGcodeChecks_<std::index_sequence<ix...>> {
     using T = BasicScreenMenu<
-        WithConstructorArgs<MI_HARDWARE_CHECK, static_cast<HWCheckType>(ix)>...>;
+        WithConstructorArgs<MI_HARDWARE_CHECK, static_cast<HWCheckType>(ix)>...
+#if HAS_SELFTEST()
+        ,
+        MI_SELFTEST_WARNING
+#endif
+        >;
 };
 
 class ScreenMenuGcodeChecks : public ScreenMenuGcodeChecks_<std::make_index_sequence<hw_check_type_count>>::T {

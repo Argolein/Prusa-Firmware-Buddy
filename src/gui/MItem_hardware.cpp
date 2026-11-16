@@ -37,6 +37,15 @@ void MI_HARDWARE_CHECK::OnChange([[maybe_unused]] size_t old_index) {
     config_store().visit_hw_check(check_type, [set = static_cast<HWCheckSeverity>(this->get_index())](auto &item) { item.set(set); });
 }
 
+#if HAS_SELFTEST()
+MI_SELFTEST_WARNING::MI_SELFTEST_WARNING()
+    : WI_ICON_SWITCH_OFF_ON_t(config_store().selftest_warning.get(), _(label), nullptr, is_enabled_t::yes, is_hidden_t::no) {}
+
+void MI_SELFTEST_WARNING::OnChange([[maybe_unused]] size_t old_index) {
+    config_store().selftest_warning.set(value());
+}
+#endif
+
 #if HAS_SIDE_FSENSOR_REMAP()
 // MI_SIDE_FSENSOR_REMAP
 MI_SIDE_FSENSOR_REMAP::MI_SIDE_FSENSOR_REMAP()
