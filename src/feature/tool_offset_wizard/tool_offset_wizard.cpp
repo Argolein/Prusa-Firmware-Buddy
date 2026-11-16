@@ -154,11 +154,13 @@ namespace {
                 return Result::aborted_before_calib;
             }
 #else
-            // The nozzle cleaner is not calibrated yet at this stage of the selftest, so we can't
-            // auto-purge/clean. Ask the user to ensure nozzles are clean before we heat & probe.
-            fsm_change(PhaseToolOffsetsCalibration::ensure_nozzles_clean);
-            if (wait_for_response(PhaseToolOffsetsCalibration::ensure_nozzles_clean) == Response::Abort) {
-                return Result::aborted_before_calib;
+            // Without a calibrated nozzle cleaner we can't auto-purge/clean. Ask the user to ensure
+            // nozzles are clean before we heat & probe.
+            if (!tool_offset_calibration::can_auto_clean(tool_offset_calibration::Context::Calibration)) {
+                fsm_change(PhaseToolOffsetsCalibration::ensure_nozzles_clean);
+                if (wait_for_response(PhaseToolOffsetsCalibration::ensure_nozzles_clean) == Response::Abort) {
+                    return Result::aborted_before_calib;
+                }
             }
 #endif
 

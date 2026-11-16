@@ -181,8 +181,8 @@ float probe_z_at(const xy_pos_t &pos, uint8_t probe_count) {
 }
 
 /// Park at nozzle cleaner and run the cleaning sequence.
-/// In `Calibration` context the nozzle cleaner is not yet calibrated (chicken-and-egg) so the
-/// auto-clean sequence is skipped; the caller has already prompted the user to clean manually.
+/// In `Calibration` context with an uncalibrated nozzle cleaner the auto-clean sequence is
+/// skipped; the caller has already prompted the user to clean manually.
 std::expected<void, tool_offset::FailureReason> prepare_tool(PhysicalToolIndex tool, [[maybe_unused]] tool_offset_calibration::Context context) {
     // Guard against a silently failed toolchange — do not drive to a parked tool's brush
     const std::optional<PhysicalToolIndex> selected = PhysicalToolIndex::currently_selected_opt();
@@ -201,17 +201,20 @@ std::expected<void, tool_offset::FailureReason> prepare_tool(PhysicalToolIndex t
     const ToolTemperatures temps = get_tool_temperatures(tool);
 
 #if HAS_NOZZLE_CLEANER()
-    if (context == tool_offset_calibration::Context::Print) {
+    if (tool_offset_calibration::can_auto_clean(context)) {
         mapi::park(mapi::get_parking_position(mapi::ParkPosition::nozzle_cleaner_approach));
 
         if (!nozzle_cleaner::load_and_execute(nozzle_cleaner::Sequence::eject_blob)) {
             return std::unexpected(tool_offset::FailureReason::cleaning_failed);
         }
 
-        // Purge and clean at cleaning temperature
-        set_temp_and_wait_reached(tool, temps.cleaning);
-        if (!nozzle_cleaner::load_and_execute(nozzle_cleaner::Sequence::purge_clean)) {
-            return std::unexpected(tool_offset::FailureReason::cleaning_failed);
+        // Purge and clean at cleaning temperature. The wizard also calibrates tools without
+        // filament, which have nothing to purge.
+        if (context == tool_offset_calibration::Context::Print || FilamentType::for_tool(tool.currently_selected_virtual_tool()) != FilamentType::none) {
+            set_temp_and_wait_reached(tool, temps.cleaning);
+            if (!nozzle_cleaner::load_and_execute(nozzle_cleaner::Sequence::purge_clean)) {
+                return std::unexpected(tool_offset::FailureReason::cleaning_failed);
+            }
         }
 
         // Cool down to probing temperature with print fan on to speed it up
@@ -231,8 +234,8 @@ std::expected<void, tool_offset::FailureReason> prepare_tool(PhysicalToolIndex t
         // park out of cleaner area
         mapi::park(mapi::get_parking_position(mapi::ParkPosition::nozzle_cleaner_exit));
     } else {
-        // Calibration context: nozzle was cleaned by the user and Z is not probed here. Heat
-        // straight to the XY-probing temperature.
+        // Nozzle was cleaned by the user and Z is not probed here. Heat straight to the
+        // XY-probing temperature.
         set_temp_and_wait_reached(tool, temps.xy_probing);
     }
 #elif HAS_NOZZLE_CLEANER_LITE()
@@ -527,6 +530,13 @@ std::expected<void, tool_offset::FailureReason> Pass::measure_tool(PhysicalToolI
 } // namespace
 
 namespace tool_offset_calibration {
+
+#if HAS_NOZZLE_CLEANER()
+bool can_auto_clean(Context context) {
+    return context == Context::Print
+        || config_store().selftest_result_nozzle_cleaner_calibration.get() == TestResult::passed;
+}
+#endif
 
 std::expected<void, tool_offset::FailureReason> calibrate_xy_offset(PhysicalToolIndex tool, const tool_offset::ProbingConfig &config) {
     if (!is_hardware_available()) {

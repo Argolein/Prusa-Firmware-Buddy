@@ -8,6 +8,7 @@
 #include <feature/contactless_offset/contactless_offset.hpp>
 #include <tool_index.hpp>
 #include <option/tool_offset_sensor_geometry.h>
+#include <option/has_nozzle_cleaner.h>
 
 namespace tool_offset_calibration {
 
@@ -15,12 +16,19 @@ namespace tool_offset_calibration {
 inline constexpr float FAILURE_Z_RAISE = 5.0f;
 
 /// Context in which the calibration is being run.
-/// In `Calibration` mode (e.g. selftest / cleaner-calibration wizard) the caller has prompted the
-/// user to clean nozzles manually and there is no active print to abort on failure.
+/// In `Calibration` mode (e.g. selftest / cleaner-calibration wizard) there is no active print to
+/// abort on failure; unless can_auto_clean(), the caller has prompted the user to clean manually.
 enum class Context {
     Print, ///< Invoked from a running print (G427). Auto-cleans via nozzle cleaner; aborts print on failure. Calibrates only the tools the print uses.
-    Calibration, ///< Invoked from a calibration wizard. Skips auto-clean; failure just returns false. Calibrates all enabled tools.
+    Calibration, ///< Invoked from a calibration wizard. Auto-cleans only if can_auto_clean(); failure just returns false. Calibrates all enabled tools.
 };
+
+#if HAS_NOZZLE_CLEANER()
+/// Whether each tool is cleaned on the nozzle cleaner before it is measured. The cleaner moves
+/// relative to its calibrated origin, and a first-run selftest calibrates tool offsets before the
+/// cleaner, so a wizard run only auto-cleans once the cleaner calibration has passed.
+bool can_auto_clean(Context context);
+#endif
 
 /// Snapshot of where the calibration is in its per-tool loop.
 /// Passed to ProgressCallback once per tool, at the start of that tool's iteration.
