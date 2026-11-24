@@ -251,6 +251,8 @@ public:
     MockServer()
         : server_defs(infos)
         , server(server_defs) {
+        // The mocked clock is global; a test that moved it must not change the nonces of the next one.
+        set_time(0);
         server.start();
     }
 
@@ -576,6 +578,7 @@ TEST_CASE("Digest stale nonce") {
     // In this case, we don't want to bother the client with unnecessary login prompting
     // so we say its stale.
     SECTION("Wrong nonce, correct user and password") {
+        set_time(0x00000fff);
         string request = digest_auth_header("GET", "maker", "dcd98b7102dd2f0e", "/secret.html", "285b9c363d25d31c5867bca2bd4121af");
         server.send(client_conn, request);
     }

@@ -9,6 +9,8 @@ add_executable(
   ${CMAKE_CURRENT_SOURCE_DIR}/partial_file_mock.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/transfer_mock.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mesh_mock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/link_handlers_mock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/phase_stepping_mock.cpp
   # Some handlers are stubbed out.
   ${CMAKE_CURRENT_SOURCE_DIR}/server_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/req_parser_tests.cpp
@@ -16,12 +18,14 @@ add_executable(
   ${CMAKE_CURRENT_SOURCE_DIR}/job_command_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/file_command_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mesh_renderer_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/phase_stepping_renderer_tests.cpp
   # ${CMAKE_CURRENT_SOURCE_DIR}/segmented_json_rendering.cpp
   # Tested files
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/common_selectors.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/file_info.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/file_command.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/mesh_renderer.cpp
+  ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/phase_stepping_renderer.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/gcode_upload.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/gcode_preview.cpp
   ${CMAKE_SOURCE_DIR}/lib/WUI/nhttp/server.cpp
@@ -120,6 +124,7 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/common
           ${CMAKE_SOURCE_DIR}/src/common/utils
           ${CMAKE_SOURCE_DIR}/src/common/http
+          ${CMAKE_SOURCE_DIR}/src/module/utils/uuid/include
           ${CMAKE_SOURCE_DIR}/src/common/gcode
           ${CMAKE_SOURCE_DIR}/src/common/utils
           ${CMAKE_SOURCE_DIR}/src/persistent_stores
@@ -133,6 +138,8 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/lib
           ${CMAKE_SOURCE_DIR}/include/mbedtls
           ${CMAKE_SOURCE_DIR}/include/usb_host
+          ${CMAKE_SOURCE_DIR}/tests/stubs/Marlin/src
+          ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src
   )
 
 file(GLOB AUTOMATA_GENERATORS ${PROJECT_ROOT_DIR}/utils/gen-automata/*.py)

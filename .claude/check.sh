@@ -1,9 +1,9 @@
 #!/bin/bash
 # Verification gate — change-scoped on ~/.claude/scripts/gate/scope.sh.
-# Both checks run in the Docker build image (Firmware-Build-Instructions-Docker.md);
+# All checks run in the Docker build image (Firmware-Build-Instructions-Docker.md);
 # the host lacks the unit-test dependencies. A named volume keeps the build
 # folders between runs (one volume per checkout, so parallel worktrees do not
-# share one), so a run rebuilds only what changed: ~7.5 min cold, measured 2026-11-24.
+# share one), so a run rebuilds only what changed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . "$HOME/.claude/scripts/gate/scope.sh"
@@ -11,17 +11,24 @@ scope_init
 scope_skip_if_unchanged
 
 run_unit=0
+run_nhttp=0
 run_fw=0
 if scope_changed 'lib/Marlin/Marlin/src/feature/phase_stepping/*' 'tests/unit/lib/Marlin/phase_stepping/*' 'tests/stubs/Marlin/src/feature/phase_stepping/*'; then
   run_unit=1
+fi
+# The phase stepping renderer test also compiles against the phase stepping
+# sources and stubs, and handler.h pulls in filament.hpp and the uuid headers.
+if scope_changed 'lib/WUI/*' 'tests/unit/lib/WUI/*' 'lib/Marlin/Marlin/src/feature/phase_stepping/*' \
+  'tests/stubs/Marlin/src/*' 'src/common/filament.hpp' 'src/module/utils/uuid/*'; then
+  run_nhttp=1
 fi
 if scope_changed 'src/*' 'lib/*' 'include/*' 'cmake/*' 'CMakeLists.txt' 'CMakePresets.json' 'utils/build.py' \
   'ProjectOptions.cmake' 'version.txt'; then
   run_fw=1
 fi
 
-if [ "$run_unit$run_fw" != "00" ]; then
-  echo "== docker: phase stepping unit tests=$run_unit, coreone_indx -Werror build=$run_fw =="
+if [ "$run_unit$run_nhttp$run_fw" != "000" ]; then
+  echo "== docker: phase stepping unit tests=$run_unit, nhttp unit tests=$run_nhttp, coreone_indx -Werror build=$run_fw =="
   mkdir -p build/products-docker-gcc13-coreone_indx
   # git inside the container needs the main .git at the path the worktree's .git file names.
   git_common=$(cd "$(git rev-parse --git-common-dir)" && pwd)
@@ -31,7 +38,7 @@ if [ "$run_unit$run_fw" != "00" ]; then
     git_named=${git_named%/worktrees/*}
   fi
   docker run --rm --platform linux/amd64 \
-    -e RUN_UNIT="$run_unit" -e RUN_FW="$run_fw" \
+    -e RUN_UNIT="$run_unit" -e RUN_NHTTP="$run_nhttp" -e RUN_FW="$run_fw" \
     -v "$PWD":/host:ro \
     -v "$git_common":"$git_named":ro \
     -v "$PWD/build/products-docker-gcc13-coreone_indx":/out \
@@ -57,6 +64,10 @@ git show refs/tags/v6.5.3:cmake/GccArmNoneEabi.cmake > cmake/GccArmNoneEabi.cmak
 if [ "$RUN_UNIT" = 1 ]; then
   python3 utils/build_tests.py --build-dir /cache/build-tests Marlin_phase_stepping_tests
   /cache/build-tests/tests/unit/lib/Marlin/phase_stepping/Marlin_phase_stepping_tests
+fi
+if [ "$RUN_NHTTP" = 1 ]; then
+  python3 utils/build_tests.py --build-dir /cache/build-tests nhttp_tests
+  /cache/build-tests/tests/unit/lib/WUI/nhttp/nhttp_tests
 fi
 if [ "$RUN_FW" = 1 ]; then
   python3 utils/build.py --preset coreone_indx --bootloader yes \
