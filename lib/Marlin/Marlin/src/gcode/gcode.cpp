@@ -72,6 +72,7 @@ GcodeSuite gcode;
 #include <option/has_pause.h>
 #include <option/has_phase_stepping.h>
 #include <option/has_phase_stepping_calibration.h>
+#include <option/has_indx.h>
 #include <common/marlin_vars.hpp>
 #include <utils/serial_logging_disabler.hpp>
 #include <feature/safety_timer/safety_timer.hpp>
@@ -707,6 +708,9 @@ void GcodeSuite::process_parsed_command_standard() {
         case 972: M972(); break;
         case 973: M973(); break;
         case 974: M974(); break;
+      #endif
+      #if HAS_PHASE_STEPPING() && HAS_INDX()
+        case 975: M975(); break;
       #endif
 
       #if ENABLED(Z_STEPPER_AUTO_ALIGN)

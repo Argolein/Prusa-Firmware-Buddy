@@ -16,6 +16,11 @@
 #include <string_view>
 #include <config_store/store_instance.hpp>
 
+#include <option/has_indx.h>
+#if HAS_INDX()
+    #include <feature/phase_stepping/diagnostics.hpp>
+#endif
+
 #include <option/has_usb_device.h>
 #include <bsod/bsod.h>
 #if HAS_USB_DEVICE()
@@ -602,6 +607,37 @@ void GcodeSuite::M974() {
             SerialUSB.cdc_write_sync(reinterpret_cast<uint8_t *>(buff), len);
         });
     dump_samples_annotation(result);
+}
+#endif
+
+#if HAS_INDX()
+/**
+ *### M975: Enable/Disable the phase stepping speed model
+ *
+ * Only INDX
+ *
+ *#### Usage
+ *
+ *    M975 [ S ]
+ *
+ *#### Parameters
+ *
+ * - `S` - Speed model state; not persisted, on after boot
+ *   - `0` - Disable
+ *   - `1` - Enable
+ *
+ * Without parameters prints the current state of the speed model
+ *
+ *#### Examples
+ *
+ *    M975 S0 ; Disable the speed model
+ */
+void GcodeSuite::M975() {
+    if (parser.seen('S')) {
+        phase_stepping::diagnostics::set_speed_model_enabled(parser.value_bool());
+    }
+    SERIAL_ECHO("M975 S");
+    SERIAL_ECHOLN(phase_stepping::diagnostics::speed_model_enabled() ? "1" : "0");
 }
 #endif
 

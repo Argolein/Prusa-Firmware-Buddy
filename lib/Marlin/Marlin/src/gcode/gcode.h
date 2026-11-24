@@ -203,6 +203,7 @@
  * M972 - Calibrate motor for phase stepping
  * M973 - Perform phase and magnitude correction sweep
  * M974 - Perform motor resonance measurement during a speed sweep
+ * M975 - Enable/disable the phase stepping speed model (INDX only)
  * M997 - Perform in-application firmware update
  * M999 - Restart after being stopped by error
  *
@@ -227,6 +228,7 @@
 #include <option/has_precise_homing.h>
 #include <option/has_phase_stepping.h>
 #include <option/has_phase_stepping_calibration.h>
+#include <option/has_indx.h>
 #include <option/has_gcode_compatibility.h>
 #include <option/has_cancel_object.h>
 #include <option/has_tool_offset_sensor.h>
@@ -742,6 +744,9 @@ private:
   static void M972();
   static void M973();
   static void M974();
+#endif
+#if HAS_PHASE_STEPPING() && HAS_INDX()
+  static void M975();
 #endif
 
   #if ENABLED(PLATFORM_M997_SUPPORT)

@@ -19,6 +19,11 @@
 #include <expected>
 #include <inplace_vector.hpp>
 
+#include <option/has_indx.h>
+#if HAS_INDX()
+    #include "diagnostics.hpp"
+#endif
+
 using namespace phase_stepping;
 using namespace phase_stepping::opts;
 using namespace accelerometer;
@@ -1467,6 +1472,9 @@ measure_calibration_speeds(AxisEnum axis, const AxisCalibrationConfig &calibrati
                 signal, annotation.sampling_freq, start_speed, end_speed,
                 get_motor_steps(axis), harmonic, window_size, time_step);
             debug_assert(!up_analysis.samples.empty());
+#if HAS_INDX()
+            diagnostics::sample_calibration_heap();
+#endif
 
             ABORT_CHECK();
 
@@ -1576,6 +1584,9 @@ static std::expected<float, CalibrateAxisError> find_approx_mag(AxisEnum axis,
         ABORT_CHECK();
 
         auto smoothed = moving_average(analysis.samples, analysis.samples.size() / 40);
+#if HAS_INDX()
+        diagnostics::sample_calibration_heap();
+#endif
         debug_dump_magnitude_search(harmonic, magnitude, smoothed);
 
         int margin = analysis.samples.size() / 10;
@@ -1657,6 +1668,9 @@ collect_param_sweep_response(AxisEnum axis, const AxisCalibrationConfig &calib_c
                 response.clear();
                 response.resize(analysis.samples.size());
             }
+#if HAS_INDX()
+            diagnostics::sample_calibration_heap();
+#endif
 
             // The direction of adding the responses together depends on the
             // sweep direction. If the sweep is up, the response is added
@@ -1892,6 +1906,9 @@ static void calibrate_axis_body(AxisEnum axis, CalibrateAxisHooks &hooks, Calibr
 
 void phase_stepping::calibrate_axis(AxisEnum axis, CalibrateAxisHooks &hooks, CalibrateAxisResult &result) {
     mapi::ensure_tool_with_accelerometer_picked();
+#if HAS_INDX()
+    diagnostics::begin_calibration_heap();
+#endif
     calibrate_axis_body(axis, hooks, result); // body extracted to delay stack allocation
 }
 

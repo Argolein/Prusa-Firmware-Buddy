@@ -30,6 +30,12 @@
 
 #include <timing_precise.hpp>
 
+#include <option/has_indx.h>
+#if HAS_INDX()
+    #include "diagnostics.hpp"
+    #include <device/cmsis.h>
+#endif
+
 LOG_COMPONENT_DEF(PhaseStepping, logging::Severity::debug);
 
 using namespace phase_stepping;
@@ -702,6 +708,9 @@ int phase_stepping::phase_difference(int a, int b) {
 
 static void mark_missed_transaction(AxisState &axis_state) {
     ++axis_state.missed_tx_cnt;
+#if HAS_INDX()
+    diagnostics::record_missed_tx(AxisEnum(axis_state.axis_index));
+#endif
     if (axis_state.missed_tx_cnt > ALLOWED_MISSED_TX) {
         bsod("Phase stepping: Too many missed transactions");
     }
@@ -889,6 +898,9 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
 }
 
 FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
+#if HAS_INDX()
+    const uint32_t start_cycles = DWT->CYCCNT;
+#endif
     // This routine is extremely time sensitive and it should be as fast as
     // possible.
     //
@@ -933,6 +945,9 @@ FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
         // Only if all axes have refreshed, we can let tasks to run
         motor_serial_lock_clear_isr_starved();
     }
+#endif
+#if HAS_INDX()
+    diagnostics::record_isr_cycles(DWT->CYCCNT - start_cycles);
 #endif
 }
 
