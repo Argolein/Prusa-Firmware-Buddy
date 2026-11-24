@@ -235,6 +235,10 @@ if(BOARD_IS_MASTER_BOARD)
       target_sources(Marlin PRIVATE Marlin/Marlin/src/feature/phase_stepping/calibration.cpp)
       target_link_libraries(Marlin PRIVATE sfl-library)
     endif()
+
+    if(HAS_INDX)
+      target_sources(Marlin PRIVATE Marlin/Marlin/src/feature/phase_stepping/diagnostics.cpp)
+    endif()
   endif()
 
   if(HAS_TOOL_OFFSET_SENSOR)
