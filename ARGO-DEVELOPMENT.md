@@ -212,6 +212,13 @@ the main repo's `.git` read-only at its own path so the build's `git show` works
 - `-DCUSTOM_COMPILE_OPTIONS:STRING="-Werror"` is the intended strictness. If a fresh rebase
   has pre-existing `-Werror` debt unrelated to your change, that belongs in the rebase-repair
   commit — don't silently drop `-Werror`.
+- Commit with the formatter first, so the pre-commit hook (clang-format, cmake-format) never
+  rejects a commit after a green gate. The first `prek` run reformats, the second confirms;
+  `prek` lives in the main checkout's `.venv` (worktrees have none):
+
+  ```bash
+  p=/Volumes/Offload/GitHub-Development/Prusa-Firmware-Buddy/.venv/bin/prek; f="<changed files>"; { $p run -c .pre-commit-config.yaml --files $f >/dev/null || $p run -c .pre-commit-config.yaml --files $f; } && bash .claude/check.sh && git add $f && git commit -m "<message>"
+  ```
 
 ---
 
