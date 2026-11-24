@@ -346,8 +346,32 @@ Per-point scatter = slope σ × √Sxx, with Sxx = 4 h² for two repeats at thre
   the period), longest 935. The first readout's mean of 196 covered a different mix (mostly
   the calibration). No stock baseline; the code in the interrupt is the same in both builds.
 - Missed transmissions after this boot: A 11, B 0 (A counts while idle, B did not).
-- Next: one more calibration with the log sent to the Mac (`M334 <mac> 8514 13514`, UDP
-  syslog) to capture the per-harmonic line with slope, spread and top-speed ratio.
+### Second calibration with the log (2026-11-24, firmware `67a8e954a`)
+
+The log went to the Mac over UDP syslog (`M334 <mac> 8514 13514`); 3 of 79 messages were
+lost, one of them the X H4 backward sweep line. Log lines:
+[`phase-stepping-data/2026-11-24-calibration-2-log.txt`](phase-stepping-data/2026-11-24-calibration-2-log.txt).
+Run 15:31–15:41; the four speed sweeps took 306 s of it.
+
+| Motor, harmonic | Size (mrad) fwd / bwd | Ratios fwd; bwd | Slope ± σ fwd; bwd (rad per rev/s) | Repeat spread fwd; bwd (rad) |
+|---|---|---|---|---|
+| X H2 | 21.3 / 18.3 | 0.32, 0.31; 0.35, 0.44 | −0.01 ± 0.71; −0.12 ± 0.38 | 1.21; 2.18 |
+| X H4 | 0.8 (below 2 mrad, dropped) / 3.4 | 0.54, 0.49; 0.42, 0.44 | 0.83 ± 0.49; line lost | 1.10; — |
+| Y H2 | 12.1 / 12.0 | 0.096, 0.105; 0.095, 0.086 | −0.02 ± 0.04; −0.02 ± 0.08 | 0.19; 0.34 |
+| Y H4 | 3.6 / 7.4 | 0.069, 0.075; 0.071, 0.086 | 0.20 ± 0.24; 0.23 ± 0.13 | 0.62; 0.14 |
+
+- The gate was not too strict. Every sweep line shows `top ratio nan`: the slope never beat
+  twice the repeat spread, so the top-speed check never ran. A plain test agrees: no slope
+  reaches 2 σ (largest: Y H4 backward 1.8 σ, X H4 forward 1.7 σ).
+- Y H2: no speed dependence shown between 1 and 3 rev/s. The 2 σ band (−0.11 … +0.06 rad per
+  rev/s) still allows about 0.5 rad at 200 mm/s, so it cannot be ruled out with this sensor.
+- Y H4: both directions near +0.2 rad per rev/s; backward came close to the gate (0.23 rad
+  change against a gate of 0.27). A hint, and a risk: a noisier run could open the gate.
+- X: two repeats at one speed differ by 1.1–2.2 rad, so the sweep cannot measure X. Cause
+  unknown. X also checked worse than in the first run (H2 forward 0.19 → 0.32), Y better
+  (0.38 → 0.10).
+- Conclusion: with the head accelerometer (1600 Hz, up to about 3 rev/s) this printer gives
+  the speed model nothing it can use; the sweep costs about 5 minutes per calibration.
 
 ## Answers (Owner, 2026-11-24)
 
