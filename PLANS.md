@@ -63,7 +63,9 @@ filament-color system instead of carrying our own.
   [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md),
   user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)). Unit tests
   and the `coreone_indx -Werror` build are green; three fresh-eyes verifications passed.
-  Firmware file `firmware/COREONE_INDX_v8.0.1-Argo-096e9dec1.bbf` (main checkout, not in git).
+  Firmware file `firmware/COREONE_INDX_v8.0.1-Argo-b8bb358d5.bbf` (main checkout, not in git);
+  way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf` (last build before this feature).
+  Flashing changes nothing until the phase stepping calibration is run again.
 - Nothing has run on a printer. Next, at the printer (Owner): flash, run the phase stepping
   calibration (≈ 12 min), read `/phase-stepping.html` in PrusaLink (interrupt cost, heap,
   verification, which harmonics got a speed model), then print
