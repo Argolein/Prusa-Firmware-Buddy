@@ -15,7 +15,8 @@ run_fw=0
 if scope_changed 'lib/Marlin/Marlin/src/feature/phase_stepping/*' 'tests/unit/lib/Marlin/phase_stepping/*' 'tests/stubs/Marlin/src/feature/phase_stepping/*'; then
   run_unit=1
 fi
-if scope_changed 'src/*' 'lib/*' 'include/*' 'cmake/*' 'CMakeLists.txt' 'CMakePresets.json' 'utils/build.py'; then
+if scope_changed 'src/*' 'lib/*' 'include/*' 'cmake/*' 'CMakeLists.txt' 'CMakePresets.json' 'utils/build.py' \
+  'ProjectOptions.cmake' 'version.txt'; then
   run_fw=1
 fi
 
@@ -43,6 +44,12 @@ mkdir -p /cache/src
 tar -C /host --exclude="./.dependencies" --exclude="./.venv" --exclude="./build" \
   --exclude="./build-*" -cf - . | tar -C /cache/src -xf -
 cd /cache/src
+# Drop files the checkout no longer has, so a deleted header cannot build green from the cache.
+(cd /host && find . -path ./.dependencies -prune -o -path ./.venv -prune -o -path ./build -prune \
+  -o -path "./build-*" -prune -o -type f -print | sort) > /tmp/host.lst
+find . -path ./.dependencies -prune -o -path ./.venv -prune -o -path ./cmake/GccArmNoneEabi.cmake -prune \
+  -o -type f -print | sort > /tmp/cache.lst
+comm -13 /tmp/host.lst /tmp/cache.lst | tr "\n" "\0" | xargs -0 -r rm -f
 ln -sfn /work/.dependencies .dependencies
 ln -sfn /work/.venv .venv
 git show refs/tags/v6.5.3:cmake/GccArmNoneEabi.cmake > cmake/GccArmNoneEabi.cmake
