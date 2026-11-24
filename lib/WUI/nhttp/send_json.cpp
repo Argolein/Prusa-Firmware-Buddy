@@ -100,5 +100,8 @@ template class SendJson<StatusRenderer>;
 template class SendJson<link_content::FilamentRenderer>;
 template class SendJson<link_content::MeshRenderer>;
 template class SendJson<link_content::ToolMappingRenderer>;
+#if HAS_INDX()
+template class SendJson<link_content::PhaseSteppingRenderer>;
+#endif
 
 } // namespace nhttp::handler

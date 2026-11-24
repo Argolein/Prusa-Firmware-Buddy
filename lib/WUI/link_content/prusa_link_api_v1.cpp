@@ -28,6 +28,10 @@
 #if HAS_SIDE_LEDS()
     #include <leds/side_strip_handler.hpp>
 #endif
+#include <option/has_indx.h>
+#if HAS_INDX()
+    #include "../nhttp/phase_stepping_renderer.h"
+#endif
 #include <option/has_tool_mapping.h>
 #if HAS_TOOL_MAPPING()
     #include <marlin_vars.hpp>
@@ -289,6 +293,11 @@ Selector::Accepted PrusaLinkApiV1::accept(const RequestParser &parser, handler::
             get_only(SendJson(MeshRenderer(), parser.can_keep_alive()), parser, out);
         }
         return Accepted::Accepted;
+#if HAS_INDX()
+    } else if (suffix == "phase-stepping") {
+        get_only(SendJson(PhaseSteppingRenderer(), parser.can_keep_alive()), parser, out);
+        return Accepted::Accepted;
+#endif
     } else if (suffix == "mapping") {
         // Argo: web tool mapping — GET reads the current G-code-filament ↔ tool
         // mapping (only meaningful while held at the tools-mapping preview phase);

@@ -52,7 +52,11 @@
 #include <string_view>
 #include <variant>
 
+#include <option/has_indx.h>
 #include <option/networking_benchmark_enabled.h>
+#if HAS_INDX()
+    #include "phase_stepping_renderer.h"
+#endif
 #if NETWORKING_BENCHMARK_ENABLED()
     #include "networking_benchmark.h"
 #endif
@@ -157,6 +161,9 @@ namespace handler {
         SendJson<link_content::FilamentRenderer>,
         SendJson<link_content::MeshRenderer>,
         SendJson<link_content::ToolMappingRenderer>,
+#if HAS_INDX()
+        SendJson<link_content::PhaseSteppingRenderer>,
+#endif
         printer::GcodeUpload,
         printer::GCodePreview,
         printer::JobCommand,

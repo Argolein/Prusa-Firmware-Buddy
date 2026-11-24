@@ -46,6 +46,10 @@ target_sources(
             wui_api.cpp
   )
 
+if(HAS_INDX)
+  target_sources(WUI INTERFACE nhttp/phase_stepping_renderer.cpp)
+endif()
+
 if(MDNS)
   target_sources(WUI INTERFACE mdns/mdns.c mdns/mdns_domain.c mdns/mdns_out.c)
 endif()
