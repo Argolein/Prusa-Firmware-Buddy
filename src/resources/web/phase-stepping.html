@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase Stepping</title>
+<style>
+  /* Same instrument-readout language as the bed mesh viewer: system fonts only
+     (the page ships embedded and offline), monospace for every measurement. */
+  :root {
+    --bg: #0e141a;
+    --panel: #151d25;
+    --panel-2: #1b2530;
+    --line: #28333f;
+    --ink: #cdd8e1;
+    --ink-dim: #93a1ad;
+    --ink-faint: #7f8d9a;
+    --accent: #e0a23a;
+    --good: #57b894;
+    --bad: #e07a66;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--sans);
+    font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+    padding: 22px; min-height: 100vh;
+  }
+  @media (max-width: 480px) { body { padding: 12px; } }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header.bar {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 20px;
+  }
+  .brand { font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+  .brand .dot { color: var(--accent); }
+  .sub { font-size: 12px; color: var(--ink-faint); }
+  .bar-spacer { flex: 1 1 auto; }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); display: flex; align-items: center; gap: 7px; }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); }
+  .led.ok { background: var(--good); }
+  .led.no { background: var(--bad); }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+  button.ctl {
+    font-family: var(--mono); font-size: 12px; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; padding: 9px 14px; min-height: 40px; cursor: pointer;
+  }
+  button.ctl:hover { border-color: var(--ink-faint); background: var(--panel-2); }
+  button.ctl:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint { font-size: 12px; color: var(--ink-dim); }
+  code { font-family: var(--mono); color: var(--accent); }
+
+  .notice {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--bad);
+    border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;
+  }
+  .notice[hidden] { display: none; }
+  .notice .big { font-family: var(--mono); font-size: 14px; margin-bottom: 4px; }
+  .notice .small { font-size: 13px; color: var(--ink-dim); }
+  .notice a { color: var(--accent); }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+  h2, h3, h4 { font-family: var(--mono); font-weight: 600; margin: 0; }
+  h2 { font-size: 15px; letter-spacing: .06em; margin: 28px 0 12px; }
+  h3 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 12px; }
+  h4 { font-size: 12px; color: var(--ink-dim); margin: 18px 0 8px; }
+
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .stat:last-child { border-bottom: 0; }
+  .stat .k { font-size: 12px; color: var(--ink-dim); }
+  .stat .v { font-family: var(--mono); font-size: 14px; text-align: right; }
+  .stat .v .u { font-size: 11px; color: var(--ink-dim); margin-left: 3px; }
+  .card .hint { margin-top: 8px; }
+
+  .dirs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 820px) { .dirs { grid-template-columns: 1fr; } }
+  .motor-meta { font-size: 12px; color: var(--ink-dim); margin: -6px 0 12px; }
+  svg.chart { width: 100%; height: auto; display: block; background: var(--panel-2); border-radius: 4px; }
+  svg text { font-family: var(--mono); font-size: 10px; fill: var(--ink-dim); }
+  .axis { stroke: var(--line); stroke-width: 1; }
+  .grid { stroke: #24303b; stroke-width: 1; }
+  .barz { fill: var(--accent); }
+  .bar0 { fill: none; stroke: var(--ink-faint); stroke-width: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-dim); margin-top: 6px; }
+  .sw { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 5px; border-top: 2px solid var(--ink); }
+  .sw.dash { border-top-style: dashed; }
+  .sw.box { width: 10px; height: 10px; border: 0; background: var(--accent); }
+  .sw.box0 { width: 10px; height: 10px; border: 1px solid var(--ink-faint); }
+
+  .tbl-wrap { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  caption { text-align: left; color: var(--ink-dim); font-size: 12px; padding-bottom: 6px; }
+  th, td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-weight: 600; color: var(--ink-dim); font-family: var(--sans); }
+  td { font-family: var(--mono); }
+  th:first-child, td:first-child { text-align: left; }
+  td.txt { text-align: left; font-family: var(--sans); white-space: normal; min-width: 9em; }
+  .tag { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; }
+  .tag.ok { color: var(--good); }
+  .tag.no { color: var(--bad); }
+  .tag.off { color: var(--ink-dim); }
+  .na { font-size: 13px; color: var(--ink-dim); padding: 6px 0; }
+
+  .foot { margin-top: 24px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <span class="brand">Phase Stepping<span class="dot">.</span></span>
+    <span class="sub">motor correction readout</span>
+    <span class="bar-spacer"></span>
+    <span class="status" role="status"><span id="led" class="led"></span><span id="statusText">connecting…</span></span>
+  </header>
+
+  <div class="controls">
+    <button type="button" class="ctl" id="refresh">↻ Refresh</button>
+    <span class="hint">Read-only. Values come from the printer’s current phase stepping state.</span>
+  </div>
+
+  <div class="notice" id="notice" hidden>
+    <div class="big" id="noticeBig"></div>
+    <div class="small" id="noticeSmall"></div>
+  </div>
+
+  <main id="content"></main>
+
+  <div class="foot">
+    <span id="footSrc">GET /api/v1/phase-stepping</span>
+    <span id="footTime">—</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  const ENDPOINT = "/api/v1/phase-stepping";
+  const ISR_PERIOD_US = 25;
+  const HARMONICS = 16;
+  const MAX_SPEED = 6;
+  const REASONS = {
+    0: "kept",
+    1: "verification ratio too high",
+    2: "below 0.002 rad",
+    3: "stock tuning error",
+  };
+  const VERSIONS = {
+    0: "0 (no new calibration file loaded)",
+    1: "1 (verified calibration)",
+    2: "2 (verified calibration with speed model)",
+  };
+  const LINE_COLOURS = ["#e0a23a", "#6fb0d8", "#57b894", "#d58ad1", "#e07a66", "#cdd8e1"];
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const $ = (id) => document.getElementById(id);
+
+  // `?src=<relative path>.json` loads a saved dump instead of the live endpoint
+  // (for offline review). Anything absolute or cross-origin is ignored.
+  function dataSource() {
+    const src = new URLSearchParams(location.search).get("src");
+    if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src) || /^[\/\\]/.test(src)) return ENDPOINT;
+    try {
+      const url = new URL(src, location.href);
+      if (url.origin === location.origin && /\.json$/i.test(url.pathname)) return url.pathname;
+    } catch (e) { /* fall through */ }
+    return ENDPOINT;
+  }
+
+  function el(tag, attrs, children) {
+    const n = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "cls") n.className = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    }
+    for (const c of children || []) if (c !== null && c !== undefined) n.append(c);
+    return n;
+  }
+  function svg(tag, attrs, text) {
+    const n = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  const num = (v) => typeof v === "number" && isFinite(v);
+  const fix = (v, d) => (num(v) ? v.toFixed(d) : "—");
+  const tag = (cls, text) => el("span", { cls: "tag " + cls, text: text });
+
+  function stat(label, value, unit) {
+    const v = el("span", { cls: "v" }, [value]);
+    if (unit) v.append(el("span", { cls: "u", text: unit }));
+    return el("div", { cls: "stat" }, [el("span", { cls: "k", text: label }), v]);
+  }
+  function card(title, children) { return el("section", { cls: "card" }, [el("h3", { text: title })].concat(children)); }
+  function na(text) { return el("p", { cls: "na", text: text || "Not available in this firmware / no calibration yet." }); }
+
+  // One direction's correction table as harmonic -> {mag, pha}, harmonic 1..16.
+  function spectrum(pairs) {
+    const out = [];
+    for (let h = 1; h <= HARMONICS; h++) {
+      const p = Array.isArray(pairs) && Array.isArray(pairs[h]) ? pairs[h] : [null, null];
+      out.push({ h: h, mag: num(p[0]) ? p[0] : null, pha: num(p[1]) ? p[1] : null });
+    }
+    return out;
+  }
+  function byHarmonic(list) {
+    const map = new Map();
+    if (Array.isArray(list)) for (const e of list) if (e && Number.isInteger(e.harmonic)) map.set(e.harmonic, e);
+    return map;
+  }
+
+  // ----- status panel -----
+  function statusPanel(d) {
+    const cards = [];
+
+    const sm = typeof d.speed_model_enabled === "boolean" ? d.speed_model_enabled : null;
+    const smCard = card("Speed model", [
+      stat("Speed model", sm === null ? "not available" : sm ? "On" : "Off"),
+      stat("Calibration version", d.calibration_version === undefined ? "not available"
+        : (VERSIONS[d.calibration_version] || String(d.calibration_version))),
+    ]);
+    smCard.append(el("p", { cls: "hint" }, [
+      "Switch the speed model with ", el("code", { text: "M975 S1" }), " (on) or ",
+      el("code", { text: "M975 S0" }), " (off) from the console or a G-code file.",
+    ]));
+    cards.push(smCard);
+
+    const isr = d.isr;
+    if (isr && num(isr.cpu_hz) && isr.cpu_hz > 0 && num(isr.samples) && isr.samples > 0) {
+      const us = (c) => (num(c) ? (c / isr.cpu_hz) * 1e6 : null);
+      const pct = (c) => (us(c) === null ? null : (us(c) / ISR_PERIOD_US) * 100);
+      cards.push(card("Interrupt cost", [
+        stat("Longest run", fix(us(isr.max_cycles), 2), "µs"),
+        stat("Longest run, CPU share", fix(pct(isr.max_cycles), 1), "%"),
+        stat("Average run", fix(us(isr.mean_cycles), 2), "µs"),
+        stat("Average run, CPU share", fix(pct(isr.mean_cycles), 1), "%"),
+        stat("Samples", String(isr.samples)),
+        el("p", { cls: "hint", text: "Share of the 25 µs (40 kHz) interrupt period." }),
+      ]));
+    } else {
+      cards.push(card("Interrupt cost", [na(isr ? "No interrupt samples recorded yet." : undefined)]));
+    }
+
+    const heap = d.calibration_heap;
+    let heapRows;
+    if (!heap) heapRows = [na()];
+    else if (!heap.valid) heapRows = [stat("Lowest free heap", "no calibration since boot")];
+    else heapRows = [
+      stat("Lowest free heap", String(heap.min_free_bytes), "bytes"),
+      stat("Free chunks at that point", num(heap.free_chunks_at_min) ? String(heap.free_chunks_at_min) : "—"),
+    ];
+    heapRows.push(el("p", { cls: "hint", text: "Measured during the last calibration run." }));
+    cards.push(card("Calibration memory", heapRows));
+
+    const motors = Array.isArray(d.motors) ? d.motors : [];
+    cards.push(card("Motors", motors.length ? motors.map((m) => stat(
+      "Motor " + (m.motor || "?") + " (" + (m.axis || "?") + ")",
+      (m.enabled === undefined ? "" : m.enabled ? "phase stepping on · " : "phase stepping off · ") +
+        (num(m.missed_tx) ? m.missed_tx + " missed transmissions" : "missed transmissions not available"))) : [na()]));
+
+    return el("div", { cls: "status-grid" }, cards);
+  }
+
+  // ----- correction bar chart -----
+  function barChart(spec, scale, label) {
+    const W = 340, H = 186, L = 34, R = 6, T = 20, B = 34;
+    const pw = W - L - R, ph = H - T - B, slot = pw / HARMONICS;
+    const s = svg("svg", { class: "chart", viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": label });
+    for (let i = 0; i <= 4; i++) {
+      const y = T + ph - (ph * i) / 4;
+      s.append(svg("line", { class: i ? "grid" : "axis", x1: L, x2: W - R, y1: y, y2: y }));
+      s.append(svg("text", { x: L - 4, y: y + 3, "text-anchor": "end" }, ((scale * i) / 4).toFixed(scale < 2 ? 2 : 1)));
+    }
+    for (const e of spec) {
+      const x = L + (e.h - 1) * slot + slot * 0.18, w = slot * 0.64;
+      const mrad = e.mag === null ? null : e.mag * 1000;
+      const tip = "Harmonic " + e.h + ": size " + fix(mrad, 3) + " mrad, phase " + fix(e.pha, 3) + " rad";
+      let bar;
+      if (mrad !== null && mrad > 0) {
+        const h = Math.max(1.5, (Math.min(mrad, scale) / scale) * ph);
+        bar = svg("rect", { class: "barz", x: x, y: T + ph - h, width: w, height: h });
+      } else {
+        bar = svg("rect", { class: "bar0", x: x + 0.5, y: T + ph - 3, width: w - 1, height: 3 });
+      }
+      bar.append(svg("title", {}, tip));
+      s.append(bar);
+      if (e.h === 1 || e.h % 2 === 0) s.append(svg("text", { x: x + w / 2, y: H - B + 13, "text-anchor": "middle" }, String(e.h)));
+    }
+    s.append(svg("text", { x: L + pw / 2, y: H - 4, "text-anchor": "middle" }, "harmonic"));
+    s.append(svg("text", { x: 2, y: 11 }, "size (mrad)"));
+    return s;
+  }
+
+  // ----- phase versus speed chart -----
+  function speedChart(spec, model, label) {
+    const active = [];
+    for (const [h, m] of model) {
+      if (!m.active || !num(m.slope) || !num(m.v0)) continue;
+      const base = spec[h - 1] && num(spec[h - 1].pha) ? spec[h - 1].pha : 0;
+      active.push({ h: h, m: m, at: (v) => base - m.slope * (Math.abs(v) - m.v0) });
+    }
+    if (!active.length) return na("No harmonic uses the speed model in this direction.");
+    let lo = Infinity, hi = -Infinity;
+    for (const a of active) for (const v of [0, a.m.v0, MAX_SPEED]) { lo = Math.min(lo, a.at(v)); hi = Math.max(hi, a.at(v)); }
+    if (hi - lo < 0.2) { const c = (hi + lo) / 2; lo = c - 0.1; hi = c + 0.1; }
+    const W = 340, H = 196, L = 40, R = 30, T = 20, B = 36, pw = W - L - R, ph = H - T - B;
+    const X = (v) => L + (v / MAX_SPEED) * pw;
+    const Y = (p) => T + ph - ((p - lo) / (hi - lo)) * ph;
+    const s = svg("svg", { class: "chart", viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": label });
+    for (let i = 0; i <= 4; i++) {
+      const p = lo + ((hi - lo) * i) / 4;
+      s.append(svg("line", { class: i ? "grid" : "axis", x1: L, x2: W - R, y1: Y(p), y2: Y(p) }));
+      s.append(svg("text", { x: L - 4, y: Y(p) + 3, "text-anchor": "end" }, p.toFixed(2)));
+    }
+    for (let v = 0; v <= MAX_SPEED; v++) s.append(svg("text", { x: X(v), y: H - B + 13, "text-anchor": "middle" }, String(v)));
+    s.append(svg("text", { x: L + pw / 2, y: H - 4, "text-anchor": "middle" }, "motor speed (rev/s)"));
+    s.append(svg("text", { x: 2, y: 11 }, "phase (rad)"));
+    active.forEach((a, i) => {
+      const colour = LINE_COLOURS[i % LINE_COLOURS.length];
+      const top = num(a.m.band_top) ? Math.max(0, Math.min(MAX_SPEED, a.m.band_top)) : 0;
+      const seg = (v1, v2, dashed) => {
+        if (v2 <= v1) return;
+        const line = svg("line", { x1: X(v1), y1: Y(a.at(v1)), x2: X(v2), y2: Y(a.at(v2)), stroke: colour, "stroke-width": dashed ? 1.5 : 2.5 });
+        if (dashed) line.setAttribute("stroke-dasharray", "5 4");
+        line.append(svg("title", {}, "Harmonic " + a.h + (dashed ? ", extrapolated" : ", measured band")));
+        s.append(line);
+      };
+      seg(0, top, false);
+      seg(top, MAX_SPEED, true);
+      const dot = svg("circle", { cx: X(Math.min(a.m.v0, MAX_SPEED)), cy: Y(a.at(a.m.v0)), r: 3, fill: colour });
+      dot.append(svg("title", {}, "Harmonic " + a.h + ": reference speed " + fix(a.m.v0, 2) + " rev/s"));
+      s.append(dot);
+      s.append(svg("text", { x: W - R + 3, y: Y(a.at(MAX_SPEED)) + 3, style: "fill:" + colour }, "h" + a.h));
+    });
+    const legend = el("div", { cls: "legend" }, [
+      el("span", {}, [el("span", { cls: "sw" }), "measured band"]),
+      el("span", {}, [el("span", { cls: "sw dash" }), "extrapolated"]),
+      el("span", { text: "● reference speed v0 · lines labelled by harmonic (h)" }),
+    ]);
+    return el("div", {}, [s, legend]);
+  }
+
+  // ----- per-direction table -----
+  function harmonicTable(spec, verif, model, caption) {
+    const hasV = verif !== null, hasM = model !== null;
+    const head = ["Harmonic", "Size (mrad)", "Phase (rad)"];
+    if (hasV) head.push("Check", "Ratios", "Reason");
+    if (hasM) head.push("Speed model", "Slope (rad per rev/s)", "Band top (rev/s)");
+    const rows = [];
+    for (const e of spec) {
+      const v = hasV ? verif.get(e.h) : undefined, m = hasM ? model.get(e.h) : undefined;
+      const nonzero = e.mag !== null && e.mag > 0;
+      if (!nonzero && !v && !m) continue;
+      const cells = [
+        el("td", {}, [el("strong", { text: String(e.h) })]),
+        el("td", { text: e.mag === null ? "—" : (e.mag * 1000).toFixed(3) }),
+        el("td", { text: fix(e.pha, 3) }),
+      ];
+      if (hasV) {
+        cells.push(el("td", {}, [v ? (v.kept ? tag("ok", "✓ kept") : tag("no", "✗ rejected")) : "—"]));
+        cells.push(el("td", { text: v && Array.isArray(v.ratio) ? v.ratio.map((r) => fix(r, 3)).join(" / ") : "—" }));
+        cells.push(el("td", { cls: "txt", text: v ? (REASONS[v.reason] || "reason " + v.reason) : "—" }));
+      }
+      if (hasM) {
+        cells.push(el("td", {}, [m ? (m.active ? tag("ok", "✓ active") : tag("off", "– inactive")) : "—"]));
+        cells.push(el("td", { text: m ? fix(m.slope, 4) + " ± " + fix(m.slope_se, 4) : "—" }));
+        cells.push(el("td", { text: m ? fix(m.band_top, 2) : "—" }));
+      }
+      rows.push(el("tr", {}, cells));
+    }
+    if (!rows.length) return na("No harmonic is corrected in this direction.");
+    const thead = el("thead", {}, [el("tr", {}, head.map((h) => el("th", { scope: "col", text: h })))]);
+    return el("div", { cls: "tbl-wrap" }, [el("table", {}, [el("caption", { text: caption }), thead, el("tbody", {}, rows)])]);
+  }
+
+  function directionCard(m, dir, scale) {
+    const name = "Motor " + m.motor + ", " + dir;
+    const spec = spectrum(m[dir]);
+    const verif = m.verification && m.verification[dir] ? byHarmonic(m.verification[dir]) : null;
+    const model = m.speed_model && m.speed_model[dir] ? byHarmonic(m.speed_model[dir]) : null;
+    const corrected = spec.filter((e) => e.mag !== null && e.mag > 0).length;
+    const parts = [
+      el("p", { cls: "motor-meta", text: corrected + " of " + HARMONICS + " harmonics corrected" }),
+      Array.isArray(m[dir]) ? barChart(spec, scale, name + ": correction size per harmonic") : na("No correction table in this firmware."),
+      el("div", { cls: "legend" }, [
+        el("span", {}, [el("span", { cls: "sw box" }), "corrected (non-zero size)"]),
+        el("span", {}, [el("span", { cls: "sw box0" }), "zero"]),
+      ]),
+      harmonicTable(spec, verif, model, "Corrected and checked harmonics; all others are zero."),
+      el("h4", { text: "Verification" }),
+    ];
+    if (!verif) parts.push(na());
+    else {
+      const kept = [...verif.values()].filter((v) => v.kept).length;
+      parts.push(el("p", { cls: "hint", text: kept + " kept, " + (verif.size - kept) + " rejected (details in the table)." }));
+    }
+    parts.push(el("h4", { text: "Phase versus speed" }));
+    parts.push(model ? speedChart(spec, model, name + ": phase versus motor speed") : na());
+    return card(dir === "forward" ? "Forward" : "Backward", parts);
+  }
+
+  function motorSection(m) {
+    let peak = 0;
+    for (const dir of ["forward", "backward"]) for (const e of spectrum(m[dir])) if (e.mag !== null) peak = Math.max(peak, e.mag * 1000);
+    const scale = peak > 0 ? Math.ceil(peak * 4) / 4 : 1;
+    const meta = [];
+    if (m.enabled !== undefined) meta.push("phase stepping " + (m.enabled ? "on" : "off"));
+    if (num(m.missed_tx)) meta.push(m.missed_tx + " missed transmissions");
+    return el("section", {}, [
+      el("h2", { text: "Motor " + (m.motor || "?") + " · axis " + (m.axis || "?").toUpperCase() }),
+      el("p", { cls: "motor-meta", text: meta.join(" · ") }),
+      el("div", { cls: "dirs" }, [directionCard(m, "forward", scale), directionCard(m, "backward", scale)]),
+    ]);
+  }
+
+  function render(d) {
+    const parts = [el("h2", { text: "Status" }), statusPanel(d)];
+    const motors = Array.isArray(d.motors) ? d.motors : [];
+    if (!motors.length) parts.push(card("Motors", [na()]));
+    for (const m of motors) parts.push(motorSection(m));
+    $("content").replaceChildren(...parts);
+  }
+
+  function notice(big, small) {
+    $("noticeBig").textContent = big;
+    $("noticeSmall").replaceChildren(...small);
+    $("notice").hidden = false;
+  }
+  function setStatus(state, text) {
+    $("led").className = "led" + (state ? " " + state : "");
+    $("statusText").textContent = text;
+  }
+
+  async function load() {
+    const src = dataSource();
+    $("footSrc").textContent = "GET " + src;
+    setStatus("", "reading…");
+    $("notice").hidden = true;
+    try {
+      const res = await fetch(src, { credentials: "same-origin", headers: { Accept: "application/json" } });
+      if (res.status === 401) {
+        setStatus("no", "not signed in");
+        notice("Sign in required", ["Open ", el("a", { href: "/", text: "PrusaLink" }), ", log in, then reload this page."]);
+        return;
+      }
+      if (res.status === 404) {
+        setStatus("no", "not available");
+        $("content").replaceChildren();
+        notice("Not available in this firmware", ["This printer’s firmware does not report phase stepping data."]);
+        return;
+      }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const d = await res.json();
+      render(d && typeof d === "object" ? d : {});
+      setStatus("ok", "loaded");
+      $("footTime").textContent = "updated " + new Date().toLocaleTimeString();
+    } catch (err) {
+      setStatus("no", "unavailable");
+      notice("Couldn’t reach the printer", ["The phase stepping endpoint didn’t answer (" + err.message + "). Check the connection and refresh."]);
+    }
+  }
+
+  $("refresh").addEventListener("click", load);
+  load();
+})();
+</script>
+</body>
+</html>
