@@ -1,13 +1,20 @@
 # Speed-aware phase stepping calibration (INDX) — plan
 
-> **Status: PROPOSED** (2026-11-24). Not approved, nothing implemented. Scope: Core One INDX
-> only (`HAS_INDX()`), branch `v8.0.1-Argo-stable`.
+> **Status: APPROVED** (Owner, 2026-11-24: develop the feature so it works; no USB link to
+> the printer). Implementation in progress. Scope: Core One INDX only (`HAS_INDX()`), branch
+> `v8.0.1-Argo-stable`.
 
 ## Decisions
 
 - 2026-11-24: fresh-eyes plan review (16 findings) folded in: CoreXY motor naming, per-axis
   ISR rate, int8 range, aliasing at the band edges, heap measurement, kₙ ambiguity,
   zero-crossing physics, live per-harmonic runtime option.
+- 2026-11-24: second review round folded in: heap sampling point, table runtime as default
+  (live `sin_lut` too slow), no harmonic applied twice, feed rates for test moves, alias
+  check with the measured sample rate and m ≤ 16, |v| per direction.
+- 2026-11-24 (Owner): no USB link is possible; develop the feature so it works. Replaces
+  "measure before building, Phase 0 gates everything": the calibration measures and gates
+  itself, data leave the printer over PrusaLink, validation is by ear from a G-code file.
 
 ## Objective
 
@@ -59,11 +66,11 @@ All of it has to fit the existing INDX hardware: no new sensors, no driver chang
 | Main MCU | STM32F42x, Cortex-M4F, 168 MHz (`core_init.cpp`: HSE 12 MHz, PLLM 6, PLLN 168, PLLP 2) | Float fitting during calibration is cheap; the 40 kHz ISR is the tight part |
 | Flash | 1 328 844 B of 1919 KB used (67.6 %) in the `coreone_indx` build of 2026-11-12 | ~600 KB free: code size is no constraint |
 | Static RAM | 123 700 B of 196 508 B (63 %); CCMRAM 94.5 % full | New runtime tables go to normal RAM; never CCMRAM |
-| Heap | newlib `malloc` on the RAM left after static data and stacks (`src/common/heap.cpp`); out of memory = BSOD (a failed contiguous allocation); the `heap` metric (`app_metrics.cpp`) is **total** free bytes, sampled at most every 503 ms: not a low-water mark, blind to fragmentation | Calibration sample buffers (`SignalContainer`, 2 B per sample, 512-sample segments) are the memory risk; free heap during calibration is **unmeasured**, and the stock metric cannot measure it (Phase 0 step 3) |
+| Heap | newlib `malloc` on the RAM left after static data and stacks (`src/common/heap.cpp`); out of memory = BSOD (a failed contiguous allocation); the `heap` metric (`app_metrics.cpp`) is **total** free bytes, sampled at most every 503 ms: not a low-water mark, blind to fragmentation | Calibration sample buffers (`SignalContainer`, 2 B per sample, 512-sample segments) are the memory risk; free heap during calibration is **unmeasured**, and the stock metric cannot measure it (Phase 0 item 3 samples it) |
 | Phase stepping ISR | 40 kHz, one motor per ISR, so each motor is updated at 20 kHz; source notes "every microsecond saves about 4 % of CPU load" | Runtime addition budget ≤ 0.25 µs per ISR (≤ 1 % CPU, ≈ 42 cycles). At 2.5 kHz (harmonic 4 at 200 mm/s motor speed) only 8 updates fall in one period |
 | Driver | TMC2130 in XDIRECT, signed 9-bit coil currents; full-scale tolerance ±5 % (datasheet rev 1.16 p. 92); no offset spec, no offset calibration; zero-crossing "ledge" with too little hysteresis (p. 49) | Harmonic 1 from the driver is not expected; coil mismatch (harmonic 2) and zero-crossing error (harmonic 4 family) are |
 | Correction resolution | int8 phase-shift table in 1/4096 of an electrical period; simulation of the `lut.cpp` arithmetic (scratch script, not kept; numbers recorded here): corrections ≥ 0.002 rad realized at 92–101 %, < 0.0008 rad lost; a 0.001 rad correction adds 0.8× its size as broadband rounding noise. Range ±127/4096 period = **±0.195 rad**; stock code does not clamp the sum (`lut.cpp`), while the calibration search may go up to `max_magnitude = 0.4` rad and beyond (int8 wrap, unverified whether real values get near it) | Do not store corrections < 0.002 rad; saturate the summed correction at ±0.195 rad |
-| Accelerometer | AIS2IH on the INDX head at 1600 Hz, its maximum ODR (ST); HP noise 90 µg/√Hz; the head packs samples to 10 bit; range ±2 g is the chip default (not read from code); its digital low-pass (CTRL6 `BW_FILT`) is never set by the driver, so the default applies (attenuation near 640 Hz not checked) | Band ≤ 800 Hz. With a 20 % margin (≤ 640 Hz): harmonic 4 observable up to 1.6 rev/s (≈ 51 mm/s motor speed), harmonic 2 up to 3.2 rev/s (≈ 102 mm/s). **Aliasing:** exactly at those edges harmonic 6 (resp. 3) folds onto the target (960 → 640 Hz); every sweep speed must be checked for `|m·f_e mod 1600|` (m ≤ 8) near the target. The Phase 0 step 5 speeds are clear (checked within ±25 Hz) |
+| Accelerometer | AIS2IH on the INDX head at 1600 Hz, its maximum ODR (ST); HP noise 90 µg/√Hz; the head packs samples to 10 bit; range ±2 g is the chip default (not read from code); its digital low-pass (CTRL6 `BW_FILT`) is never set by the driver, so the default applies (attenuation near 640 Hz not checked) | Band ≤ 800 Hz. With a 20 % margin (≤ 640 Hz): harmonic 4 observable up to 1.6 rev/s (≈ 51 mm/s motor speed), harmonic 2 up to 3.2 rev/s (≈ 102 mm/s). **Aliasing:** exactly at those edges harmonic 6 (resp. 3) folds onto the target (960 → 640 Hz); every sweep speed is checked for `|m·f_e mod f_s|` (m ≤ 16, measured f_s) near the target (Phase 2) |
 | Head link | RS485 230 400 Bd shared puppy bus; head MCU STM32C0 at 48 MHz | No on-head processing; no higher sample rate possible |
 | Microphone | none on the printer | Sound at print speed (0.6–2.5 kHz tones) cannot be measured by the printer; it must be inferred from a speed model and validated externally |
 | Storage | 32 reserved bytes in each correction file | Room for a version tag; new data goes to new files so stock firmware keeps reading the old ones |
@@ -75,7 +82,7 @@ main MCU but a different measurement path: the accelerometer is built into the h
 at 1600 Hz instead of the plain Core One's LIS2DH12 at 1344 Hz (≈ 19 % more samples per
 second, `4aaf8dbf8` enlarged the buffers for it) and arrives over RS485. Since that comment
 Prusa also reduced the calibration's memory and stack use (`cdff11a73`, `6acc03d29`). Whether
-INDX calibration still runs close to the memory limit is unmeasured; Phase 0 measures it.
+INDX calibration still runs close to the memory limit is unmeasured; Phase 0 item 3 records it.
 
 ### Compared with Bambu
 
@@ -94,7 +101,7 @@ What is documented (research 2026-11-24):
   extruder).
 - **Conclusion:** we cannot claim Bambu has better sensing hardware, and this plan does not
   copy a known Bambu method. Speed-dependent use of the data is our own hypothesis, tested in
-  Phase 0.
+  the calibration's own self-gate (Phase 2).
 
 What Prusa says about its own limits:
 
@@ -109,7 +116,7 @@ torque (fixed speed, per search summary); Arias et al., IEEE TIE 2018, use a spe
 resonant controller against cogging in hybrid steppers (closed loop, needs a position sensor
 we do not have). Neither was read in full.
 
-## Physics the plan relies on (model, to be verified in Phase 0)
+## Physics the plan relies on (model; the calibration tests it itself)
 
 Two-phase torque, rotor lagging the commanded angle by the load angle δ:
 `T ∝ −i_a·sin θ_r + i_b·cos θ_r`, `θ_r = θ − δ`. A correction Δ added to the commanded angle
@@ -135,7 +142,7 @@ changes torque by `Δ·cos δ`.
   be rotor-tied (k = 2), the two harmonics are calibrated at different speeds (different δ),
   phases wrap modulo 2π (4·2δ wraps once δ > 45° electrical), and other direction-dependent
   effects (driver current lag, zero-crossing hysteresis) enter the difference too. kₙ comes
-  from same-speed comparisons unwrapped across speeds (Phase 0 step 5).
+  from same-speed comparisons unwrapped across speeds (Phase 2 sweep).
 - The ISR knows the **planned** motor speed (`physical_speed`), not the achieved one; with
   input shaping the real speed oscillates around it. Above 6 rev/s the firmware lowers the
   motor current (`regulate_current<6.f, 10.f, 150>`), which changes δ in a way a fit from
@@ -148,153 +155,141 @@ if the data need it), and optionally its size.
 
 ## Approved plan
 
-*(none yet — the phases below are the proposal)*
+Owner, 2026-11-24: no USB link to the printer is possible; develop the feature so it works.
+So there is no separate measuring phase over USB. The firmware measures itself, applies a
+speed model only where its own data support it, and otherwise behaves exactly like stock.
+Every number leaves the printer over PrusaLink (or on the screen); test moves run as G-code
+files from the USB stick.
 
-### Phase 0 — Measure before building (no change to printing behaviour)
+### Phase 0 — Instruments (no change to printing behaviour)
 
-Gate for everything else, cheapest first. Estimated time at the printer ≈ 2.5–3 h, in two
-sittings: **USB sitting** (steps 1, the on-printer half of 2, 4, 5, 6; laptop on USB, ≈ 1.5–2 h,
-mostly unattended runs) and **microphone sitting** (step 7: 4 speeds × 4 move types × 2
-correction states × 3 runs = 96 recordings, ≈ 1 h). Step 3 needs a debug firmware build and
-can run separately; only Phase 2's move length depends on it. Steps 4 and 7 overwrite the
-stored calibration (back up with `M971 X Y F B` first, restore or recalibrate at the end).
+1. **PrusaLink dump**, read-only `GET /api/v1/phase-stepping` (pattern:
+   `filament_renderer.*`, routed in `prusa_link_api_v1.cpp`): per motor and direction the
+   stored correction (17 × size, phase), the last calibration record (Phase 1–2 values), the
+   heap minimum of the last calibration, ISR timing, missed-transmission count and whether
+   the speed model is active.
+2. **ISR timing:** DWT cycle counter around the phase stepping refresh, kept as maximum and
+   running mean (a few cycles of cost). Gives the before/after ISR cost without a debugger.
+3. **Heap during calibration:** sample `xPortGetFreeHeapSize()` and `mallinfo().ordblks` at
+   the points where all sample buffers of a move are alive (speed sweep and parameter sweep
+   in `calibration.cpp`); keep the minimum in the calibration record. Newlib has no
+   largest-free-chunk value, and `_sbrk_r` never sees `free()`, so it is not the hook.
+4. **`M975 S0|S1`:** speed model off/on at runtime (not persisted; on after boot when a
+   model exists), usable from a G-code file. `M975` without `S` reports the state.
 
-1. **Read the existing calibration** (`M971 X Y F B` over USB, one minute): size and phase of
-   harmonics 2 and 4, both motors, both directions. A sanity read only (does a calibration
-   exist, are sizes far from the ±0.195 rad int8 limit); it cannot settle kₙ (see Physics).
-2. **Check the tools run on INDX** — host side done 2026-11-24, no code change needed:
-   pass `--motor-steps 400` to `analyzeParamSweep`, `findOptimalMagnitude` and
-   `analyzeSpeedSweep` (default 200 serves other printers; Core One returns 400 in
-   `get_has_400step_xy_motors`). `ACCEL_MAX_SAMPLING_RATE = 1300` is never used; each
-   `M973`/`M974` reply carries its own `sampling_freq`. `M973`/`M974` capture through
-   `capture_param_sweep_samples`, the wizard's own path, so they use the head accelerometer;
-   not yet run on the printer.
-3. **Memory headroom:** the stock `heap` metric cannot answer this (total free bytes, every
-   503 ms), and nothing reads `heap_bytes_remaining()` on its own. Debug build: print
-   `heap_bytes_remaining()` (space never handed to `malloc` by `_sbrk_r`; it only shrinks
-   while the heap grows, so its value after a calibration is the peak) and `mallinfo()`
-   largest free chunk after each calibration move, over USB. Run one stock calibration;
-   record the minimum. Decides whether longer moves are possible or must be split (Phase 2).
-4. **Repeatability:** `M972 X` and `M972 Y` 3× each over USB with a power cycle in between
-   (prints per-phase scores, saves), `M971 X Y F B` after each; spread of size and phase per
-   harmonic. The spread sets the Phase 1 keep threshold.
-5. **Speed dependence:** best phase for harmonic 2 at 1, 1.5, 2.5, 3 rev/s and for harmonic 4
-   at 0.5, 0.8, 1.2, 1.5 rev/s (motor speed; all free of aliased harmonics m ≤ 8), both
-   directions; fit sₙ and, for harmonic 4, a size slope. Compare forward and backward at the
-   same speed to estimate kₙ. Off resonance the signal is weaker: repeat each stock-length
-   move 2–4× and average the results (not the samples), which needs no extra memory.
-6. **Harmonic inventory:** size of harmonics 1, 3, 6, 8 with the phase-sweep ratio method
-   (`R = (a+m)/|a−m|` at a known test size m, two m values to resolve the ambiguity).
-7. **Sound baseline:** phone microphone spectrum (same phone position every run, each run 3×)
-   of constant-speed moves at 50, 100, 150, 200 mm/s motor speed: **diagonal** head moves
-   (only motor A or only motor B runs, so a tone belongs to one motor) and X and Y head moves
-   (both motors, as in printing). Measure the peak of the motor tone lines at n·f_e. Record
-   with stock corrections and with corrections zeroed. Zeroing: back up with `M971 X Y F B`,
-   `M970` off, `M971` write zeros (this **overwrites the stored files**; one write per index,
-   each saving the whole file), `M970` on, record, then restore the backup the same way
-   (`M971 … R` is no shortcut: it only deletes the files).
-
-Exit: results recorded in this file; go/no-go per phase. Stop after Phase 1 if the phases do
-not move measurably with speed (sₙ within the repeatability spread) or the microphone shows no
-motor tones above the noise floor.
+Design rule from now on: the new calibration allocates nothing beyond what a stock move
+allocates (stock move lengths; repeats are averaged by result, not by samples).
 
 ### Phase 1 — Verified calibration (small, low risk)
 
 - After each harmonic: one verification move at the calibration speed with the new
   correction and one with it zeroed; score = residual ratio of these two moves. (The stock
   score is best versus worst point of the magnitude sweep, not best versus zero; its index 0
-  is the zero-correction point and is a cheaper first check.) Keep the correction only if
-  the residual is below a threshold set from the Phase 0 repeatability spread (0.7 as a
-  placeholder); otherwise store zero and report it.
+  is the zero-correction point and is a cheaper first check.) The pair runs twice; keep the
+  correction only if both ratios are below 0.7 (to be retuned from the recorded spreads);
+  otherwise store zero and report it.
 - A harmonic that fails after retries is stored as zero and reported; the axis no longer fails.
 - Drop any size < 0.002 rad (cannot be realized cleanly by the int8 table); saturate the
-  summed table at ±0.195 rad instead of letting int8 wrap, with a unit test for the wrap.
+  summed table peak at ±0.195 rad instead of letting int8 wrap, with a unit test for the
+  wrap. Keep the stock magnitude search below π/8 = 0.393 rad, where the fixed-point
+  product of `_phase_shift_for_harmonic` would overflow int32.
 - Reporting: the wizard hook `on_calibration_phase_result` takes two floats only; the
-  per-harmonic verification result needs its own hook and screen line (to design).
-- Store each harmonic's verification ratio in the new versioned file (see Phase 2 Data), so
-  Phase 3 can show it later without a format change.
-- Extra harmonics (1, 3, 8) only for those Phase 0 found ≥ 0.005 rad and repeatable across a
-  power cycle.
+  per-harmonic verification result gets its own hook and screen line.
+- Store each harmonic's verification ratios in the new versioned file (see Phase 2 Data), so
+  the dump and Phase 3 show them without a format change.
 
-### Phase 2 — Speed-aware correction ("use the data")
+### Phase 2 — Speed-aware correction ("use the data"), self-gating
 
 Calibration:
 - Keep the stock speed sweep and the tuning at the resonance speed (best signal).
 - Add a **phase-versus-speed sweep** per calibrated harmonic and direction over the
-  observable band (harmonic 4 up to 1.6 rev/s, harmonic 2 up to 3.2 rev/s, skipping speeds
-  where an aliased harmonic lands near the target), using repeated
-  stock-length moves averaged by result so the sample buffer does not grow (Phase 0 step 3
-  decides whether longer single moves are affordable instead).
-- Fit sₙ (and a size slope, by default for harmonic 4) per motor, direction and harmonic.
-- Expected total time ≈ 8–12 min for both motors (stock ≈ 3 min, estimate).
+  observable band (harmonic 4 up to 1.6 rev/s, harmonic 2 up to 3.2 rev/s), at 4 speeds per
+  harmonic, each twice, with stock-length moves. Speeds are chosen at run time from the
+  measured `sampling_freq` so that no harmonic m ≤ 16 folds within 30 Hz of the target
+  (`|m·f_e mod f_s|`, folded); the defaults (harmonic 2: 1, 1.5, 2.5, 3 rev/s; harmonic 4:
+  0.5, 0.8, 1.2, 1.5 rev/s) are moved slightly where they fail that check.
+- Speed models use |v| per direction (`physical_speed` is signed). Calibration runs with all
+  speed models off.
+- Fit per motor, direction and harmonic: slope sₙ with its standard error σₛ, and a size
+  slope (harmonic 4 by default).
+- **Self-gate:** apply the model for a harmonic only if (a) the phase change it predicts
+  across the band exceeds twice the spread of the repeated measurements, and (b) a
+  verification move at the top band speed with the model beats the stock table at that
+  speed. Otherwise sₙ = 0 and that harmonic behaves exactly like stock.
+- Expected total time ≈ 8–12 min for both motors (stock ≈ 3 min, estimate; accepted by
+  Owner).
 
 Data:
-- New file per motor `/system/phase_step_{x,y}_speed` with a version tag, v₀, sₙ (and
-  quadratic terms) per harmonic and direction, and a fit-quality value. The stock
-  `_fwd`/`_bck` files keep their exact layout, so stock firmware still loads them and
-  ignores the new file.
+- New file per motor `/system/phase_step_{x,y}_speed` with a version tag, v₀, sₙ, σₛ, size
+  slope per harmonic and direction, the verification ratios, and the calibration heap
+  minimum. The stock `_fwd`/`_bck` files keep their exact layout, so stock firmware still
+  loads them and ignores the new file.
 
-Runtime (ISR), two candidates; the DWT measurement picks one:
-- **A, live (preferred):** keep the stock summed table for harmonics without a speed model and
-  compute the speed-modelled harmonics live, as calibration already does
-  (`_phase_shift_for_harmonic`): `mag·sin_lut(h·idx·SIN_FRACTION + pha(v))`, summed in int
-  before the one final rounding and saturation. No new RAM, phase in 1/4096 steps, no
-  per-harmonic rounding noise. Cost: two extra `sin_lut` calls per ISR; may not fit ≈ 42
-  cycles.
-- **B, tables:** one int8 table per calibrated harmonic and direction (1024 B each;
-  2 harmonics × 2 directions × 2 motors = 8 KB, normal RAM). Per update:
-  `shift = Σₕ tblₕ[(idx − offₕ(v)) & 1023]` with `offₕ(v) = sₕ·(v − v₀)·1024 / (2π·h)`
-  (sign and scale checked). Each table is rounded separately (rounding noise adds per
-  harmonic) and the phase step is 1/1024.
-- Both use the speed the ISR already has (`physical_speed`, the planned motor speed) and
-  `mm_to_rev`.
-- Above the observable band the fit is extrapolated: clamp the phase shift to 1.5× the largest
-  measured, and fade a harmonic to zero above a configurable speed if Phase 4 shows the
-  extrapolation hurts.
-- Budget check: measure ISR time with the DWT cycle counter before and after; must stay within
-  +0.25 µs per ISR.
+Runtime (ISR):
+- **Tables (default):** one int8 table per speed-modelled harmonic and direction (1024 B
+  each; at most 2 harmonics × 2 directions × 2 motors = 8 KB, normal RAM). The stock summed
+  table is rebuilt **without** those harmonics, so none is applied twice. Per update:
+  `shift = base[idx] + Σₕ gₕ(v)·tblₕ[(idx − offₕ(v)) & 1023]`, with
+  `offₕ(v) = sₕ·(|v| − v₀)·1024 / (2π·h)` (sign and scale checked) and gₕ the size factor
+  (1 when no size slope), saturated to int8. offₕ and gₕ change slowly: recompute them only
+  when |v| changes by more than a step, not on every update.
+- Live `sin_lut` per harmonic is rejected as default: the stock current lookup already
+  costs ≈ 800 ns per update (source comment), so two more `sin_lut` calls would exceed the
+  budget about threefold.
+- Extrapolation above the band edge v_e: continue with slope c·sₙ, c = clamp(1 − 2σₛ/|sₙ|,
+  0, 1), hold the value from 6 rev/s up (current reduction starts there), and clamp the
+  shift to 1.5× the largest measured.
+- Budget: the Phase 0 ISR timing before and after; at most +0.25 µs per ISR (42 cycles,
+  1 % CPU at 40 kHz).
 
-Fallback if the phase does not follow a smooth curve: store 3 speed-binned tables per
-harmonic and direction and blend linearly between neighbouring bins (same file versioning).
+Fallback if the phase does not follow a smooth curve: 3 speed-binned tables per harmonic and
+direction, blended linearly between neighbouring bins (same file versioning).
 
 ### Phase 3 — Show and reuse the data
 
-- Dump of the new data as `M975` (M970–M974 are taken, M975–M979 unused in `gcode.cpp` as of
-  v8.0.1-Argo) and a read-only PrusaLink endpoint `GET /api/v1/phase-stepping` (pattern:
-  `filament_renderer.*`) with per-harmonic size, phase, verified reduction and sₙ; a small web
-  page plotting it.
+- A small PrusaLink web page plotting the dump (size, phase, verification, sₙ per speed).
 - A 1-minute **check** mode: re-measure the residual of harmonics 2 and 4 at their
   calibration speeds without recalibrating, and suggest recalibration when the residual has
   doubled since the last calibration (belt tension change, motor swap).
 
-### Phase 4 — Validation
+### Phase 4 — Validation (by ear, no USB)
 
-- Repeat the Phase 0 microphone runs with Phase 1 + 2 firmware.
-- VFA test print (vertical fine artifacts) at 100 and 200 mm/s outer walls, stock vs new.
+- A G-code file on the USB stick (`doc/` gets the file and its instructions): constant-speed
+  moves at 50, 100, 150, 200 mm/s motor speed, first `M975 S0`, then `M975 S1`. Diagonal
+  head moves (+45°: only motor A runs; −45°: only motor B; motor speed = √2 × head speed, so
+  200 mm/s motor speed is F8485) and X and Y head moves (both motors at head speed, F12000
+  for 200 mm/s).
+- Owner listens; a phone recording is optional (same position, 3 runs, median of the motor
+  tone peaks at n·f_e).
+- VFA test print (vertical fine artifacts) at 100 and 200 mm/s outer walls (head speed),
+  stock vs new.
 - Build `--preset coreone_indx` with `-Werror` (Docker, see `Firmware-Build-Instructions-Docker.md`).
 
-## Open questions (Owner)
+What only the printer can prove (not provable in this repo): the benefit at print speed,
+which lies above the accelerometer band.
 
-1. Is a calibration of ≈ 8–12 min (instead of ≈ 3) acceptable?
-2. Phase 0 needs you at the printer ≈ 2.5–3 h in two sittings (USB, then phone microphone),
-   and it overwrites the stored calibration (backed up first). Step 3 needs a debug build
-   flashed for one calibration. The one-minute `M971` readout alone unblocks nothing. Which
-   sittings, and when?
-3. Phase 3 (PrusaLink page, check mode): wanted, or stop after Phase 2?
+## Answers (Owner, 2026-11-24)
+
+1. A calibration of ≈ 8–12 min instead of ≈ 3 is acceptable.
+2. No USB connection to the printer is possible; measurements must come out another way.
+3. Develop the feature so it works (Phase 3 is the last part, after the working feature).
 
 ## Acceptance checks
 
-- [ ] Phase 0 results recorded here, go/no-go per phase decided.
-- [ ] Phase 1: verification score reported on screen; a failing harmonic no longer fails the axis.
-- [ ] Phase 2: peak of the motor tone lines at 100–200 mm/s motor speed at least 3 dB lower
-      than with stock calibration, per motor (diagonal moves) and on X and Y head moves; same
-      phone position, 3 runs each, run-to-run spread below 3 dB; no regression at 50 mm/s.
-- [ ] Phase 2: ISR time increase ≤ 0.25 µs per ISR (DWT measurement).
-- [ ] Minimum free heap (low-water mark from Phase 0 step 3) during the new calibration not
-      lower than during stock calibration.
+- [ ] Unit tests (host, Docker): saturation instead of int8 wrap; the speed fit recovers a
+      known sₙ from synthetic phases; the self-gate keeps sₙ = 0 on flat data; stock file
+      layout unchanged; no harmonic applied twice.
+- [ ] `coreone_indx` builds green with `-Werror`.
+- [ ] Phase 1: verification ratios shown on screen and in the dump; a failing harmonic no
+      longer fails the axis.
+- [ ] Phase 2: ISR time increase ≤ 0.25 µs per ISR (dump, DWT).
+- [ ] Calibration heap minimum (dump) not lower than with stock calibration.
+- [ ] With `M975 S0` the correction equals stock exactly (same table bytes).
+- [ ] By ear / recording: motor tones at 100–200 mm/s motor speed lower with `M975 S1` than
+      with `S0`, per motor and on X/Y moves; with a recording at least 3 dB on the median of
+      3 runs; no audible regression at 50 mm/s.
 - [ ] No VFA regression on the test print: X, Y and diagonal walls, photographed under
       raking light, compared blind against the stock print.
-- [ ] `coreone_indx` builds green with `-Werror`.
 - [ ] Stock correction files still load in stock firmware after an Argo calibration.
 
 ## Risks
@@ -307,13 +302,13 @@ harmonic and direction and blend linearly between neighbouring bins (same file v
 - The ISR follows the planned speed, not the achieved one (input shaping makes them differ),
   and above 6 rev/s the motor current is reduced, changing δ outside the measured range.
 - Stock code lets the int8 correction table wrap above ±0.195 rad; may be a latent upstream
-  bug (report to Prusa if Phase 0 shows real values near it).
-- The speed model is unverified; Phase 0 decides between the slope fit and speed bins, or
-  stopping.
+  bug (report to Prusa if the dump shows real values near it).
+- The speed model is unverified; the self-gate falls back to stock per harmonic, and the
+  dump shows whether speed bins are needed instead of the slope fit.
 - Acceleration also changes the load angle; a speed-only model may be wrong during
   acceleration phases.
-- Extrapolation above 1.6/3.2 rev/s (≈ 51/102 mm/s motor speed) cannot be measured by the printer; only the microphone
-  validation in Phase 4 shows whether it helps.
+- Extrapolation above 1.6/3.2 rev/s (≈ 51/102 mm/s motor speed) cannot be measured by the
+  printer; only the by-ear validation in Phase 4 shows whether it helps.
 - Out-of-memory BSOD during calibration (Prusa's pre-INDX failure mode); mitigated by keeping
   move length and averaging results instead of samples.
 - Calibration noise: neighbouring printers or fans disturb the longer off-resonance runs
