@@ -24,3 +24,6 @@ CMakeUserPresets.json
 Makefile
 __pycache__
 compile_commands.json
+
+# change-scoped gate stamp
+/.claude/check-ok
