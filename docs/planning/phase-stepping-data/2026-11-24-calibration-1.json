@@ -1,0 +1,502 @@
+{
+ "speed_model_enabled": true,
+ "calibration_version": 2,
+ "free_heap_bytes": 51732,
+ "isr": {
+  "max_cycles": 935,
+  "mean_cycles": 790,
+  "samples": 16187919,
+  "cpu_hz": 168000000
+ },
+ "calibration_heap": {
+  "valid": true,
+  "min_free_bytes": 18340,
+  "free_chunks_at_min": 0
+ },
+ "motors": [
+  {
+   "axis": "x",
+   "motor": "A",
+   "enabled": true,
+   "missed_tx": 11,
+   "forward": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.0219912,
+     2.85014
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "backward": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.0166344,
+     3.49183
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.00437607,
+     1.98797
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "verification": {
+    "forward": [
+     {
+      "harmonic": 2,
+      "kept": true,
+      "ratio": [
+       0.19556,
+       0.180582
+      ],
+      "reason": 0
+     },
+     {
+      "harmonic": 4,
+      "kept": false,
+      "ratio": [
+       0.837893,
+       0.901079
+      ],
+      "reason": 1
+     }
+    ],
+    "backward": [
+     {
+      "harmonic": 2,
+      "kept": true,
+      "ratio": [
+       0.239672,
+       0.326487
+      ],
+      "reason": 0
+     },
+     {
+      "harmonic": 4,
+      "kept": true,
+      "ratio": [
+       0.398786,
+       0.355341
+      ],
+      "reason": 0
+     }
+    ]
+   },
+   "speed_model": {
+    "forward": [
+     {
+      "harmonic": 2,
+      "active": false,
+      "v0": 1.13442,
+      "slope": 0,
+      "slope_se": 0.631185,
+      "size_slope": 0,
+      "band_top": 3.01,
+      "max_change": 2.51174
+     },
+     {
+      "harmonic": 4,
+      "active": false,
+      "v0": 0.577674,
+      "slope": 0,
+      "slope_se": 0.847726,
+      "size_slope": 0,
+      "band_top": 1.5,
+      "max_change": 3.83784
+     }
+    ],
+    "backward": [
+     {
+      "harmonic": 2,
+      "active": false,
+      "v0": 1.13442,
+      "slope": 0,
+      "slope_se": 0.795947,
+      "size_slope": 0,
+      "band_top": 3.01,
+      "max_change": 2.45759
+     },
+     {
+      "harmonic": 4,
+      "active": false,
+      "v0": 0.577674,
+      "slope": 0,
+      "slope_se": 0.775578,
+      "size_slope": 0,
+      "band_top": 1.5,
+      "max_change": 2.1306
+     }
+    ]
+   }
+  },
+  {
+   "axis": "y",
+   "motor": "B",
+   "enabled": true,
+   "missed_tx": 0,
+   "forward": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.0118414,
+     3.04265
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.00377358,
+     2.43546
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "backward": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.0124053,
+     3.17099
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0.00845283,
+     2.29805
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "verification": {
+    "forward": [
+     {
+      "harmonic": 2,
+      "kept": true,
+      "ratio": [
+       0.384772,
+       0.384567
+      ],
+      "reason": 0
+     },
+     {
+      "harmonic": 4,
+      "kept": true,
+      "ratio": [
+       0.1209,
+       0.0819769
+      ],
+      "reason": 0
+     }
+    ],
+    "backward": [
+     {
+      "harmonic": 2,
+      "kept": true,
+      "ratio": [
+       0.205285,
+       0.224396
+      ],
+      "reason": 0
+     },
+     {
+      "harmonic": 4,
+      "kept": true,
+      "ratio": [
+       0.100198,
+       0.126746
+      ],
+      "reason": 0
+     }
+    ]
+   },
+   "speed_model": {
+    "forward": [
+     {
+      "harmonic": 2,
+      "active": false,
+      "v0": 1.08381,
+      "slope": 0,
+      "slope_se": 0.0798175,
+      "size_slope": 0,
+      "band_top": 3.01,
+      "max_change": 0.25685
+     },
+     {
+      "harmonic": 4,
+      "active": false,
+      "v0": 0.519831,
+      "slope": 0,
+      "slope_se": 0.297926,
+      "size_slope": 0,
+      "band_top": 1.5,
+      "max_change": 0.765156
+     }
+    ],
+    "backward": [
+     {
+      "harmonic": 2,
+      "active": false,
+      "v0": 1.08381,
+      "slope": 0,
+      "slope_se": 0.114086,
+      "size_slope": 0,
+      "band_top": 3.01,
+      "max_change": 0.549754
+     },
+     {
+      "harmonic": 4,
+      "active": false,
+      "v0": 0.519831,
+      "slope": 0,
+      "slope_se": 0.107781,
+      "size_slope": 0,
+      "band_top": 1.5,
+      "max_change": 0.141058
+     }
+    ]
+   }
+  }
+ ],
+ "check": {
+  "valid": false,
+  "suggest_recalibration": false,
+  "motors": [
+   {
+    "axis": "x",
+    "forward": [],
+    "backward": []
+   },
+   {
+    "axis": "y",
+    "forward": [],
+    "backward": []
+   }
+  ]
+ }
+}

@@ -326,6 +326,29 @@ after the calibration:
   on, with the interrupt sample count still growing.
 - The dump prints exact zeros as `0.00000e-308` (the firmware's `%g`); still valid JSON.
 
+Second readout, same calibration data, firmware `67a8e954a` (shows `max_change`, the largest
+measured phase change against the fit's intercept, repeat noise included). Raw JSON:
+[`phase-stepping-data/2026-11-24-calibration-1.json`](phase-stepping-data/2026-11-24-calibration-1.json).
+Per-point scatter = slope σ × √Sxx, with Sxx = 4 h² for two repeats at three speeds h apart
+(targets 1, 2, 3 rev/s for H2 and 0.5, 1, 1.5 for H4; the alias-free speeds may differ a little):
+
+| Motor, direction | H2 change / scatter (rad) | H4 change / scatter (rad) |
+|---|---|---|
+| A (x) forward | 2.51 / 1.26 (2.0×) | 3.84 / 0.85 (4.5×, harmonic rejected) |
+| A (x) backward | 2.46 / 1.59 (1.5×) | 2.13 / 0.78 (2.7×) |
+| B (y) forward | 0.26 / 0.16 (1.6×) | 0.77 / 0.30 (2.6×) |
+| B (y) backward | 0.55 / 0.23 (2.4×) | 0.14 / 0.11 (1.3×) |
+
+- Y: no change reaches 3× its scatter, so a speed dependence is not shown in the measurable
+  band. X: single points scatter by 0.8–1.6 rad, so the X sweep cannot tell noise from a
+  phase that moves; only the logged repeat spread separates the two.
+- Interrupt, idle with both motors on, over a 20 s interval: mean 790 cycles (4.7 µs, 19 % of
+  the period), longest 935. The first readout's mean of 196 covered a different mix (mostly
+  the calibration). No stock baseline; the code in the interrupt is the same in both builds.
+- Missed transmissions after this boot: A 11, B 0 (A counts while idle, B did not).
+- Next: one more calibration with the log sent to the Mac (`M334 <mac> 8514 13514`, UDP
+  syslog) to capture the per-harmonic line with slope, spread and top-speed ratio.
+
 ## Answers (Owner, 2026-11-24)
 
 1. A calibration of ≈ 8–12 min instead of ≈ 3 is acceptable.
