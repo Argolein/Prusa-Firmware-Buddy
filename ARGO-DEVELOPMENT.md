@@ -213,11 +213,14 @@ the main repo's `.git` read-only at its own path so the build's `git show` works
   has pre-existing `-Werror` debt unrelated to your change, that belongs in the rebase-repair
   commit — don't silently drop `-Werror`.
 - Commit with the formatter first, so the pre-commit hook (clang-format, cmake-format) never
-  rejects a commit after a green gate. The first `prek` run reformats, the second confirms;
-  `prek` lives in the main checkout's `.venv` (worktrees have none):
+  rejects a commit after a green gate. Stage the files, then the first `prek` run reformats
+  and the second confirms. `prek` lives in the main checkout's `.venv`; a new worktree has
+  neither `.venv` nor `.dependencies` (clang-format), so link the latter first:
+  `ln -s /Volumes/Offload/GitHub-Development/Prusa-Firmware-Buddy/.dependencies .dependencies`.
+  The array form works in bash and zsh:
 
   ```bash
-  p=/Volumes/Offload/GitHub-Development/Prusa-Firmware-Buddy/.venv/bin/prek; f="<changed files>"; { $p run -c .pre-commit-config.yaml --files $f >/dev/null || $p run -c .pre-commit-config.yaml --files $f; } && bash .claude/check.sh && git add $f && git commit -m "<message>"
+  p=/Volumes/Offload/GitHub-Development/Prusa-Firmware-Buddy/.venv/bin/prek && git add <changed files> && f=($(git diff --cached --name-only --diff-filter=d)) && { $p run -c .pre-commit-config.yaml --files "${f[@]}" >/dev/null || $p run -c .pre-commit-config.yaml --files "${f[@]}"; } && git add "${f[@]}" && bash .claude/check.sh && git commit -m "<message>"
   ```
 
 ---
