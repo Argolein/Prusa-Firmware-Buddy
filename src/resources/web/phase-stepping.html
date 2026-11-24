@@ -159,13 +159,14 @@
   const $ = (id) => document.getElementById(id);
 
   // `?src=<relative path>.json` loads a saved dump instead of the live endpoint
-  // (for offline review). Anything absolute or cross-origin is ignored.
+  // (for offline review). Only same-origin .json URLs are used.
   function dataSource() {
     const src = new URLSearchParams(location.search).get("src");
     if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src) || /^[\/\\]/.test(src)) return ENDPOINT;
     try {
       const url = new URL(src, location.href);
-      if (url.origin === location.origin && /\.json$/i.test(url.pathname)) return url.pathname;
+      // The full URL, not the path: a path like `//host/a.json` would be fetched protocol-relative.
+      if (url.origin === location.origin && /\.json$/i.test(url.pathname)) return url.href;
     } catch (e) { /* fall through */ }
     return ENDPOINT;
   }
