@@ -204,6 +204,7 @@
  * M973 - Perform phase and magnitude correction sweep
  * M974 - Perform motor resonance measurement during a speed sweep
  * M975 - Enable/disable the phase stepping speed model (INDX only)
+ * M976 - Check the phase stepping calibration (INDX only)
  * M997 - Perform in-application firmware update
  * M999 - Restart after being stopped by error
  *
@@ -747,6 +748,9 @@ private:
 #endif
 #if HAS_PHASE_STEPPING() && HAS_INDX()
   static void M975();
+#endif
+#if HAS_PHASE_STEPPING_CALIBRATION() && HAS_INDX()
+  static void M976();
 #endif
 
   #if ENABLED(PLATFORM_M997_SUPPORT)

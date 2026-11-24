@@ -239,7 +239,8 @@ if(BOARD_IS_MASTER_BOARD)
     if(HAS_INDX)
       target_sources(
         Marlin
-        PRIVATE Marlin/Marlin/src/feature/phase_stepping/calibration_speed.cpp
+        PRIVATE Marlin/Marlin/src/feature/phase_stepping/calibration_check.cpp
+                Marlin/Marlin/src/feature/phase_stepping/calibration_speed.cpp
                 Marlin/Marlin/src/feature/phase_stepping/calibration_verify.cpp
                 Marlin/Marlin/src/feature/phase_stepping/diagnostics.cpp
                 Marlin/Marlin/src/feature/phase_stepping/speed_model.cpp

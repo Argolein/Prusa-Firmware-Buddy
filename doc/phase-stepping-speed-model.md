@@ -83,3 +83,38 @@ speed. On an X or Y move both motors run at the head speed.
 | 200 | 8485 | 12000 |
 
 Diagonal F = motor speed ÷ √2 × 60; X / Y F = motor speed × 60.
+
+## Check
+
+### What the file does
+
+`phase-stepping-speed-model-check.gcode` (in this folder) checks whether the
+last phase stepping calibration still fits the printer, without calibrating
+again. It runs cold: no heating, no extrusion, no tool change. It homes, then
+`M976` measures each motor at the speeds the calibration used, in both
+directions, with the corrections as they are now. The measuring takes about
+45 seconds for both motors (estimate, not yet timed on the printer); with homing
+and parking the file runs a little over a minute.
+
+For every corrected harmonic the check compares the vibration now with the
+vibration the calibration measured right after it chose the correction. When
+any ratio is above 2 (the vibration has more than doubled, for example after a
+belt tension change or a motor swap), it suggests recalibrating.
+
+### How to run it
+
+1. Copy the file to the USB stick and print it from the printer.
+2. Read the result on the screen when the measuring ends:
+   - `Phase stepping check: OK` — the calibration still fits.
+   - `Phase stepping check: recalibration suggested` — run the phase stepping
+     calibration again.
+   - `Phase stepping check: no baseline, calibrate first` — the calibration on
+     the printer was made by firmware that did not store the comparison values
+     yet; calibrate once with this firmware.
+   - `Phase stepping check failed` — a measuring move failed; run it again.
+3. For the details open the phase stepping page in PrusaLink: the status panel
+   shows "Last check since boot", and each motor table has a "Now / baseline"
+   column with the ratio per harmonic.
+
+The result is kept until the next check or the next restart; it is not saved.
+`M976` can also be sent from the printer console.

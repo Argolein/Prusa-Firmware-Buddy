@@ -1894,9 +1894,11 @@ static std::expected<std::array<CalibrationResult, 2>, CalibrateAxisError> verif
         r.fill(NAN);
     }
     bool measured = true;
+    const float speed = nominal_calib_speed * calib_config.peak_speed_shift;
+    // Sum of the corrected residuals per direction, the check's baseline.
+    std::array<float, 2> corrected_sum { 0, 0 };
 
     if (std::any_of(tuned.begin(), tuned.end(), [](const CalibrationResult &r) { return r.params.mag >= verify::MIN_CORRECTION_RAD; })) {
-        const float speed = nominal_calib_speed * calib_config.peak_speed_shift;
         const float duration = calib_config.fine_movement_duration / 2;
         const MotionCharacteristics motion = characterize_param_sweep(speed, duration);
         move_to_measurement_start(axis, motion);
@@ -1935,6 +1937,7 @@ static std::expected<std::array<CalibrationResult, 2>, CalibrateAxisError> verif
             if (measured) {
                 for (int dir = 0; dir < 2; dir++) {
                     ratio[dir][run] = residual[0][dir] / residual[1][dir];
+                    corrected_sum[dir] += residual[0][dir];
                 }
             }
         }
@@ -1946,6 +1949,10 @@ static std::expected<std::array<CalibrationResult, 2>, CalibrateAxisError> verif
         const float mag = tuned[dir].params.mag;
         if (measured || mag < verify::MIN_CORRECTION_RAD) {
             verdict[dir] = verify::judge(mag, ratio[dir]);
+            if (measured && verdict[dir].kept) {
+                verdict[dir].baseline = corrected_sum[dir] / verify::VERIFY_RUNS;
+                verdict[dir].baseline_speed = speed;
+            }
         } else {
             verdict[dir] = { .calibrated = true, .reason = verify::Reason::verification_error };
         }
@@ -2100,6 +2107,69 @@ static std::expected<void, CalibrateAxisError> calibrate_speed_model(AxisEnum ax
     }
     calibration_verify::set_speed_model(axis, harmonic, model[0], model[1]);
     return {};
+}
+
+bool phase_stepping::check_axis(AxisEnum axis, calibration_check::MotorCheck &result) {
+    namespace verify = calibration_verify;
+    mapi::ensure_tool_with_accelerometer_picked();
+    phase_stepping::EnsureEnabled _;
+    // The heap figure in the dump belongs to the last calibration.
+    const diagnostics::CalibrationHeap heap = diagnostics::last_calibration_heap();
+    auto should_abort = []() {
+        idle(true);
+        return false;
+    };
+
+    const auto &calib_config = get_calibration_config(axis);
+    const float duration = calib_config.fine_movement_duration / 2;
+    const verify::MotorVerification &record = verify::record(axis);
+    bool completed = true;
+    result = {};
+    for (int harmonic = 0; harmonic < static_cast<int>(record.direction[0].size()) && completed; harmonic++) {
+        std::array<bool, 2> has_baseline { false, false };
+        float speed = NAN;
+        for (int dir = 0; dir < 2; dir++) {
+            const verify::HarmonicVerification &item = record.direction[dir][harmonic];
+            has_baseline[dir] = item.baseline > 0 && item.baseline_speed > 0;
+            if (has_baseline[dir]) {
+                speed = item.baseline_speed;
+            }
+        }
+        if (!(has_baseline[0] || has_baseline[1])) {
+            continue;
+        }
+
+        // The same moves as the verification that produced the baseline.
+        const MotionCharacteristics motion = characterize_param_sweep(speed, duration);
+        move_to_measurement_start(axis, motion);
+        SignalContainer samples;
+        samples.reserve(static_cast<size_t>(MAX_ACC_SAMPLING_RATE * SAMPLE_BUFFER_MARGIN * motion.duration));
+        std::array<float, 2> sum { 0, 0 };
+        for (int run = 0; run < verify::VERIFY_RUNS && completed; run++) {
+            for (int dir = 0; dir < 2; dir++) {
+                const float revs = (dir == 0 ? 1 : -1) * duration * speed;
+                auto r = measure_residual(axis, calib_config, harmonic, speed, revs, samples, should_abort);
+                if (!r) {
+                    completed = false;
+                    break;
+                }
+                sum[dir] += *r;
+            }
+        }
+        for (int dir = 0; dir < 2; dir++) {
+            if (has_baseline[dir]) {
+                const float now = completed ? sum[dir] / verify::VERIFY_RUNS : NAN;
+                result.direction[dir][harmonic] = {
+                    .checked = true,
+                    .ratio = calibration_check::residual_ratio(now, record.direction[dir][harmonic].baseline),
+                };
+                log_info(PhaseStepping, "Check harmonic %d dir %d: residual %f, ratio %f",
+                    harmonic, dir, now, result.direction[dir][harmonic].ratio);
+            }
+        }
+    }
+    diagnostics::restore_calibration_heap(heap);
+    return completed;
 }
 #endif
 

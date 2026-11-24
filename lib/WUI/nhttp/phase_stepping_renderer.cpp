@@ -3,6 +3,7 @@
 #include <segmented_json_macros.h>
 
 #include <device/cmsis.h>
+#include <feature/phase_stepping/calibration_check.hpp>
 #include <feature/phase_stepping/calibration_verify.hpp>
 #include <feature/phase_stepping/diagnostics.hpp>
 #include <feature/phase_stepping/phase_stepping.hpp>
@@ -55,6 +56,9 @@ PhaseSteppingRenderState::PhaseSteppingRenderState() {
     heap_valid = heap.valid;
     heap_min_free_bytes = heap.min_free_bytes;
     heap_free_chunks_at_min = heap.free_chunks_at_min;
+    const phase_stepping::calibration_check::CheckResult &check = phase_stepping::calibration_check::last();
+    check_valid = check.valid;
+    check_suggest_recalibration = check_valid && check.suggest_recalibration;
 }
 
 void PhaseSteppingRenderState::load_motor() {
@@ -97,6 +101,16 @@ bool PhaseSteppingRenderState::load_speed_model() {
         static_cast<unsigned>(harmonic), model.active ? "true" : "false",
         format_number(model.v0).data(), format_number(model.slope).data(), format_number(model.slope_se).data(),
         format_number(model.size_slope).data(), format_number(model.band_top).data());
+    return true;
+}
+
+bool PhaseSteppingRenderState::load_check() {
+    const phase_stepping::calibration_check::HarmonicCheck &item = phase_stepping::calibration_check::last().motor[motor].direction[direction][harmonic];
+    if (!item.checked) {
+        return false;
+    }
+    snprintf(verification.data(), verification.size(), "{\"harmonic\":%u,\"ratio\":%s}",
+        static_cast<unsigned>(harmonic), format_number(item.ratio).data());
     return true;
 }
 
@@ -190,7 +204,40 @@ JsonResult PhaseSteppingRenderer::renderState(size_t resume_point, JsonOutput &o
                     JSON_OBJ_END;
                 JSON_OBJ_END;
             }
-        JSON_ARR_END;
+            state.motor = 0;
+        JSON_ARR_END JSON_COMMA;
+        JSON_FIELD_OBJ("check");
+            JSON_FIELD_BOOL("valid", state.check_valid) JSON_COMMA;
+            JSON_FIELD_BOOL("suggest_recalibration", state.check_suggest_recalibration) JSON_COMMA;
+            JSON_FIELD_ARR("motors");
+                for (; state.motor < MOTOR_COUNT; state.motor++) {
+                    if (state.motor != 0) {
+                        JSON_COMMA;
+                    }
+                    JSON_OBJ_START;
+                        JSON_FIELD_STR("axis", state.motor == 0 ? "x" : "y");
+                        for (; state.direction < DIRECTION_COUNT; state.direction++) {
+                            JSON_COMMA;
+                            JSON_FIELD_ARR(state.direction == 0 ? "forward" : "backward");
+                            for (; state.harmonic < HARMONIC_COUNT; state.harmonic++) {
+                                if (!state.check_valid || !state.load_check()) {
+                                    continue;
+                                }
+                                if (state.verification_emitted) {
+                                    JSON_COMMA;
+                                }
+                                JSON_CUSTOM("%s", state.verification.data());
+                                state.verification_emitted = true;
+                            }
+                            state.harmonic = 0;
+                            state.verification_emitted = false;
+                            JSON_ARR_END;
+                        }
+                        state.direction = 0;
+                    JSON_OBJ_END;
+                }
+            JSON_ARR_END;
+        JSON_OBJ_END;
     JSON_OBJ_END;
     JSON_END;
     // clang-format on

@@ -141,6 +141,7 @@
   const ISR_PERIOD_US = 25;
   const HARMONICS = 16;
   const MAX_SPEED = 6;
+  const RECALIBRATION_RATIO = 2;
   const REASONS = {
     0: "kept",
     1: "verification ratio too high",
@@ -244,6 +245,15 @@
       cards.push(card("Interrupt cost", [na(isr ? "No interrupt samples recorded yet." : undefined)]));
     }
 
+    const chk = d.check;
+    let chkText = "not available";
+    if (chk && typeof chk.valid === "boolean") chkText = !chk.valid ? "none" : chk.suggest_recalibration ? "recalibrate suggested" : "ok";
+    const chkCard = card("Calibration check", [stat("Last check since boot", chkText)]);
+    chkCard.append(el("p", { cls: "hint" }, [
+      "Run ", el("code", { text: "M976" }), " from a G-code file. Recalibration is suggested when the vibration of a harmonic has more than doubled since the calibration.",
+    ]));
+    cards.push(chkCard);
+
     const heap = d.calibration_heap;
     let heapRows;
     if (!heap) heapRows = [na()];
@@ -344,16 +354,18 @@
   }
 
   // ----- per-direction table -----
-  function harmonicTable(spec, verif, model, caption) {
-    const hasV = verif !== null, hasM = model !== null;
+  function harmonicTable(spec, verif, model, check, caption) {
+    const hasV = verif !== null, hasM = model !== null, hasC = check !== null;
     const head = ["Harmonic", "Size (mrad)", "Phase (rad)"];
     if (hasV) head.push("Check", "Ratios", "Reason");
     if (hasM) head.push("Speed model", "Slope (rad per rev/s)", "Band top (rev/s)");
+    if (hasC) head.push("Now / baseline");
     const rows = [];
     for (const e of spec) {
       const v = hasV ? verif.get(e.h) : undefined, m = hasM ? model.get(e.h) : undefined;
+      const c = hasC ? check.get(e.h) : undefined;
       const nonzero = e.mag !== null && e.mag > 0;
-      if (!nonzero && !v && !m) continue;
+      if (!nonzero && !v && !m && !c) continue;
       const cells = [
         el("td", {}, [el("strong", { text: String(e.h) })]),
         el("td", { text: e.mag === null ? "—" : (e.mag * 1000).toFixed(3) }),
@@ -369,6 +381,10 @@
         cells.push(el("td", { text: m ? fix(m.slope, 4) + " ± " + fix(m.slope_se, 4) : "—" }));
         cells.push(el("td", { text: m ? fix(m.band_top, 2) : "—" }));
       }
+      if (hasC) {
+        if (!c || !num(c.ratio)) cells.push(el("td", { text: "—" }));
+        else cells.push(el("td", {}, [tag(c.ratio > RECALIBRATION_RATIO ? "no" : "ok", fix(c.ratio, 2))]));
+      }
       rows.push(el("tr", {}, cells));
     }
     if (!rows.length) return na("No harmonic is corrected in this direction.");
@@ -376,11 +392,12 @@
     return el("div", { cls: "tbl-wrap" }, [el("table", {}, [el("caption", { text: caption }), thead, el("tbody", {}, rows)])]);
   }
 
-  function directionCard(m, dir, scale) {
+  function directionCard(m, dir, scale, chk) {
     const name = "Motor " + m.motor + ", " + dir;
     const spec = spectrum(m[dir]);
     const verif = m.verification && m.verification[dir] ? byHarmonic(m.verification[dir]) : null;
     const model = m.speed_model && m.speed_model[dir] ? byHarmonic(m.speed_model[dir]) : null;
+    const check = chk && Array.isArray(chk[dir]) ? byHarmonic(chk[dir]) : null;
     const corrected = spec.filter((e) => e.mag !== null && e.mag > 0).length;
     const parts = [
       el("p", { cls: "motor-meta", text: corrected + " of " + HARMONICS + " harmonics corrected" }),
@@ -389,7 +406,7 @@
         el("span", {}, [el("span", { cls: "sw box" }), "corrected (non-zero size)"]),
         el("span", {}, [el("span", { cls: "sw box0" }), "zero"]),
       ]),
-      harmonicTable(spec, verif, model, "Corrected and checked harmonics; all others are zero."),
+      harmonicTable(spec, verif, model, check, "Corrected and checked harmonics; all others are zero."),
       el("h4", { text: "Verification" }),
     ];
     if (!verif) parts.push(na());
@@ -402,7 +419,8 @@
     return card(dir === "forward" ? "Forward" : "Backward", parts);
   }
 
-  function motorSection(m) {
+  function motorSection(m, d) {
+    const chk = d.check && d.check.valid && Array.isArray(d.check.motors) ? d.check.motors.find((c) => c && c.axis === m.axis) : null;
     let peak = 0;
     for (const dir of ["forward", "backward"]) for (const e of spectrum(m[dir])) if (e.mag !== null) peak = Math.max(peak, e.mag * 1000);
     const scale = peak > 0 ? Math.ceil(peak * 4) / 4 : 1;
@@ -412,7 +430,7 @@
     return el("section", {}, [
       el("h2", { text: "Motor " + (m.motor || "?") + " · axis " + (m.axis || "?").toUpperCase() }),
       el("p", { cls: "motor-meta", text: meta.join(" · ") }),
-      el("div", { cls: "dirs" }, [directionCard(m, "forward", scale), directionCard(m, "backward", scale)]),
+      el("div", { cls: "dirs" }, [directionCard(m, "forward", scale, chk), directionCard(m, "backward", scale, chk)]),
     ]);
   }
 
@@ -420,7 +438,7 @@
     const parts = [el("h2", { text: "Status" }), statusPanel(d)];
     const motors = Array.isArray(d.motors) ? d.motors : [];
     if (!motors.length) parts.push(card("Motors", [na()]));
-    for (const m of motors) parts.push(motorSection(m));
+    for (const m of motors) parts.push(motorSection(m, d));
     $("content").replaceChildren(...parts);
   }
 

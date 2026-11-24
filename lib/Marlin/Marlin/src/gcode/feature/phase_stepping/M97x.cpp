@@ -21,6 +21,8 @@
     #include <feature/phase_stepping/calibration_verify.hpp>
     #include <feature/phase_stepping/diagnostics.hpp>
     #include <feature/phase_stepping/speed_model_runtime.hpp>
+    #include <feature/print_status_message/print_status_message_mgr.hpp>
+    #include <memory>
 #endif
 
 #include <option/has_usb_device.h>
@@ -649,6 +651,71 @@ void GcodeSuite::M975() {
     }
     SERIAL_ECHO("M975 S");
     SERIAL_ECHOLN(phase_stepping::diagnostics::speed_model_enabled() ? "1" : "0");
+}
+#endif
+
+#if HAS_PHASE_STEPPING_CALIBRATION() && HAS_INDX()
+/**
+ *### M976: Check the phase stepping calibration
+ *
+ * Only INDX
+ *
+ *#### Usage
+ *
+ *    M976
+ *
+ * Measures again, without recalibrating, the vibration of every harmonic the
+ * last calibration of each motor kept, at its calibration speed and in both
+ * directions, and compares it with the value measured by that calibration.
+ * Suggests recalibrating when any ratio exceeds 2. Homes X and Y if needed.
+ * The result is shown as a status message, printed to the serial line and
+ * kept in RAM for the PrusaLink dump until the next check or reboot.
+ *
+ *#### Examples
+ *
+ *    M976 ; Check both motors
+ */
+void GcodeSuite::M976() {
+    namespace check = phase_stepping::calibration_check;
+    TEMPORARY_AUTO_REPORT_OFF(suspend_auto_report);
+
+    G28_no_parser(true, true, false, { .only_if_needed = true, .z_raise = 3, .precise = false });
+    do_blocking_move_to_z(50);
+    Planner::synchronize();
+
+    check::CheckResult result;
+    bool completed = true;
+    for (size_t motor = 0; motor != SUPPORTED_AXES.size() && completed; motor++) {
+        completed = phase_stepping::check_axis(SUPPORTED_AXES[motor].first, result.motor[motor]);
+    }
+    check::conclude(result, completed);
+    check::set_last(result);
+
+    for (size_t motor = 0; motor != SUPPORTED_AXES.size(); motor++) {
+        for (size_t dir = 0; dir != result.motor[motor].direction.size(); dir++) {
+            const auto &direction = result.motor[motor].direction[dir];
+            for (size_t harmonic = 0; harmonic != direction.size(); harmonic++) {
+                if (!direction[harmonic].checked) {
+                    continue;
+                }
+                SERIAL_ECHO("M976 ");
+                SERIAL_CHAR(SUPPORTED_AXES[motor].second);
+                SERIAL_ECHO(dir == 0 ? " F" : " B");
+                SERIAL_ECHO(" H");
+                SERIAL_ECHO(harmonic);
+                SERIAL_ECHO(" ratio ");
+                SERIAL_PRINTLN(direction[harmonic].ratio, SERIAL_DECIMALS);
+            }
+        }
+    }
+
+    const char *message = !completed   ? "Phase stepping check failed"
+        : !result.valid                ? "Phase stepping check: no baseline, calibrate first"
+        : result.suggest_recalibration ? "Phase stepping check: recalibration suggested"
+                                       : "Phase stepping check: OK";
+    SERIAL_ECHOLN(message);
+    constexpr uint32_t MESSAGE_DURATION_MS = 60000;
+    print_status_message().show_temporary<PrintStatusMessage::custom>({ std::shared_ptr<const char[]>(message, [](const char *) {}) }, MESSAGE_DURATION_MS);
 }
 #endif
 

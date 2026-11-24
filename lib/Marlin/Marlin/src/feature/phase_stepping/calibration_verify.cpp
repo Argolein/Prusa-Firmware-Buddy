@@ -3,6 +3,7 @@
 #include <bsod/bsod.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <unistd.h>
 
@@ -38,7 +39,8 @@ namespace {
     constexpr uint8_t FLAG_SPEED_MODEL_ACTIVE = 1 << 2;
 
     /// One record per direction and harmonic, forward harmonics 0..16 first.
-    /// The speed model fields are zero in version 1.
+    /// The speed model fields are zero in version 1, the baseline fields are
+    /// zero in records written before the check existed.
     struct FileRecord {
         uint8_t harmonic;
         uint8_t flags;
@@ -51,7 +53,9 @@ namespace {
         float size_slope;
         float band_top;
         float max_change;
-        uint8_t reserved[12];
+        float baseline;
+        float baseline_speed;
+        uint8_t reserved[4];
     };
     static_assert(sizeof(FileRecord) == 48);
 
@@ -98,6 +102,8 @@ namespace {
                 item.calibrated = stored.flags & FLAG_CALIBRATED;
                 item.kept = stored.flags & FLAG_KEPT;
                 item.reason = static_cast<Reason>(stored.reason);
+                item.baseline = stored.baseline;
+                item.baseline_speed = stored.baseline_speed;
                 if (header.version >= 2) {
                     item.speed_model = {
                         .active = (stored.flags & FLAG_SPEED_MODEL_ACTIVE) != 0,
@@ -159,10 +165,14 @@ void set_speed_model(AxisEnum axis, int harmonic, const speed_model::HarmonicMod
 
 void drop_speed_model(AxisEnum axis, int direction, int harmonic) {
     MotorVerification &record = records[motor_index(axis)];
-    if (record.version == 0 || !record.direction[direction][harmonic].speed_model.active) {
+    HarmonicVerification &entry = record.direction[direction][harmonic];
+    if (record.version == 0 || (!entry.speed_model.active && std::isnan(entry.baseline))) {
         return;
     }
-    record.direction[direction][harmonic].speed_model.active = false;
+    // A hand-written value invalidates both the model and the check's reference.
+    entry.speed_model.active = false;
+    entry.baseline = NAN;
+    entry.baseline_speed = NAN;
     save(axis);
 }
 
@@ -207,6 +217,8 @@ void save(AxisEnum axis) {
                 .size_slope = model.size_slope,
                 .band_top = model.band_top,
                 .max_change = model.max_change,
+                .baseline = item.baseline,
+                .baseline_speed = item.baseline_speed,
                 .reserved = {},
             };
             std::copy(item.ratio.begin(), item.ratio.end(), std::begin(stored.ratio));

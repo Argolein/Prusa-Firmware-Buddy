@@ -868,8 +868,8 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     axis_state.driver_phase = shifted_phase;
 #elif HAS_INDX()
     const float rev_speed = mm_to_rev(axis_enum, physical_speed);
-    // Only a table with modelled harmonics left out reaches the model; calibration deactivates
-    // every model, so a modelled table never meets a calibration tweak.
+    // Only a table with modelled harmonics left out reaches the model. Calibration deactivates
+    // every model and the check (M976) applies no tweak, so the tweak is skipped here.
     CoilCurrents new_currents;
     if (speed_model::DirectionRuntime *model = current_lut._speed_model) {
         new_currents = model->current(current_lut, new_phase, __builtin_fabsf(rev_speed));

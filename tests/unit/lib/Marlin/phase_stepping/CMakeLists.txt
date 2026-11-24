@@ -6,9 +6,11 @@ add_executable(
   ${CMAKE_CURRENT_SOURCE_DIR}/rounding.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lut_saturation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/speed_model_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/calibration_check_test.cpp
   ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/lut.cpp
   ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/speed_model.cpp
   ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/calibration_speed.cpp
+  ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/calibration_check.cpp
   )
 target_include_directories(
   Marlin_phase_stepping_tests

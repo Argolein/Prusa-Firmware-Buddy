@@ -712,6 +712,9 @@ void GcodeSuite::process_parsed_command_standard() {
       #if HAS_PHASE_STEPPING() && HAS_INDX()
         case 975: M975(); break;
       #endif
+      #if HAS_PHASE_STEPPING_CALIBRATION() && HAS_INDX()
+        case 976: M976(); break;
+      #endif
 
       #if ENABLED(Z_STEPPER_AUTO_ALIGN)
         // #error dead code found by automatic analyses (see BFW-5461)

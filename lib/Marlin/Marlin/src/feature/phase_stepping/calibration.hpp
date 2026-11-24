@@ -18,6 +18,9 @@
 #include <core/types.h>
 #include <accelerometer/common_structs.hpp>
 #include <option/has_indx.h>
+#if HAS_INDX()
+    #include "calibration_check.hpp"
+#endif
 
 namespace phase_stepping {
 
@@ -150,5 +153,14 @@ using CalibrateAxisResult = std::expected<std::array<MotorPhaseCorrection, 2>, C
  * The result is passed by reference, because it's quite big (several > 100 B)
  */
 void calibrate_axis(AxisEnum axis, CalibrateAxisHooks &hooks, CalibrateAxisResult &result);
+
+#if HAS_INDX()
+/// Measure again, with the corrections as configured, the residual of every
+/// harmonic that has a baseline in the calibration record of @p axis, at its
+/// calibration speed and in both directions, and store residual / baseline
+/// in @p result. Changes no correction. Assumes the printer is homed; blocking.
+/// Returns false when a measurement move failed.
+bool check_axis(AxisEnum axis, calibration_check::MotorCheck &result);
+#endif
 
 } // namespace phase_stepping

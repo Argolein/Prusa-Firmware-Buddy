@@ -31,6 +31,9 @@ public:
     bool heap_valid;
     uint32_t heap_min_free_bytes;
     uint32_t heap_free_chunks_at_min;
+    /// Last check (`M976`) since boot.
+    bool check_valid;
+    bool check_suggest_recalibration;
 
     uint8_t motor = 0; ///< 0 = X / A, 1 = Y / B
     uint8_t direction = 0; ///< 0 = forward, 1 = backward
@@ -55,6 +58,9 @@ public:
     /// Formats the speed model of the current motor, direction and harmonic
     /// into `speed_model`. False when that harmonic had no speed sweep.
     bool load_speed_model();
+    /// Formats the last check of the current motor, direction and harmonic
+    /// into `verification`. False when that harmonic was not checked.
+    bool load_check();
 };
 
 class PhaseSteppingRenderer final : public json::JsonRenderer<PhaseSteppingRenderState> {

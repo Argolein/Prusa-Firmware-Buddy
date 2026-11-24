@@ -19,7 +19,7 @@
 /// stored. The results are kept in RAM per motor and persisted in
 /// `/system/phase_step_{x,y}_speed`, next to the stock correction files,
 /// together with the speed model of each harmonic (version 2) and the heap
-/// minimum of the calibration.
+/// minimum of the calibration and the baseline residual of each harmonic.
 namespace phase_stepping::calibration_verify {
 
 /// Provisional threshold, to be retuned from the recorded spreads.
@@ -54,6 +54,11 @@ struct HarmonicVerification {
     bool calibrated = false;
     bool kept = false;
     Reason reason = Reason::kept;
+    /// Residual with the final correction, mean of the runs; the reference of
+    /// the check (`M976`). Zero or NaN = no baseline.
+    float baseline = NAN;
+    /// Motor speed of the baseline measurement in rev/s.
+    float baseline_speed = NAN;
     /// Inactive unless the speed calibration passed its self-gate.
     speed_model::HarmonicModel speed_model {};
 };
@@ -88,8 +93,9 @@ void set(AxisEnum axis, int harmonic, const HarmonicVerification &forward, const
 /// Store the speed models of one harmonic (after set()).
 void set_speed_model(AxisEnum axis, int harmonic, const speed_model::HarmonicModel &forward, const speed_model::HarmonicModel &backward);
 
-/// Deactivate the speed model of @p harmonic in @p direction (0 = forward)
-/// and persist the record, e.g. after the harmonic was overwritten by hand.
+/// Deactivate the speed model and clear the check baseline of @p harmonic in
+/// @p direction (0 = forward) and persist the record, e.g. after the harmonic
+/// was overwritten by hand.
 void drop_speed_model(AxisEnum axis, int direction, int harmonic);
 
 /// Persist the record of @p axis, with the current calibration heap minimum. Does nothing when there is no record.
