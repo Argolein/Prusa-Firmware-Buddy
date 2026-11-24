@@ -255,6 +255,9 @@ motor-current + homing StallGuard-sensitivity editing) was **dropped** at the 6.
 
 ## Open / future work
 
+- **Speed-aware phase stepping calibration (INDX)** — proposed, not approved:
+  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md).
+  Starts with Phase 0 measurements on the printer; no firmware change yet.
 - **Prusa Link web modernization** — [`PLANS-Web.md`](PLANS-Web.md): Bed Mesh API + viewer
   **done** (`801f77f55`, `37f11dacb`); G-code console etc. still open. The Filament Color
   Manager's `GET/PUT /api/v1/filament` endpoints
