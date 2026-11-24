@@ -158,3 +158,17 @@ TEST_CASE("Phase stepping renderer - populated record split across buffers") {
     REQUIRE(segments > 1);
     REQUIRE(response == EXPECTED_POPULATED);
 }
+
+TEST_CASE("Phase stepping renderer - invalid check hides its entries") {
+    phase_stepping_mock::reset();
+    populate();
+    phase_stepping_mock::check.valid = false;
+
+    const size_t check_at = EXPECTED_POPULATED.find(",\"check\":");
+    REQUIRE(check_at != string::npos);
+    const string expected = EXPECTED_POPULATED.substr(0, check_at)
+        + ",\"check\":{\"valid\":false,\"suggest_recalibration\":false,\"motors\":["
+          "{\"axis\":\"x\",\"forward\":[],\"backward\":[]},"
+          "{\"axis\":\"y\",\"forward\":[],\"backward\":[]}]}}";
+    REQUIRE(render_whole() == expected);
+}

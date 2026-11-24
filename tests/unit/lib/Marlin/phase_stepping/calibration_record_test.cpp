@@ -245,8 +245,14 @@ TEST_CASE("unreadable record files load as an empty record", "[phase_stepping][r
     save(X_AXIS);
     const std::vector<uint8_t> saved = read_file();
     REQUIRE(saved.size() == FILE_SIZE);
-    // A loaded record must not keep anything from before the load.
+    // A loaded record must not keep anything from before the load, the heap
+    // minimum included.
     fill_record();
+    test_seams::calibration_heap = { .valid = true, .min_free_bytes = 12345, .free_chunks_at_min = 7 };
+    save(X_AXIS);
+    test_seams::calibration_heap = {};
+    REQUIRE(record(X_AXIS).heap.valid);
+    std::vector<uint8_t> broken = saved;
 
     SECTION("short file, inside the header") {
         write_file({ saved.begin(), saved.begin() + 20 });
@@ -265,6 +271,23 @@ TEST_CASE("unreadable record files load as an empty record", "[phase_stepping][r
     }
     SECTION("version 0") {
         write_file(v1_bytes(0));
+    }
+    SECTION("wrong header size") {
+        put<uint16_t>(broken, 6, HEADER_SIZE + 4);
+        write_file(broken);
+    }
+    SECTION("wrong record size") {
+        put<uint16_t>(broken, 8, RECORD_SIZE - 4);
+        write_file(broken);
+    }
+    SECTION("wrong record count") {
+        put<uint16_t>(broken, 10, 2 * HARMONICS - 1);
+        write_file(broken);
+    }
+    SECTION("record out of harmonic order") {
+        // The 20th record is backward harmonic 2.
+        put<uint8_t>(broken, HEADER_SIZE + 19 * RECORD_SIZE, 3);
+        write_file(broken);
     }
     SECTION("missing file") {
         REQUIRE(std::remove(x_file().c_str()) == 0);

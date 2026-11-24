@@ -145,7 +145,16 @@ TEST_CASE("speed model runtime falls back to stock when a table cannot be alloca
     REQUIRE(forward._speed_model != nullptr);
     CHECK(forward._speed_model->count == 1);
     CHECK(forward._speed_model->harmonic[0] == forward_harmonic);
-    CHECK(lut(1)._excluded_harmonics == MODELLED);
+    CHECK(forward._speed_model->table[0] != nullptr);
+    const CorrectedCurrentLut &backward = lut(1);
+    CHECK(backward._excluded_harmonics == MODELLED);
+    CHECK(backward._phase_shift == summed_without(1, MODELLED));
+    REQUIRE(backward._speed_model != nullptr);
+    REQUIRE(backward._speed_model->count == 2);
+    CHECK(backward._speed_model->harmonic[0] == 2);
+    CHECK(backward._speed_model->harmonic[1] == 4);
+    CHECK(backward._speed_model->table[0] != nullptr);
+    CHECK(backward._speed_model->table[1] != nullptr);
 
     speed_model_runtime::deactivate(X_AXIS);
     check_stock(0);
@@ -156,6 +165,7 @@ TEST_CASE("speed model runtime falls back to stock when a table cannot be alloca
         INFO("cycle " << cycle);
         speed_model_runtime::apply(X_AXIS);
         CHECK(lut(0)._excluded_harmonics == MODELLED);
+        CHECK(lut(1)._excluded_harmonics == MODELLED);
         CHECK(test_seams::allocations - test_seams::frees == 4);
         speed_model_runtime::deactivate(X_AXIS);
         check_balanced();
