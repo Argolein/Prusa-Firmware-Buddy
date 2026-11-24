@@ -72,8 +72,10 @@ filament-color system instead of carrying our own.
   `doc/phase-stepping-speed-model-sound-test.gcode` and compare the `M975 S0`/`S1` halves by ear.
 - Still open from the migration: Z-align on the first home, the Z endstop wizard and
   PrusaLink tool colors (unchanged from 2026-11-08); the same flash covers them.
+- Ready next (Owner, 2026-11-24): repair and gate the nhttp unit tests; format before the gate;
+  unit tests for the speed record file and the speed-model runtime (detail: `.workflow/NEXT-SESSION-PROMPT.md`).
 - Open blockers:
-  - none (waits on Owner at the printer)
+  - none (printer validation waits on Owner)
 
 ## Notes
 
