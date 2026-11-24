@@ -255,15 +255,16 @@
     cards.push(chkCard);
 
     const heap = d.calibration_heap;
-    let heapRows;
-    if (!heap) heapRows = [na()];
-    else if (!heap.valid) heapRows = [stat("Lowest free heap", "no calibration since boot")];
-    else heapRows = [
-      stat("Lowest free heap", String(heap.min_free_bytes), "bytes"),
+    const heapRows = [];
+    if (num(d.free_heap_bytes)) heapRows.push(stat("Free heap now", String(d.free_heap_bytes), "bytes"));
+    if (!heap) heapRows.push(na());
+    else if (!heap.valid) heapRows.push(stat("Lowest during calibration", "no calibration since boot"));
+    else heapRows.push(
+      stat("Lowest during calibration", String(heap.min_free_bytes), "bytes"),
       stat("Free chunks at that point", num(heap.free_chunks_at_min) ? String(heap.free_chunks_at_min) : "—"),
-    ];
-    heapRows.push(el("p", { cls: "hint", text: "Measured during the last calibration run." }));
-    cards.push(card("Calibration memory", heapRows));
+    );
+    heapRows.push(el("p", { cls: "hint", text: "The speed model keeps up to 16 KB while it is on. Compare \"Free heap now\" with M975 S0 and S1 before a long print." }));
+    cards.push(card("Memory", heapRows));
 
     const motors = Array.isArray(d.motors) ? d.motors : [];
     cards.push(card("Motors", motors.length ? motors.map((m) => stat(

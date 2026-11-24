@@ -2,6 +2,7 @@
 
 #include <segmented_json_macros.h>
 
+#include <FreeRTOS.h>
 #include <device/cmsis.h>
 #include <feature/phase_stepping/calibration_check.hpp>
 #include <feature/phase_stepping/calibration_verify.hpp>
@@ -52,6 +53,7 @@ PhaseSteppingRenderState::PhaseSteppingRenderState() {
     isr_mean_cycles = isr.mean_cycles;
     isr_samples = isr.samples;
     cpu_hz = SystemCoreClock;
+    heap_free_now = xPortGetFreeHeapSize();
     const diag::CalibrationHeap heap = diag::last_calibration_heap();
     heap_valid = heap.valid;
     heap_min_free_bytes = heap.min_free_bytes;
@@ -120,6 +122,7 @@ JsonResult PhaseSteppingRenderer::renderState(size_t resume_point, JsonOutput &o
     JSON_OBJ_START;
         JSON_FIELD_BOOL("speed_model_enabled", state.speed_model_enabled) JSON_COMMA;
         JSON_FIELD_INT("calibration_version", state.calibration_version) JSON_COMMA;
+        JSON_FIELD_INT("free_heap_bytes", state.heap_free_now) JSON_COMMA;
         JSON_FIELD_OBJ("isr");
             JSON_FIELD_INT("max_cycles", state.isr_max_cycles) JSON_COMMA;
             JSON_FIELD_INT("mean_cycles", state.isr_mean_cycles) JSON_COMMA;

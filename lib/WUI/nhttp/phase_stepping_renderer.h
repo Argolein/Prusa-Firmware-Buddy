@@ -28,6 +28,7 @@ public:
     uint32_t isr_mean_cycles;
     uint32_t isr_samples;
     uint32_t cpu_hz;
+    uint32_t heap_free_now;
     bool heap_valid;
     uint32_t heap_min_free_bytes;
     uint32_t heap_free_chunks_at_min;

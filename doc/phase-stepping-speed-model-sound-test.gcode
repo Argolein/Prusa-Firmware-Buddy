@@ -23,7 +23,7 @@
 ; motor speed about 87 % (X), 83 % (Y) and 94 % (diagonals) of each pass
 ; runs at constant speed.
 ;
-; Safe area used: X 30..230, Y 30..190, Z 30. INDX limits (HAS_INDX branch):
+; Safe area used: X 30..230, Y 30..190, Z 50. INDX limits (HAS_INDX branch):
 ;   X_MIN_POS -1                        Configuration_COREONE.h
 ;   X_MAX_POS 262, but the nozzle cleaner / wastebin side starts at
 ;   X_WASTEBIN_SAFE_POINT 250           src/feature/nozzle_cleaner/include/nozzle_cleaner.hpp
@@ -38,8 +38,8 @@
 G90 ; absolute positioning
 G21 ; millimetres
 M117 Sound test: homing
-G28 ; home all axes
-G1 Z30 F600 ; lower the bed to a safe height
+G28 X Y ; home X and Y only, like the phase stepping calibration (no Z probing)
+G1 Z50 F600 ; lower the bed, as the calibration does
 M400
 
 ; ==== Speed model OFF ====

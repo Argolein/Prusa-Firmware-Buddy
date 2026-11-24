@@ -44,6 +44,9 @@ Without a USB connection, put the command in a G-code file on the USB stick and 
   correction per harmonic, the check results, the speed model per harmonic with the
   measured and extrapolated range, the interrupt cost, the lowest free memory during the
   last calibration, and missed motor transmissions.
+- Memory: the page shows the free memory now. The speed model keeps up to 16 KB while it is
+  on; before a long print, compare the value with `M975 S0` and with `M975 S1`. If it gets
+  low with the model on, print with `M975 S0`.
 - Data: `GET /api/v1/phase-stepping` returns the same values as JSON.
 - After a firmware update your browser may show the old page for up to a day; reload it
   with the cache cleared if it looks out of date.
@@ -64,7 +67,8 @@ Without a USB connection, put the command in a G-code file on the USB stick and 
 whether the speed model makes the motors quieter. It runs cold: no heating, no
 extrusion, no tool change. A run takes about 11 minutes.
 
-1. Homes the printer (`G28`) and lowers the bed to Z 30.
+1. Homes X and Y (`G28 X Y`, as the phase stepping calibration does) and lowers the
+   bed to Z 50.
 2. Turns the speed model off (`M975 S0`) and runs the test blocks.
 3. Turns the speed model on (`M975 S1`) and runs the same blocks again.
 4. Leaves the speed model on, parks the head in the middle of the bed and turns
@@ -92,8 +96,9 @@ listed in the header of the G-code file.
 
 - **Stealth mode off.** In stealth mode the INDX limits the head to 140 mm/s,
   so the 150 and 200 mm/s X and Y moves would run slower than the file says.
-- **Phase stepping on and calibrated** for both motors. Without it both halves
-  sound the same.
+- **Phase stepping on and calibrated** for both motors with this firmware. Without it
+  both halves sound the same. They also sound the same when the PrusaLink page shows no
+  harmonic with an active speed model: then the calibration kept stock behaviour.
 - **Firmware with `M975`.** Firmware without it reports `M975` as an unknown
   command and carries on, so both halves then sound the same.
 - The bed and the head must be free to move; no print on the bed.

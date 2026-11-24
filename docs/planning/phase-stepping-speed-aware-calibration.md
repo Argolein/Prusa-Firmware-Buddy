@@ -285,7 +285,8 @@ which lies above the accelerometer band.
 Commits on `v8.0.1-Argo-stable`: gate `01e3af829`, `f04fffe0a`; diagnostics `2396ef314`;
 instruments `04bad5639`; dump `e154266bc`; page `9d550d703`; sound test `98982486e`;
 verified calibration `5d5a66e32`; speed model `abd5733b9`; check mode `M976` `2f86c819e`;
-docs `9811e8c1c`; review fixes `1d0e291f6`. Two fresh-eyes verifications passed (interim and
+docs `9811e8c1c`; review fixes `1d0e291f6`; test files home like the calibration and the
+dump shows free heap (close round, see the ledger). Two fresh-eyes verifications passed (interim and
 final, plus a re-check of the fixes). Unit tests and the `coreone_indx -Werror` build are
 green; nothing has run on a printer yet.
 
@@ -297,14 +298,17 @@ green; nothing has run on a printer yet.
 
 ## Acceptance checks
 
-- [ ] Unit tests (host, Docker): saturation instead of int8 wrap; the speed fit recovers a
+- [x] Unit tests (host, Docker): saturation instead of int8 wrap; the speed fit recovers a
       known sₙ from synthetic phases; the self-gate keeps sₙ = 0 on flat data; stock file
-      layout unchanged; no harmonic applied twice.
-- [ ] `coreone_indx` builds green with `-Werror`.
+      layout unchanged; no harmonic applied twice. (7218 assertions green, 2026-11-24)
+- [x] `coreone_indx` builds green with `-Werror`. (2026-11-24)
 - [ ] Phase 1: verification ratios shown on screen and in the dump; a failing harmonic no
       longer fails the axis.
 - [ ] Phase 2: ISR time increase ≤ 0.25 µs per ISR (dump, DWT).
-- [ ] Calibration heap minimum (dump) not lower than with stock calibration.
+- [ ] Enough heap on the printer: static RAM grew by ≈ 4.6 KB and the speed model keeps up
+      to 16 KB while on, so the stock comparison cannot hold. Instead: the calibration heap
+      minimum (dump) stays positive with margin, and the dump's free heap with `M975 S1`
+      leaves room for a long print (judge against the value with `M975 S0`).
 - [ ] With `M975 S0` the correction equals stock exactly (same table bytes).
 - [ ] By ear / recording: motor tones at 100–200 mm/s motor speed lower with `M975 S1` than
       with `S0`, per motor and on X/Y moves; with a recording at least 3 dB on the median of
