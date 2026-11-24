@@ -59,23 +59,25 @@ filament-color system instead of carrying our own.
 ## Handoff
 
 - Date: 2026-11-24
-- Speed-aware phase stepping calibration for INDX: built and tested (plan
-  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md),
-  sections "Built" and "First printer run"; user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)).
-- First calibration on the printer (firmware `6fa671794`): ran through in about 10 min, X
-  vibration −45 %, Y −81 %; verification kept 7 of 8 harmonics; every speed model came out
-  inactive, so the motors run the verified stock-style correction and the sound test would
-  show nothing.
-- Diagnosis (Owner chose it): `67a8e954a` shows the measured phase change per harmonic on the
-  PrusaLink page. Firmware file `firmware/COREONE_INDX_v8.0.1-Argo-67a8e954a.bbf` (main
-  checkout, not in git; screen version `8.0.1+17166`). Flash it, no recalibration needed, then
-  read `http://192.168.178.102/phase-stepping.html`. If the phase change is unclear against
-  the repeat scatter, recalibrate once with the log sent to the Mac (`M334`, syslog).
-- Way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf` (last build before this feature).
+- Speed-aware phase stepping calibration for INDX: closed as far as the speed model goes.
+  Two calibrations on the printer (plan [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md),
+  sections "First printer run" and "Second calibration with the log") gave the model nothing
+  usable: no phase slope reached its gate or 2 σ. Owner chose to take the speed sweep out
+  (`8b6146c17`): the wizard tunes and verifies each harmonic, about 4–5 min; the model code
+  stays, not called. User doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md).
+- Firmware file: `firmware/COREONE_INDX_v8.0.1-Argo-8b6146c17.bbf` (main checkout, not in git;
+  screen version `8.0.1+17171`). Flashing it needs no recalibration; the current calibration
+  stays valid. Way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf`.
+- Printer PrusaLink: `http://192.168.178.102` (Safari holds the login). The network log was
+  switched off with `firmware/syslog-off.gcode` (empty `M334`); Owner confirms its prompt on
+  the printer screen.
+- Open, unexplained: idle motor interrupt mean 4.7 µs (19 % of the period, no stock
+  baseline); motor B misses about 3000 transmissions per calibration; one "phase stepping off"
+  reading at 14:56; X sweep repeats differing by 1.1–2.2 rad.
 - Still open from the migration: Z-align on the first home, the Z endstop wizard and
   PrusaLink tool colors (unchanged from 2026-11-08); the same flash covers them.
 - Open blockers:
-  - none (the next step waits on Owner flashing the printer)
+  - none
 
 ## Notes
 
