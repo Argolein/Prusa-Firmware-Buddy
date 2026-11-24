@@ -59,14 +59,19 @@ filament-color system instead of carrying our own.
 ## Handoff
 
 - Date: 2026-11-24
-- Still open from the migration: flash the `coreone_indx` `.bbf` and check Z-align on the
-  first home, the Z endstop wizard and PrusaLink tool colors (unchanged from 2026-11-08).
-- New, proposed (not approved): speed-aware phase stepping calibration for INDX,
-  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md)
-  (commit `7fc305070`). Next step: fresh-eyes review of the plan and Owner's answers to its
-  three open questions; Phase 0 measurements need Owner at the printer.
+- Built: speed-aware phase stepping calibration for INDX (design and commit list:
+  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md),
+  user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)). Unit tests
+  and the `coreone_indx -Werror` build are green; three fresh-eyes verifications passed.
+  Firmware file `firmware/COREONE_INDX_v8.0.1-Argo-096e9dec1.bbf` (main checkout, not in git).
+- Nothing has run on a printer. Next, at the printer (Owner): flash, run the phase stepping
+  calibration (≈ 12 min), read `/phase-stepping.html` in PrusaLink (interrupt cost, heap,
+  verification, which harmonics got a speed model), then print
+  `doc/phase-stepping-speed-model-sound-test.gcode` and compare the `M975 S0`/`S1` halves by ear.
+- Still open from the migration: Z-align on the first home, the Z endstop wizard and
+  PrusaLink tool colors (unchanged from 2026-11-08); the same flash covers them.
 - Open blockers:
-  - none
+  - none (waits on Owner at the printer)
 
 ## Notes
 
