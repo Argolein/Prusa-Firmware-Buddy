@@ -169,10 +169,14 @@ files from the USB stick.
    heap minimum of the last calibration, ISR timing, missed-transmission count and whether
    the speed model is active.
 2. **ISR timing:** DWT cycle counter around the phase stepping refresh, kept as maximum and
-   running mean (a few cycles of cost). Gives the before/after ISR cost without a debugger.
+   running mean. Gives the before/after ISR cost without a debugger. Its own cost is ≈ 20–25
+   cycles per ISR (≈ 0.5 % CPU; counted from the built code, `04bad5639`); exception entry
+   and exit are outside the measured window.
 3. **Heap during calibration:** sample `xPortGetFreeHeapSize()` and `mallinfo().ordblks` at
    the points where all sample buffers of a move are alive (speed sweep and parameter sweep
-   in `calibration.cpp`); keep the minimum in the calibration record. Newlib has no
+   in `calibration.cpp`); keep the minimum in the calibration record. Known gap: the
+   short-lived DFT buffers inside the sliding-window helpers (12 B per window sample) are
+   freed before any sample point, so the true low point is up to that much lower. Newlib has no
    largest-free-chunk value, and `_sbrk_r` never sees `free()`, so it is not the hook.
 4. **`M975 S0|S1`:** speed model off/on at runtime (not persisted; on after boot when a
    model exists), usable from a G-code file. `M975` without `S` reports the state.
