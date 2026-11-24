@@ -310,15 +310,20 @@ after the calibration:
 | B (y) forward | 11.8 mrad / 0.385, 0.385 kept | 3.8 mrad / 0.121, 0.082 kept | 0.08, 0.30 |
 | B (y) backward | 12.4 mrad / 0.205, 0.224 kept | 8.5 mrad / 0.100, 0.127 kept | 0.11, 0.11 |
 
-- Speed model: no harmonic passed the self-gate; every model is inactive and stored with
-  slope 0 (σ in rad per rev/s). The motors run the verified stock-style correction, so
+- Speed model: every model is inactive and stored with slope 0 (σ in rad per rev/s). The
+  dump cannot show which rule switched it off: the slope above twice the repeat scatter, or
+  the top-speed check move beating stock. The raw slope, the scatter and the top-speed ratio
+  go only to the log. The motors run the verified stock-style correction, so
   `M975 S0` and `S1` behave the same and the sound test cannot show a difference.
 - Interrupt: mean 196 cycles (1.17 µs, 4.7 % of the 25 µs period), longest 1605 cycles
-  (9.55 µs), over 24.6 M samples. No stock baseline was measured.
+  (9.55 µs), over 24.6 M samples. No stock baseline was measured, and no speed model table
+  was active, so this says nothing about the model's own cost; re-judge when one is active.
 - Heap: lowest free during the calibration 18 316 B; free now 51 684 B (no speed model
-  tables allocated). The free-chunk count reads 0: `mallinfo()` does not see the FreeRTOS heap.
-- Missed motor transmissions since boot: A 89, B 3039 (single misses that recovered; stock
-  stops the printer only on a run of them).
+  tables allocated). The free-chunk count reads 0, not explained.
+- Missed motor transmissions since boot: A 89, B 3039. Stock stops the printer only on a run
+  of misses; no baseline exists, and B has 34 times A's count. Re-read after an ordinary print.
+- The first read showed both motors with phase stepping off; a read minutes later showed both
+  on, with the interrupt sample count still growing.
 - The dump prints exact zeros as `0.00000e-308` (the firmware's `%g`); still valid JSON.
 
 ## Answers (Owner, 2026-11-24)
@@ -336,11 +341,12 @@ after the calibration:
 - [x] Phase 1: verification ratios shown on screen and in the dump; a failing harmonic no
       longer fails the axis. (2026-11-24: X forward H4 rejected at 0.84/0.90, axis passed)
 - [ ] Phase 2: ISR time increase ≤ 0.25 µs per ISR (dump, DWT).
-- [x] Enough heap on the printer: static RAM grew by ≈ 4.6 KB and the speed model keeps up
+- [ ] Enough heap on the printer: static RAM grew by ≈ 4.6 KB and the speed model keeps up
       to 16 KB while on, so the stock comparison cannot hold. Instead: the calibration heap
       minimum (dump) stays positive with margin, and the dump's free heap with `M975 S1`
       leaves room for a long print (judge against the value with `M975 S0`).
-      (2026-11-24: minimum 18 316 B; no tables allocated, so S0 and S1 are equal)
+      (2026-11-24: calibration minimum 18 316 B; the free heap with tables allocated is not
+      measured yet, as no model was active; re-judge when one is)
 - [ ] With `M975 S0` the correction equals stock exactly (same table bytes).
 - [ ] By ear / recording: motor tones at 100–200 mm/s motor speed lower with `M975 S1` than
       with `S0`, per motor and on X/Y moves; with a recording at least 3 dB on the median of
