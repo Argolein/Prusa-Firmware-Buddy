@@ -57,8 +57,9 @@ Without a USB connection, put the command in a G-code file on the USB stick and 
 - The accelerometer on the head samples at 1600 Hz, so the calibration can only measure up
   to about 51 mm/s (harmonic 4) and 102 mm/s (harmonic 2) motor speed. Above that the model
   is extrapolated carefully; only the sound test shows whether it helps there.
-- Nothing in this feature has run on a printer yet. Watch the first calibration, and use
-  `M975 S0` if a print sounds or looks worse.
+- The first calibration on a printer (2026-11-24) ran through, but no speed model came out
+  active, so the motors ran the verified correction only. Use `M975 S0` if a print sounds
+  or looks worse.
 
 ## Sound test
 

@@ -59,25 +59,23 @@ filament-color system instead of carrying our own.
 ## Handoff
 
 - Date: 2026-11-24
-- Built: speed-aware phase stepping calibration for INDX (design and commit list:
-  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md)
-  "Built", user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)).
-  Follow-ups done the same day: the PrusaLink page's `?src=` stays on the printer (security fix
-  `385b3e507`), nhttp unit tests build again and run in the gate (`f909ad6f9`), tests for the
-  record file and runtime tables (`6fa671794`), format-first commit form in
-  `ARGO-DEVELOPMENT.md` "Build". Gate green (unit tests + `coreone_indx -Werror`).
-- Firmware file to flash: `firmware/COREONE_INDX_v8.0.1-Argo-6fa671794.bbf` (main checkout, not
-  in git; the printer shows version `8.0.1+17159`). It replaces the `b8bb358d5` file, which still
-  has the `?src=` hole. Way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf`.
-  Flashing changes nothing until the phase stepping calibration is run again.
-- Nothing has run on a printer. Next, at the printer (Owner): flash, run the phase stepping
-  calibration (≈ 12 min), read `/phase-stepping.html` in PrusaLink (interrupt cost, heap,
-  verification, which harmonics got a speed model), then print
-  `doc/phase-stepping-speed-model-sound-test.gcode` and compare the `M975 S0`/`S1` halves by ear.
+- Speed-aware phase stepping calibration for INDX: built and tested (plan
+  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md),
+  sections "Built" and "First printer run"; user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)).
+- First calibration on the printer (firmware `6fa671794`): ran through in about 10 min, X
+  vibration −45 %, Y −81 %; verification kept 7 of 8 harmonics; every speed model came out
+  inactive, so the motors run the verified stock-style correction and the sound test would
+  show nothing.
+- Diagnosis (Owner chose it): `67a8e954a` shows the measured phase change per harmonic on the
+  PrusaLink page. Firmware file `firmware/COREONE_INDX_v8.0.1-Argo-67a8e954a.bbf` (main
+  checkout, not in git; screen version `8.0.1+17166`). Flash it, no recalibration needed, then
+  read `http://192.168.178.102/phase-stepping.html`. If the phase change is unclear against
+  the repeat scatter, recalibrate once with the log sent to the Mac (`M334`, syslog).
+- Way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf` (last build before this feature).
 - Still open from the migration: Z-align on the first home, the Z endstop wizard and
   PrusaLink tool colors (unchanged from 2026-11-08); the same flash covers them.
 - Open blockers:
-  - none (printer validation waits on Owner)
+  - none (the next step waits on Owner flashing the printer)
 
 ## Notes
 
