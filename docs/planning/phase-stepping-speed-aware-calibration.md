@@ -293,9 +293,9 @@ green; nothing has run on a printer yet.
 Follow-ups: the page's `?src=` stays on the printer after a security review (`385b3e507`);
 nhttp unit tests build again, with exact-output tests for the phase stepping renderer
 (`f909ad6f9`); tests for the record file (v1, v2, broken and missing files) and for the
-runtime tables (apply, deactivate, allocation failure) (`6fa671794`). Still untested: the
-record-file reject paths for a wrong header or record size, record count or harmonic index;
-the heap reset on a bad file; the renderer with an invalid check result.
+runtime tables (apply, deactivate, allocation failure) (`6fa671794`); the record-file reject
+paths, the heap reset and the renderer with an invalid check result (`ab961310a`). Still
+untested: the PrusaLink route itself, which the nhttp test build compiles out.
 
 ## Answers (Owner, 2026-11-24)
 
