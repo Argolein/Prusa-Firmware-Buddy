@@ -286,9 +286,16 @@ Commits on `v8.0.1-Argo-stable`: gate `01e3af829`, `f04fffe0a`; diagnostics `239
 instruments `04bad5639`; dump `e154266bc`; page `9d550d703`; sound test `98982486e`;
 verified calibration `5d5a66e32`; speed model `abd5733b9`; check mode `M976` `2f86c819e`;
 docs `9811e8c1c`; review fixes `1d0e291f6`; test files home like the calibration and the
-dump shows free heap (close round, see the ledger). Two fresh-eyes verifications passed (interim and
+dump shows free heap (close round, `b8bb358d5`). Two fresh-eyes verifications passed (interim and
 final, plus a re-check of the fixes). Unit tests and the `coreone_indx -Werror` build are
 green; nothing has run on a printer yet.
+
+Follow-ups: the page's `?src=` stays on the printer after a security review (`385b3e507`);
+nhttp unit tests build again, with exact-output tests for the phase stepping renderer
+(`f909ad6f9`); tests for the record file (v1, v2, broken and missing files) and for the
+runtime tables (apply, deactivate, allocation failure) (`6fa671794`). Still untested: the
+record-file reject paths for a wrong header or record size, record count or harmonic index;
+the heap reset on a bad file; the renderer with an invalid check result.
 
 ## Answers (Owner, 2026-11-24)
 

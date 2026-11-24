@@ -60,11 +60,15 @@ filament-color system instead of carrying our own.
 
 - Date: 2026-11-24
 - Built: speed-aware phase stepping calibration for INDX (design and commit list:
-  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md),
-  user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)). Unit tests
-  and the `coreone_indx -Werror` build are green; three fresh-eyes verifications passed.
-  Firmware file `firmware/COREONE_INDX_v8.0.1-Argo-b8bb358d5.bbf` (main checkout, not in git);
-  way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf` (last build before this feature).
+  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md)
+  "Built", user doc [`doc/phase-stepping-speed-model.md`](doc/phase-stepping-speed-model.md)).
+  Follow-ups done the same day: the PrusaLink page's `?src=` stays on the printer (security fix
+  `385b3e507`), nhttp unit tests build again and run in the gate (`f909ad6f9`), tests for the
+  record file and runtime tables (`6fa671794`), format-first commit form in
+  `ARGO-DEVELOPMENT.md` "Build". Gate green (unit tests + `coreone_indx -Werror`).
+- Firmware file to flash: `firmware/COREONE_INDX_v8.0.1-Argo-6fa671794.bbf` (main checkout, not
+  in git; the printer shows version `8.0.1+17159`). It replaces the `b8bb358d5` file, which still
+  has the `?src=` hole. Way back: `firmware/COREONE_INDX_v8.0.1-Argo-4b14c9e01.bbf`.
   Flashing changes nothing until the phase stepping calibration is run again.
 - Nothing has run on a printer. Next, at the printer (Owner): flash, run the phase stepping
   calibration (≈ 12 min), read `/phase-stepping.html` in PrusaLink (interrupt cost, heap,
@@ -72,8 +76,6 @@ filament-color system instead of carrying our own.
   `doc/phase-stepping-speed-model-sound-test.gcode` and compare the `M975 S0`/`S1` halves by ear.
 - Still open from the migration: Z-align on the first home, the Z endstop wizard and
   PrusaLink tool colors (unchanged from 2026-11-08); the same flash covers them.
-- Ready next (Owner, 2026-11-24): repair and gate the nhttp unit tests; format before the gate;
-  unit tests for the speed record file and the speed-model runtime (detail: `.workflow/NEXT-SESSION-PROMPT.md`).
 - Open blockers:
   - none (printer validation waits on Owner)
 
