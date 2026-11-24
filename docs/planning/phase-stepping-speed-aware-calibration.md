@@ -150,9 +150,14 @@ if the data need it), and optionally its size.
 
 *(none yet — the phases below are the proposal)*
 
-### Phase 0 — Measure before building (no behaviour change)
+### Phase 0 — Measure before building (no change to printing behaviour)
 
-Gate for everything else, cheapest first.
+Gate for everything else, cheapest first. Estimated time at the printer ≈ 2.5–3 h, in two
+sittings: **USB sitting** (steps 1, the on-printer half of 2, 4, 5, 6; laptop on USB, ≈ 1.5–2 h,
+mostly unattended runs) and **microphone sitting** (step 7: 4 speeds × 4 move types × 2
+correction states × 3 runs = 96 recordings, ≈ 1 h). Step 3 needs a debug firmware build and
+can run separately; only Phase 2's move length depends on it. Steps 4 and 7 overwrite the
+stored calibration (back up with `M971 X Y F B` first, restore or recalibrate at the end).
 
 1. **Read the existing calibration** (`M971 X Y F B` over USB, one minute): size and phase of
    harmonics 2 and 4, both motors, both directions. A sanity read only (does a calibration
@@ -165,10 +170,11 @@ Gate for everything else, cheapest first.
    `capture_param_sweep_samples`, the wizard's own path, so they use the head accelerometer;
    not yet run on the printer.
 3. **Memory headroom:** the stock `heap` metric cannot answer this (total free bytes, every
-   503 ms). Add a debug-build low-water mark (minimum of free heap tracked in `_sbrk_r` or
-   sampled in the calibration loop) plus `mallinfo()` largest-free-chunk per move, and say how
-   it is captured (syslog host or USB log). Run one stock calibration; record the minimum.
-   Decides whether longer moves are possible or must be split (Phase 2).
+   503 ms), and nothing reads `heap_bytes_remaining()` on its own. Debug build: print
+   `heap_bytes_remaining()` (space never handed to `malloc` by `_sbrk_r`; it only shrinks
+   while the heap grows, so its value after a calibration is the peak) and `mallinfo()`
+   largest free chunk after each calibration move, over USB. Run one stock calibration;
+   record the minimum. Decides whether longer moves are possible or must be split (Phase 2).
 4. **Repeatability:** `M972 X` and `M972 Y` 3× each over USB with a power cycle in between
    (prints per-phase scores, saves), `M971 X Y F B` after each; spread of size and phase per
    harmonic. The spread sets the Phase 1 keep threshold.
@@ -205,6 +211,8 @@ motor tones above the noise floor.
   summed table at ±0.195 rad instead of letting int8 wrap, with a unit test for the wrap.
 - Reporting: the wizard hook `on_calibration_phase_result` takes two floats only; the
   per-harmonic verification result needs its own hook and screen line (to design).
+- Store each harmonic's verification ratio in the new versioned file (see Phase 2 Data), so
+  Phase 3 can show it later without a format change.
 - Extra harmonics (1, 3, 8) only for those Phase 0 found ≥ 0.005 rad and repeatable across a
   power cycle.
 
@@ -268,9 +276,10 @@ harmonic and direction and blend linearly between neighbouring bins (same file v
 ## Open questions (Owner)
 
 1. Is a calibration of ≈ 8–12 min (instead of ≈ 3) acceptable?
-2. Phase 0 needs you at the printer (USB host tool, phone microphone, about 1 hour), or at
-   least step 1 (one `M971 X Y F B` readout). Step 3 also needs a debug firmware build with a
-   heap low-water mark flashed for one calibration. Which?
+2. Phase 0 needs you at the printer ≈ 2.5–3 h in two sittings (USB, then phone microphone),
+   and it overwrites the stored calibration (backed up first). Step 3 needs a debug build
+   flashed for one calibration. The one-minute `M971` readout alone unblocks nothing. Which
+   sittings, and when?
 3. Phase 3 (PrusaLink page, check mode): wanted, or stop after Phase 2?
 
 ## Acceptance checks
