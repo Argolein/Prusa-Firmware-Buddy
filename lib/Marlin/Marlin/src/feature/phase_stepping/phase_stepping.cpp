@@ -868,8 +868,9 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     axis_state.driver_phase = shifted_phase;
 #elif HAS_INDX()
     const float rev_speed = mm_to_rev(axis_enum, physical_speed);
-    // Only a table with modelled harmonics left out reaches the model. Calibration deactivates
-    // every model and the check (M976) applies no tweak, so the tweak is skipped here.
+    // Only a table with modelled harmonics left out reaches the model. Sweep captures
+    // (calibration, M973, M976) deactivate the models of their axis, so a sweep tweak is
+    // skipped only after a capture timeout, while the failed sweep's last moves finish.
     CoilCurrents new_currents;
     if (speed_model::DirectionRuntime *model = current_lut._speed_model) {
         new_currents = model->current(current_lut, new_phase, __builtin_fabsf(rev_speed));

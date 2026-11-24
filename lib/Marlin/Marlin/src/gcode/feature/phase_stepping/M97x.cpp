@@ -187,24 +187,29 @@ static void M971_read(const OptionsM971 &options) {
     }
 }
 
-static void M971_write_axis_direction(const OptionsM971 &options, phase_stepping::CorrectedCurrentLut &lut, const char *path) {
+/// Returns whether the harmonic was written.
+static bool M971_write_axis_direction(const OptionsM971 &options, phase_stepping::CorrectedCurrentLut &lut, const char *path) {
     // All three options are required
     if (!options.index || !options.magnitude || !options.phase) {
-        return M971_error_syntax();
+        M971_error_syntax();
+        return false;
     }
     const auto index = *options.index;
     const auto magnitude = *options.magnitude;
     const auto phase = *options.phase;
 
+    bool written = false;
     lut.modify_correction_table([&](phase_stepping::MotorPhaseCorrection &table) {
         if (0 <= index && index < (int)table.size()) {
             table[index] = phase_stepping::SpectralItem { .mag = magnitude, .pha = phase };
+            written = true;
         } else {
             return M971_error_syntax();
         }
     });
 
     phase_stepping::save_correction_to_file(lut, path);
+    return written;
 }
 
 static void M971_write_axis(const OptionsM971 &options, AxisEnum axis) {
@@ -212,16 +217,17 @@ static void M971_write_axis(const OptionsM971 &options, AxisEnum axis) {
     if (phase_stepping::is_enabled(axis)) {
         return M971_error_enabled();
     }
+    [[maybe_unused]] bool written;
     // directions are mutually exclusive when writing
     if (options.forward && options.backward) {
         return M971_error_syntax();
     } else if (options.forward) {
-        M971_write_axis_direction(
+        written = M971_write_axis_direction(
             options,
             phase_stepping::axis_states[axis].forward_current,
             phase_stepping::get_correction_file_path(axis, phase_stepping::CorrectionType::forward));
     } else if (options.backward) {
-        M971_write_axis_direction(
+        written = M971_write_axis_direction(
             options,
             phase_stepping::axis_states[axis].backward_current,
             phase_stepping::get_correction_file_path(axis, phase_stepping::CorrectionType::backward));
@@ -229,10 +235,11 @@ static void M971_write_axis(const OptionsM971 &options, AxisEnum axis) {
         return M971_error_syntax();
     }
 #if HAS_INDX()
-    // A hand-written harmonic no longer matches its calibrated speed model.
-    if (options.index && 0 <= *options.index && *options.index <= phase_stepping::opts::CORRECTION_HARMONICS) {
-        phase_stepping::calibration_verify::drop_speed_model(axis, options.forward ? 0 : 1, *options.index);
+    if (!written) {
+        return;
     }
+    // A hand-written harmonic no longer matches its calibrated speed model.
+    phase_stepping::calibration_verify::drop_speed_model(axis, options.forward ? 0 : 1, *options.index);
     phase_stepping::speed_model_runtime::apply(axis);
 #endif
 }
@@ -509,6 +516,10 @@ void GcodeSuite::M973() {
         return;
     }
 
+    #if HAS_INDX()
+    // The sweep tweak applies only to tables without a speed model.
+    phase_stepping::speed_model_runtime::deactivate(axis);
+    #endif
     auto result = phase_stepping::capture_param_sweep_samples(
         axis,
         speed,
@@ -527,6 +538,9 @@ void GcodeSuite::M973() {
         #error "Not implemented on boards without serial"
     #endif
         });
+    #if HAS_INDX()
+    phase_stepping::speed_model_runtime::apply(axis);
+    #endif
     dump_samples_annotation(result);
 }
 

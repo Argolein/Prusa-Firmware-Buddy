@@ -2120,8 +2120,16 @@ bool phase_stepping::check_axis(AxisEnum axis, calibration_check::MotorCheck &re
         return false;
     };
 
+    // The check measures the stock tables (equal to the model at the calibration speed) and keeps
+    // the model tables off the heap while its sample buffers are alive.
+    speed_model_runtime::deactivate(X_AXIS);
+    speed_model_runtime::deactivate(Y_AXIS);
+
     const auto &calib_config = get_calibration_config(axis);
     const float duration = calib_config.fine_movement_duration / 2;
+    // Bounds of a baseline speed a calibration can have stored; a corrupted record falls outside.
+    const auto [start_speed, end_speed] = calib_config.speed_range;
+    const float min_speed = start_speed * calib_config.peak_speed_shift;
     const verify::MotorVerification &record = verify::record(axis);
     bool completed = true;
     result = {};
@@ -2130,7 +2138,7 @@ bool phase_stepping::check_axis(AxisEnum axis, calibration_check::MotorCheck &re
         float speed = NAN;
         for (int dir = 0; dir < 2; dir++) {
             const verify::HarmonicVerification &item = record.direction[dir][harmonic];
-            has_baseline[dir] = item.baseline > 0 && item.baseline_speed > 0;
+            has_baseline[dir] = item.baseline > 0 && min_speed <= item.baseline_speed && item.baseline_speed <= end_speed;
             if (has_baseline[dir]) {
                 speed = item.baseline_speed;
             }
@@ -2169,6 +2177,8 @@ bool phase_stepping::check_axis(AxisEnum axis, calibration_check::MotorCheck &re
         }
     }
     diagnostics::restore_calibration_heap(heap);
+    speed_model_runtime::apply(X_AXIS);
+    speed_model_runtime::apply(Y_AXIS);
     return completed;
 }
 #endif
