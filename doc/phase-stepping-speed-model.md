@@ -3,26 +3,27 @@
 ## What it does
 
 Stock phase stepping corrects each X/Y motor with one table that is measured at one speed
-and used at every speed. On the INDX this firmware measures the correction at several
-speeds and shifts it with the motor speed while printing. Where its own measurements do not
-show a clear speed dependence, it keeps the stock behaviour for that harmonic.
+and used at every speed. This firmware was built to measure the correction at several speeds
+and shift it with the motor speed while printing.
+
+Since 2026-11-24 the wizard no longer measures the speed dependence: in two calibrations on
+a Core One INDX no harmonic showed one the head accelerometer could measure (details in the
+design record, [`docs/planning/phase-stepping-speed-aware-calibration.md`](../docs/planning/phase-stepping-speed-aware-calibration.md)).
+What stays is a check of each correction after tuning; the motors use one correction at
+every speed, as in stock firmware. The speed model code stays in the firmware, not called.
 
 The Core One is CoreXY: "motor A" and "motor B" below are the two XY motors. A head move
 along X or Y runs both; a 45° diagonal runs only one.
 
 ## Calibration
 
-Run the usual wizard: **Calibrations & Tests → Phase Stepping Calibration**. It now takes
-about 12 minutes instead of about 3 (an estimate). For each motor it:
+Run the usual wizard: **Calibrations & Tests → Phase Stepping Calibration**. It takes
+about 4–5 minutes instead of about 3 (estimated from a logged run). For each motor it:
 
 1. Tunes harmonics 2 and 4 as stock firmware does.
 2. Checks each correction twice against a move with it switched off. A correction is kept
    only if it removes at least 30 % of the vibration in both checks; otherwise that harmonic
    is stored as zero. One failing harmonic no longer fails the whole calibration.
-3. Measures the best phase of each kept harmonic at three speeds per direction, twice each,
-   and fits how it changes with speed. The speed model is used only if that change is
-   larger than the measurement scatter and a check move at the highest measured speed is
-   better than the stock correction there.
 
 The wizard shows one line per harmonic, for example `H2  F 45%  B 0 (82%)`: forward kept
 with 45 % of the vibration left, backward stored as zero because 82 % was left.
@@ -32,36 +33,34 @@ The stock correction files are unchanged, so stock firmware still loads them.
 
 ## Switching the speed model
 
-- `M975 S0` turns the speed model off: the motors use exactly the stock correction.
-- `M975 S1` turns it on again. It is on after every restart.
-- `M975` alone reports the current state.
+`M975 S0` turns the speed model off, `M975 S1` on, `M975` alone reports the state; it is on
+after every restart. A calibration with this firmware creates no speed model, so after one
+these commands change nothing. Only a record from an older Argo calibration can still hold
+an active model until both axes are calibrated again.
 
 Without a USB connection, put the command in a G-code file on the USB stick and print it.
 
 ## PrusaLink
 
 - Page: `http://<printer>/phase-stepping.html` (sign in to PrusaLink first). It shows the
-  correction per harmonic, the check results, the speed model per harmonic with the
-  measured and extrapolated range and the largest phase change the calibration measured
-  (shown also when the model is off), the interrupt cost, the lowest free memory during the
-  last calibration, and missed motor transmissions.
-- Memory: the page shows the free memory now. The speed model keeps up to 16 KB while it is
-  on; before a long print, compare the value with `M975 S0` and with `M975 S1`. If it gets
-  low with the model on, print with `M975 S0`.
+  correction per harmonic, the check results, the interrupt cost, the free memory now and
+  the lowest during the last calibration, and missed motor transmissions. The speed model
+  columns (state, slope, largest measured phase change, band top) stay empty ("—") unless a
+  record from an older calibration that ran the speed sweep holds values.
 - Data: `GET /api/v1/phase-stepping` returns the same values as JSON.
 - After a firmware update your browser may show the old page for up to a day; reload it
   with the cache cleared if it looks out of date.
 
 ## Limits
 
-- The accelerometer on the head samples at 1600 Hz, so the calibration can only measure up
-  to about 51 mm/s (harmonic 4) and 102 mm/s (harmonic 2) motor speed. Above that the model
-  is extrapolated carefully; only the sound test shows whether it helps there.
-- The first calibration on a printer (2026-11-24) ran through, but no speed model came out
-  active, so the motors ran the verified correction only. Use `M975 S0` if a print sounds
-  or looks worse.
+- The accelerometer on the head samples at 1600 Hz, so a calibration can only measure up to
+  about 51 mm/s (harmonic 4) and 102 mm/s (harmonic 2) motor speed. In that range neither
+  calibration on the printer showed a speed dependence the model could use.
 
 ## Sound test
+
+The sound test compares the speed model off and on. With no active speed model both
+halves sound the same, so it is useful only with a record that holds one.
 
 ### What the file does
 
@@ -98,9 +97,9 @@ listed in the header of the G-code file.
 
 - **Stealth mode off.** In stealth mode the INDX limits the head to 140 mm/s,
   so the 150 and 200 mm/s X and Y moves would run slower than the file says.
-- **Phase stepping on and calibrated** for both motors with this firmware. Without it
-  both halves sound the same. They also sound the same when the PrusaLink page shows no
-  harmonic with an active speed model: then the calibration kept stock behaviour.
+- **An active speed model.** Only a record from an older Argo calibration that ran the
+  speed sweep can hold one; a calibration with this firmware creates none. Without an
+  active model (the PrusaLink page shows none) both halves sound the same.
 - **Firmware with `M975`.** Firmware without it reports `M975` as an unknown
   command and carries on, so both halves then sound the same.
 - The bed and the head must be free to move; no print on the bed.

@@ -152,7 +152,7 @@
   const VERSIONS = {
     0: "0 (no new calibration file loaded)",
     1: "1 (verified calibration)",
-    2: "2 (verified calibration with speed model)",
+    2: "2 (verified calibration, with speed model fields)",
   };
   const LINE_COLOURS = ["#e0a23a", "#6fb0d8", "#57b894", "#d58ad1", "#e07a66", "#cdd8e1"];
   const SVG_NS = "http://www.w3.org/2000/svg";
@@ -225,8 +225,8 @@
         : (VERSIONS[d.calibration_version] || String(d.calibration_version))),
     ]);
     smCard.append(el("p", { cls: "hint" }, [
-      "Switch the speed model with ", el("code", { text: "M975 S1" }), " (on) or ",
-      el("code", { text: "M975 S0" }), " (off) from the console or a G-code file.",
+      "A calibration with this firmware creates no speed model, so this switch changes nothing unless an older calibration left one. Switch it with ",
+      el("code", { text: "M975 S1" }), " (on) or ", el("code", { text: "M975 S0" }), " (off) from the console or a G-code file.",
     ]));
     cards.push(smCard);
 
@@ -264,7 +264,7 @@
       stat("Lowest during calibration", String(heap.min_free_bytes), "bytes"),
       stat("Free chunks at that point", num(heap.free_chunks_at_min) ? String(heap.free_chunks_at_min) : "—"),
     );
-    heapRows.push(el("p", { cls: "hint", text: "The speed model keeps up to 16 KB while it is on. Compare \"Free heap now\" with M975 S0 and S1 before a long print." }));
+    heapRows.push(el("p", { cls: "hint", text: "An active speed model (only from an older calibration) keeps up to 16 KB. Then compare \"Free heap now\" with M975 S0 and S1 before a long print." }));
     cards.push(card("Memory", heapRows));
 
     const motors = Array.isArray(d.motors) ? d.motors : [];

@@ -15,6 +15,10 @@
 - 2026-11-24 (Owner): no USB link is possible; develop the feature so it works. Replaces
   "measure before building, Phase 0 gates everything": the calibration measures and gates
   itself, data leave the printer over PrusaLink, validation is by ear from a G-code file.
+- 2026-11-24 (Owner): the wizard no longer runs the speed sweep. Two calibrations on the
+  printer gave the model nothing usable (see "Second calibration with the log"), and the sweep
+  cost about 5 minutes. The sweep and model code stay in the firmware, not called; the
+  verification stays.
 
 ## Objective
 

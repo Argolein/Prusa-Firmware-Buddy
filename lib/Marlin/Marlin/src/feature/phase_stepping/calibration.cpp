@@ -1969,7 +1969,9 @@ static std::expected<std::array<CalibrationResult, 2>, CalibrateAxisError> verif
 // Phase-versus-speed sweep of a verified harmonic: fit the speed model of
 // each kept direction and keep it only where it passes the self-gate. Expects
 // the harmonic zeroed in both tables and leaves it so. Fails only when aborted.
-static std::expected<void, CalibrateAxisError> calibrate_speed_model(AxisEnum axis,
+// Not called: with the head accelerometer the sweep reaches only about 3 rev/s,
+// and on a Core One INDX no harmonic passed the self-gate in two calibrations.
+[[maybe_unused]] static std::expected<void, CalibrateAxisError> calibrate_speed_model(AxisEnum axis,
     const AxisCalibrationConfig &calib_config, int harmonic, float nominal_calib_speed,
     const std::array<CalibrationResult, 2> &tuned, AbortFun should_abort) {
     namespace cs = calibration_speed;
@@ -2245,11 +2247,6 @@ static void calibrate_axis_body(AxisEnum axis, CalibrateAxisHooks &hooks, Calibr
                 // phases_count does not count harmonic 0 either.
                 tuned_any = tuned_any || harmonic_speed.harmonic != 0;
                 calib_res = verify_harmonic(axis, calib_config, harmonic_speed.harmonic, harmonic_speed.value, *calib_res, should_abort);
-                if (calib_res) {
-                    if (auto speed = calibrate_speed_model(axis, calib_config, harmonic_speed.harmonic, harmonic_speed.value, *calib_res, should_abort); !speed) {
-                        calib_res = std::unexpected(speed.error());
-                    }
-                }
             } else if (calib_res.error() != CalibrateAxisError::aborted) {
                 log_error(PhaseStepping, "Harmonic %d stored as zero: %s", harmonic_speed.harmonic, to_string(calib_res.error()));
                 last_error = calib_res.error();
