@@ -99,10 +99,10 @@ bool PhaseSteppingRenderState::load_speed_model() {
         return false;
     }
     snprintf(speed_model.data(), speed_model.size(),
-        "{\"harmonic\":%u,\"active\":%s,\"v0\":%s,\"slope\":%s,\"slope_se\":%s,\"size_slope\":%s,\"band_top\":%s}",
+        "{\"harmonic\":%u,\"active\":%s,\"v0\":%s,\"slope\":%s,\"slope_se\":%s,\"size_slope\":%s,\"band_top\":%s,\"max_change\":%s}",
         static_cast<unsigned>(harmonic), model.active ? "true" : "false",
         format_number(model.v0).data(), format_number(model.slope).data(), format_number(model.slope_se).data(),
-        format_number(model.size_slope).data(), format_number(model.band_top).data());
+        format_number(model.size_slope).data(), format_number(model.band_top).data(), format_number(model.max_change).data());
     return true;
 }
 

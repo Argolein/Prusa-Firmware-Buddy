@@ -49,12 +49,12 @@ void populate() {
     fwd2.calibrated = true;
     fwd2.kept = true;
     fwd2.ratio = { 0.5f, 0.25f };
-    fwd2.speed_model = { .active = true, .v0 = 1.5f, .slope = 0.25f, .slope_se = 0.125f, .size_slope = 0.5f, .band_top = 4.0f };
+    fwd2.speed_model = { .active = true, .v0 = 1.5f, .slope = 0.25f, .slope_se = 0.125f, .size_slope = 0.5f, .band_top = 4.0f, .max_change = 0.75f };
     verify::HarmonicVerification &fwd4 = rec_x.direction[0][4];
     fwd4.calibrated = true;
     fwd4.ratio = { NAN, 1.5f };
     fwd4.reason = verify::Reason::ratio_too_high;
-    rec_x.direction[1][4].speed_model = { .active = false, .v0 = 2.0f };
+    rec_x.direction[1][4].speed_model = { .active = false, .v0 = 2.0f, .max_change = 0.5f };
     phase_stepping_mock::records[1].version = 1;
 
     auto &check = phase_stepping_mock::check;
@@ -98,9 +98,9 @@ const string EXPECTED_POPULATED
       "{\"harmonic\":4,\"kept\":false,\"ratio\":[null,1.5],\"reason\":1}"
       "],\"backward\":[]}"
       ",\"speed_model\":{\"forward\":["
-      "{\"harmonic\":2,\"active\":true,\"v0\":1.5,\"slope\":0.25,\"slope_se\":0.125,\"size_slope\":0.5,\"band_top\":4}"
+      "{\"harmonic\":2,\"active\":true,\"v0\":1.5,\"slope\":0.25,\"slope_se\":0.125,\"size_slope\":0.5,\"band_top\":4,\"max_change\":0.75}"
       "],\"backward\":["
-      "{\"harmonic\":4,\"active\":false,\"v0\":2,\"slope\":0,\"slope_se\":0,\"size_slope\":0,\"band_top\":0}"
+      "{\"harmonic\":4,\"active\":false,\"v0\":2,\"slope\":0,\"slope_se\":0,\"size_slope\":0,\"band_top\":0,\"max_change\":0.5}"
       "]}}"
       ",{\"axis\":\"y\",\"motor\":\"B\",\"enabled\":false,\"missed_tx\":0"
     + EMPTY_MOTOR_TAIL

@@ -42,7 +42,8 @@ Without a USB connection, put the command in a G-code file on the USB stick and 
 
 - Page: `http://<printer>/phase-stepping.html` (sign in to PrusaLink first). It shows the
   correction per harmonic, the check results, the speed model per harmonic with the
-  measured and extrapolated range, the interrupt cost, the lowest free memory during the
+  measured and extrapolated range and the largest phase change the calibration measured
+  (shown also when the model is off), the interrupt cost, the lowest free memory during the
   last calibration, and missed motor transmissions.
 - Memory: the page shows the free memory now. The speed model keeps up to 16 KB while it is
   on; before a long print, compare the value with `M975 S0` and with `M975 S1`. If it gets

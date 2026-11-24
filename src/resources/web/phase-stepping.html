@@ -360,7 +360,7 @@
     const hasV = verif !== null, hasM = model !== null, hasC = check !== null;
     const head = ["Harmonic", "Size (mrad)", "Phase (rad)"];
     if (hasV) head.push("Check", "Ratios", "Reason");
-    if (hasM) head.push("Speed model", "Slope (rad per rev/s)", "Band top (rev/s)");
+    if (hasM) head.push("Speed model", "Slope (rad per rev/s)", "Phase change (rad)", "Band top (rev/s)");
     if (hasC) head.push("Now / baseline");
     const rows = [];
     for (const e of spec) {
@@ -381,6 +381,7 @@
       if (hasM) {
         cells.push(el("td", {}, [m ? (m.active ? tag("ok", "✓ active") : tag("off", "– inactive")) : "—"]));
         cells.push(el("td", { text: m ? fix(m.slope, 4) + " ± " + fix(m.slope_se, 4) : "—" }));
+        cells.push(el("td", { text: m ? fix(m.max_change, 3) : "—" }));
         cells.push(el("td", { text: m ? fix(m.band_top, 2) : "—" }));
       }
       if (hasC) {
