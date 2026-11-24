@@ -94,6 +94,9 @@ void CorrectedCurrentLut::_update_phase_shift() {
         // int8 range instead of wrapping to the opposite sign.
         int64_t phase_shift = 0;
         for (size_t n = 0; n != fixed_spectrum.size(); n++) {
+            if (_excluded_harmonics & (1u << n)) {
+                continue;
+            }
             const auto &s = fixed_spectrum[n];
             phase_shift += static_cast<int64_t>(s.mag) * sin_lut(n * item_phase + s.pha);
         }

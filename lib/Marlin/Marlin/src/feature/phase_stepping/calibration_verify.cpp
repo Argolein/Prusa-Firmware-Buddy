@@ -25,22 +25,33 @@ namespace {
         uint16_t header_size;
         uint16_t record_size;
         uint16_t record_count;
-        uint8_t reserved[20];
+        // Version 2 from here on, zero in version 1.
+        uint32_t heap_min_free_bytes;
+        uint32_t heap_free_chunks_at_min;
+        uint8_t heap_valid;
+        uint8_t reserved[11];
     };
     static_assert(sizeof(FileHeader) == 32);
 
     constexpr uint8_t FLAG_CALIBRATED = 1 << 0;
     constexpr uint8_t FLAG_KEPT = 1 << 1;
+    constexpr uint8_t FLAG_SPEED_MODEL_ACTIVE = 1 << 2;
 
     /// One record per direction and harmonic, forward harmonics 0..16 first.
-    /// The reserved bytes hold the speed model fields of later versions.
+    /// The speed model fields are zero in version 1.
     struct FileRecord {
         uint8_t harmonic;
         uint8_t flags;
         uint8_t reason;
         uint8_t reserved0;
         float ratio[VERIFY_RUNS];
-        uint8_t reserved[36];
+        float v0;
+        float slope;
+        float slope_se;
+        float size_slope;
+        float band_top;
+        float max_change;
+        uint8_t reserved[12];
     };
     static_assert(sizeof(FileRecord) == 48);
 
@@ -65,7 +76,7 @@ namespace {
 
     bool header_matches(const FileHeader &header) {
         return header.magic == FILE_MAGIC
-            && header.version == FORMAT_VERSION
+            && header.version >= MIN_FORMAT_VERSION && header.version <= FORMAT_VERSION
             && header.header_size == sizeof(FileHeader)
             && header.record_size == sizeof(FileRecord)
             && header.record_count == RECORD_COUNT;
@@ -87,7 +98,25 @@ namespace {
                 item.calibrated = stored.flags & FLAG_CALIBRATED;
                 item.kept = stored.flags & FLAG_KEPT;
                 item.reason = static_cast<Reason>(stored.reason);
+                if (header.version >= 2) {
+                    item.speed_model = {
+                        .active = (stored.flags & FLAG_SPEED_MODEL_ACTIVE) != 0,
+                        .v0 = stored.v0,
+                        .slope = stored.slope,
+                        .slope_se = stored.slope_se,
+                        .size_slope = stored.size_slope,
+                        .band_top = stored.band_top,
+                        .max_change = stored.max_change,
+                    };
+                }
             }
+        }
+        if (header.version >= 2) {
+            record.heap = {
+                .valid = header.heap_valid != 0,
+                .min_free_bytes = header.heap_min_free_bytes,
+                .free_chunks_at_min = header.heap_free_chunks_at_min,
+            };
         }
         record.version = header.version;
         return true;
@@ -122,10 +151,28 @@ void set(AxisEnum axis, int harmonic, const HarmonicVerification &forward, const
     record.direction[1][harmonic] = backward;
 }
 
+void set_speed_model(AxisEnum axis, int harmonic, const speed_model::HarmonicModel &forward, const speed_model::HarmonicModel &backward) {
+    MotorVerification &record = records[motor_index(axis)];
+    record.direction[0][harmonic].speed_model = forward;
+    record.direction[1][harmonic].speed_model = backward;
+}
+
+void drop_speed_model(AxisEnum axis, int direction, int harmonic) {
+    MotorVerification &record = records[motor_index(axis)];
+    if (record.version == 0 || !record.direction[direction][harmonic].speed_model.active) {
+        return;
+    }
+    record.direction[direction][harmonic].speed_model.active = false;
+    save(axis);
+}
+
 void save(AxisEnum axis) {
-    const MotorVerification &record = records[motor_index(axis)];
+    MotorVerification &record = records[motor_index(axis)];
     if (record.version == 0) {
         return;
+    }
+    if (const diagnostics::CalibrationHeap heap = diagnostics::last_calibration_heap(); heap.valid) {
+        record.heap = heap;
     }
     FILE *file = fopen(file_path(axis), "wb");
     if (!file) {
@@ -137,18 +184,29 @@ void save(AxisEnum axis) {
         .header_size = sizeof(FileHeader),
         .record_size = sizeof(FileRecord),
         .record_count = RECORD_COUNT,
+        .heap_min_free_bytes = record.heap.min_free_bytes,
+        .heap_free_chunks_at_min = record.heap.free_chunks_at_min,
+        .heap_valid = record.heap.valid,
         .reserved = {},
     };
     fwrite(&header, 1, sizeof(header), file);
     for (const auto &direction : record.direction) {
         for (size_t harmonic = 0; harmonic != direction.size(); harmonic++) {
             const HarmonicVerification &item = direction[harmonic];
+            const speed_model::HarmonicModel &model = item.speed_model;
             FileRecord stored {
                 .harmonic = static_cast<uint8_t>(harmonic),
-                .flags = static_cast<uint8_t>((item.calibrated ? FLAG_CALIBRATED : 0) | (item.kept ? FLAG_KEPT : 0)),
+                .flags = static_cast<uint8_t>((item.calibrated ? FLAG_CALIBRATED : 0) | (item.kept ? FLAG_KEPT : 0)
+                    | (model.active ? FLAG_SPEED_MODEL_ACTIVE : 0)),
                 .reason = static_cast<uint8_t>(item.reason),
                 .reserved0 = 0,
                 .ratio = {},
+                .v0 = model.v0,
+                .slope = model.slope,
+                .slope_se = model.slope_se,
+                .size_slope = model.size_slope,
+                .band_top = model.band_top,
+                .max_change = model.max_change,
                 .reserved = {},
             };
             std::copy(item.ratio.begin(), item.ratio.end(), std::begin(stored.ratio));
@@ -169,6 +227,9 @@ void load(AxisEnum axis) {
         record = {};
     }
     fclose(file);
+    if (record.heap.valid && !diagnostics::last_calibration_heap().valid) {
+        diagnostics::restore_calibration_heap(record.heap);
+    }
 }
 
 void remove(AxisEnum axis) {

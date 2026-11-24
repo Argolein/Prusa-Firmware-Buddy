@@ -2,6 +2,8 @@
 
 #include "common.hpp"
 
+#include <option/has_indx.h>
+
 #include <bitset>
 #include <cstdint>
 
@@ -9,6 +11,12 @@
 // stepping.
 
 namespace phase_stepping {
+
+#if HAS_INDX()
+namespace speed_model {
+    struct DirectionRuntime;
+}
+#endif
 
 /**
  * Lookup table-based implementation of sin/cos that uses MOTOR_PERIOD as its
@@ -49,6 +57,19 @@ public:
 public:
     MotorPhaseCorrection _spectrum = {};
     std::array<int8_t, opts::MOTOR_PERIOD> _phase_shift = {};
+#if HAS_INDX()
+    /// Bit n set: harmonic n is left out of `_phase_shift` (applied by the
+    /// speed model instead); `_spectrum` keeps it.
+    uint32_t _excluded_harmonics = 0;
+    /// Speed model applying the excluded harmonics, null when there is none.
+    /// Published after its tables are ready, cleared before they go away.
+    speed_model::DirectionRuntime *_speed_model = nullptr;
+
+    void set_excluded_harmonics(uint32_t mask) {
+        _excluded_harmonics = mask;
+        _update_phase_shift();
+    }
+#endif
 
     void _update_phase_shift();
     static int _phase_shift_for_harmonic(int idx, int harmonic,

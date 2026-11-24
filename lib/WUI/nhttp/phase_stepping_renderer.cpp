@@ -86,6 +86,20 @@ bool PhaseSteppingRenderState::load_verification() {
     return true;
 }
 
+bool PhaseSteppingRenderState::load_speed_model() {
+    namespace verify = phase_stepping::calibration_verify;
+    const phase_stepping::speed_model::HarmonicModel &model = verify::record(motor_axis(motor)).direction[direction][harmonic].speed_model;
+    if (!(model.v0 > 0)) {
+        return false;
+    }
+    snprintf(speed_model.data(), speed_model.size(),
+        "{\"harmonic\":%u,\"active\":%s,\"v0\":%s,\"slope\":%s,\"slope_se\":%s,\"size_slope\":%s,\"band_top\":%s}",
+        static_cast<unsigned>(harmonic), model.active ? "true" : "false",
+        format_number(model.v0).data(), format_number(model.slope).data(), format_number(model.slope_se).data(),
+        format_number(model.size_slope).data(), format_number(model.band_top).data());
+    return true;
+}
+
 JsonResult PhaseSteppingRenderer::renderState(size_t resume_point, JsonOutput &output, PhaseSteppingRenderState &state) const {
     // clang-format off
     JSON_START;
@@ -144,6 +158,28 @@ JsonResult PhaseSteppingRenderer::renderState(size_t resume_point, JsonOutput &o
                                     JSON_COMMA;
                                 }
                                 JSON_CUSTOM("%s", state.verification.data());
+                                state.verification_emitted = true;
+                            }
+                            state.harmonic = 0;
+                            state.verification_emitted = false;
+                            JSON_ARR_END;
+                        }
+                        state.direction = 0;
+                    JSON_OBJ_END JSON_COMMA;
+                    JSON_FIELD_OBJ("speed_model");
+                        for (; state.direction < DIRECTION_COUNT; state.direction++) {
+                            if (state.direction != 0) {
+                                JSON_COMMA;
+                            }
+                            JSON_FIELD_ARR(state.direction == 0 ? "forward" : "backward");
+                            for (; state.harmonic < HARMONIC_COUNT; state.harmonic++) {
+                                if (!state.load_speed_model()) {
+                                    continue;
+                                }
+                                if (state.verification_emitted) {
+                                    JSON_COMMA;
+                                }
+                                JSON_CUSTOM("%s", state.speed_model.data());
                                 state.verification_emitted = true;
                             }
                             state.harmonic = 0;

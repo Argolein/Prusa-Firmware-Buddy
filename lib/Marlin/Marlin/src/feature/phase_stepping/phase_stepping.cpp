@@ -34,6 +34,8 @@
 #if HAS_INDX()
     #include "diagnostics.hpp"
     #include "calibration_verify.hpp"
+    #include "speed_model.hpp"
+    #include "speed_model_runtime.hpp"
     #include <device/cmsis.h>
 #endif
 
@@ -864,6 +866,24 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     int steps_diff = phase_difference(shifted_phase, axis_state.driver_phase);
     burst_stepping::set_phase_diff(axis_enum, steps_diff);
     axis_state.driver_phase = shifted_phase;
+#elif HAS_INDX()
+    const float rev_speed = mm_to_rev(axis_enum, physical_speed);
+    // Only a table with modelled harmonics left out reaches the model; calibration deactivates
+    // every model, so a modelled table never meets a calibration tweak.
+    CoilCurrents new_currents;
+    if (speed_model::DirectionRuntime *model = current_lut._speed_model) {
+        new_currents = model->current(current_lut, new_phase, __builtin_fabsf(rev_speed));
+    } else {
+        new_currents = calibration_phase_correction(axis_state, current_lut, position, new_phase);
+    }
+
+    int c_adj = current_adjustment(axis_index, rev_speed);
+    new_currents.a = new_currents.a * c_adj / 255;
+    new_currents.b = new_currents.b * c_adj / 255;
+    if (new_currents != axis_state.last_currents) {
+        spi::set_xdirect(axis_index, new_currents);
+        axis_state.last_currents = new_currents;
+    }
 #else
     CoilCurrents new_currents = calibration_phase_correction(axis_state, current_lut, position, new_phase);
 
@@ -993,6 +1013,9 @@ FORCE_OFAST void phase_stepping::axis_position(const AxisState &axis_state, uint
 
 namespace phase_stepping {
 void reset_compensation(AxisEnum axis) {
+#if HAS_INDX()
+    speed_model_runtime::deactivate(axis);
+#endif
     axis_states[axis].forward_current.clear();
     axis_states[axis].backward_current.clear();
 }
@@ -1054,6 +1077,7 @@ void save_to_persistent_storage_without_enabling(AxisEnum axis) {
     save_correction_to_file(axis_states[axis].backward_current, get_correction_file_path(axis, CorrectionType::backward));
 #if HAS_INDX()
     calibration_verify::save(axis);
+    speed_model_runtime::apply(axis);
 #endif
 }
 
@@ -1063,6 +1087,7 @@ void load_from_persistent_storage(AxisEnum axis) {
     load_correction_from_file(axis_states[axis].backward_current, get_correction_file_path(axis, CorrectionType::backward));
 #if HAS_INDX()
     calibration_verify::load(axis);
+    speed_model_runtime::apply(axis);
 #endif
 
     phase_stepping::enable(axis, config_store().get_phase_stepping_enabled(axis));
@@ -1082,6 +1107,7 @@ void remove_from_persistent_storage(AxisEnum axis) {
     remove_from_persistent_storage(axis, phase_stepping::CorrectionType::forward);
     remove_from_persistent_storage(axis, phase_stepping::CorrectionType::backward);
 #if HAS_INDX()
+    speed_model_runtime::deactivate(axis);
     calibration_verify::remove(axis);
 #endif
 }

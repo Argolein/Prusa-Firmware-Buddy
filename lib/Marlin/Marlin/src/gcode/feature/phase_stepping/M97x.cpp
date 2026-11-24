@@ -18,7 +18,9 @@
 
 #include <option/has_indx.h>
 #if HAS_INDX()
+    #include <feature/phase_stepping/calibration_verify.hpp>
     #include <feature/phase_stepping/diagnostics.hpp>
+    #include <feature/phase_stepping/speed_model_runtime.hpp>
 #endif
 
 #include <option/has_usb_device.h>
@@ -224,6 +226,13 @@ static void M971_write_axis(const OptionsM971 &options, AxisEnum axis) {
     } else {
         return M971_error_syntax();
     }
+#if HAS_INDX()
+    // A hand-written harmonic no longer matches its calibrated speed model.
+    if (options.index && 0 <= *options.index && *options.index <= phase_stepping::opts::CORRECTION_HARMONICS) {
+        phase_stepping::calibration_verify::drop_speed_model(axis, options.forward ? 0 : 1, *options.index);
+    }
+    phase_stepping::speed_model_runtime::apply(axis);
+#endif
 }
 
 static void M971_write(const OptionsM971 &options) {
@@ -635,6 +644,8 @@ void GcodeSuite::M974() {
 void GcodeSuite::M975() {
     if (parser.seen('S')) {
         phase_stepping::diagnostics::set_speed_model_enabled(parser.value_bool());
+        phase_stepping::speed_model_runtime::apply(X_AXIS);
+        phase_stepping::speed_model_runtime::apply(Y_AXIS);
     }
     SERIAL_ECHO("M975 S");
     SERIAL_ECHOLN(phase_stepping::diagnostics::speed_model_enabled() ? "1" : "0");

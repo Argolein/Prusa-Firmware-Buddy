@@ -11,7 +11,7 @@
 /// may see fields of one struct from slightly different moments.
 namespace phase_stepping::diagnostics {
 
-/// Cost of one phase stepping refresh in CPU cycles (DWT cycle counter).
+/// Cost of one phase stepping refresh in CPU cycles (DWT cycle counter), since boot.
 struct IsrTiming {
     uint32_t max_cycles;
     /// Exponential moving average over roughly the last 1024 refreshes.
@@ -20,7 +20,6 @@ struct IsrTiming {
 };
 
 IsrTiming isr_timing();
-void reset_isr_timing();
 /// Called from the ISR once per refresh.
 void record_isr_cycles(uint32_t cycles);
 
@@ -38,6 +37,8 @@ CalibrationHeap last_calibration_heap();
 void begin_calibration_heap();
 /// Call where all sample buffers of a calibration move are alive.
 void sample_calibration_heap();
+/// Set the value persisted with the last calibration (after boot).
+void restore_calibration_heap(const CalibrationHeap &heap);
 
 /// Missed TMC transmissions of one motor since boot.
 uint32_t missed_tx_total(AxisEnum axis);

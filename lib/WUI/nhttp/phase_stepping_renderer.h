@@ -40,6 +40,7 @@ public:
     phase_stepping::MotorPhaseCorrection spectrum {};
     std::array<char, 40> pair {}; ///< formatted current `[mag,pha]`
     std::array<char, 96> verification {}; ///< formatted current verification entry
+    std::array<char, 192> speed_model {}; ///< formatted current speed model entry
     bool verification_emitted = false; ///< an entry of the current array is out
 
     /// Reads the current motor's enabled flag and missed TX count.
@@ -51,6 +52,9 @@ public:
     /// Formats the verification of the current motor, direction and harmonic
     /// into `verification`. False when that harmonic was not calibrated.
     bool load_verification();
+    /// Formats the speed model of the current motor, direction and harmonic
+    /// into `speed_model`. False when that harmonic had no speed sweep.
+    bool load_speed_model();
 };
 
 class PhaseSteppingRenderer final : public json::JsonRenderer<PhaseSteppingRenderState> {

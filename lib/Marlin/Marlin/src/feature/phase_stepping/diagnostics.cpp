@@ -34,12 +34,6 @@ IsrTiming isr_timing() {
     };
 }
 
-void reset_isr_timing() {
-    max_cycles.store(0, std::memory_order_relaxed);
-    mean_cycles_scaled.store(0, std::memory_order_relaxed);
-    samples.store(0, std::memory_order_relaxed);
-}
-
 void record_isr_cycles(uint32_t cycles) {
     // Only the ISR writes these, so plain load/store pairs are enough.
     if (cycles > max_cycles.load(std::memory_order_relaxed)) {
@@ -77,6 +71,12 @@ void sample_calibration_heap() {
         heap_free_chunks_at_min.store(mallinfo().ordblks, std::memory_order_relaxed);
     }
     heap_valid.store(true, std::memory_order_relaxed);
+}
+
+void restore_calibration_heap(const CalibrationHeap &heap) {
+    heap_min_free.store(heap.min_free_bytes, std::memory_order_relaxed);
+    heap_free_chunks_at_min.store(heap.free_chunks_at_min, std::memory_order_relaxed);
+    heap_valid.store(heap.valid, std::memory_order_relaxed);
 }
 
 uint32_t missed_tx_total(AxisEnum axis) {
