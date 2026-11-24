@@ -284,8 +284,10 @@ which lies above the accelerometer band.
 
 Commits on `v8.0.1-Argo-stable`: gate `01e3af829`, `f04fffe0a`; diagnostics `2396ef314`;
 instruments `04bad5639`; dump `e154266bc`; page `9d550d703`; sound test `98982486e`;
-verified calibration `5d5a66e32`; speed model `abd5733b9`. Unit tests and the
-`coreone_indx -Werror` build are green; nothing has run on a printer yet.
+verified calibration `5d5a66e32`; speed model `abd5733b9`; check mode `M976` `2f86c819e`;
+docs `9811e8c1c`; review fixes `1d0e291f6`. Two fresh-eyes verifications passed (interim and
+final, plus a re-check of the fixes). Unit tests and the `coreone_indx -Werror` build are
+green; nothing has run on a printer yet.
 
 ## Answers (Owner, 2026-11-24)
 
