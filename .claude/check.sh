@@ -61,13 +61,14 @@ ln -sfn /work/.dependencies .dependencies
 ln -sfn /work/.venv .venv
 git show refs/tags/v6.5.3:cmake/GccArmNoneEabi.cmake > cmake/GccArmNoneEabi.cmake
 . .venv/bin/activate
+# A test that crashes can hang after Catch2 reports it; the limit turns that into a red gate.
 if [ "$RUN_UNIT" = 1 ]; then
   python3 utils/build_tests.py --build-dir /cache/build-tests Marlin_phase_stepping_tests
-  /cache/build-tests/tests/unit/lib/Marlin/phase_stepping/Marlin_phase_stepping_tests
+  timeout -k 10 300 /cache/build-tests/tests/unit/lib/Marlin/phase_stepping/Marlin_phase_stepping_tests
 fi
 if [ "$RUN_NHTTP" = 1 ]; then
   python3 utils/build_tests.py --build-dir /cache/build-tests nhttp_tests
-  /cache/build-tests/tests/unit/lib/WUI/nhttp/nhttp_tests
+  timeout -k 10 300 /cache/build-tests/tests/unit/lib/WUI/nhttp/nhttp_tests
 fi
 if [ "$RUN_FW" = 1 ]; then
   python3 utils/build.py --preset coreone_indx --bootloader yes \
