@@ -58,13 +58,13 @@ filament-color system instead of carrying our own.
 
 ## Handoff
 
-- Date: 2026-11-08
-- Completed this session: everything above; both branches pushed to `origin`.
-- Next step:
-  - Flash the `coreone` / `coreone_indx` `.bbf`. Check Z-align on the first
-    home, the Z endstop calibration wizard, and setting a tool color from
-    PrusaLink (palette and custom color; MMU slots if an MMU is attached).
-  - Pick tool colors again once (old colors are not migrated).
+- Date: 2026-11-24
+- Still open from the migration: flash the `coreone_indx` `.bbf` and check Z-align on the
+  first home, the Z endstop wizard and PrusaLink tool colors (unchanged from 2026-11-08).
+- New, proposed (not approved): speed-aware phase stepping calibration for INDX,
+  [`docs/planning/phase-stepping-speed-aware-calibration.md`](docs/planning/phase-stepping-speed-aware-calibration.md)
+  (commit `7fc305070`). Next step: fresh-eyes review of the plan and Owner's answers to its
+  three open questions; Phase 0 measurements need Owner at the printer.
 - Open blockers:
   - none
 
