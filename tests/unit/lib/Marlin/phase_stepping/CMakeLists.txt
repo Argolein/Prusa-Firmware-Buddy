@@ -7,6 +7,9 @@ add_executable(
   ${CMAKE_CURRENT_SOURCE_DIR}/lut_saturation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/speed_model_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/calibration_check_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/calibration_record_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/speed_model_runtime_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_seams.cpp
   ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/lut.cpp
   ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/speed_model.cpp
   ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping/calibration_speed.cpp
@@ -16,5 +19,6 @@ target_include_directories(
   Marlin_phase_stepping_tests
   PUBLIC . ${CMAKE_SOURCE_DIR}/include
          ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/feature/phase_stepping
+         ${CMAKE_SOURCE_DIR}/tests/stubs/Marlin/src
   )
 add_catch_test(Marlin_phase_stepping_tests)
