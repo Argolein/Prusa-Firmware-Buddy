@@ -3,9 +3,11 @@
 #include <segmented_json_macros.h>
 
 #include <device/cmsis.h>
+#include <feature/phase_stepping/calibration_verify.hpp>
 #include <feature/phase_stepping/diagnostics.hpp>
 #include <feature/phase_stepping/phase_stepping.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -17,6 +19,7 @@ namespace {
 
     constexpr uint8_t MOTOR_COUNT = 2;
     constexpr uint8_t DIRECTION_COUNT = 2;
+    constexpr uint8_t HARMONIC_COUNT = phase_stepping::opts::CORRECTION_HARMONICS + 1;
 
     constexpr AxisEnum motor_axis(uint8_t motor) {
         return motor == 0 ? X_AXIS : Y_AXIS;
@@ -41,6 +44,8 @@ namespace {
 PhaseSteppingRenderState::PhaseSteppingRenderState() {
     namespace diag = phase_stepping::diagnostics;
     speed_model_enabled = diag::speed_model_enabled();
+    namespace verify = phase_stepping::calibration_verify;
+    calibration_version = std::max(verify::record(motor_axis(0)).version, verify::record(motor_axis(1)).version);
     const diag::IsrTiming isr = diag::isr_timing();
     isr_max_cycles = isr.max_cycles;
     isr_mean_cycles = isr.mean_cycles;
@@ -69,11 +74,24 @@ void PhaseSteppingRenderState::load_pair() {
     snprintf(pair.data(), pair.size(), "[%s,%s]", format_number(item.mag).data(), format_number(item.pha).data());
 }
 
+bool PhaseSteppingRenderState::load_verification() {
+    namespace verify = phase_stepping::calibration_verify;
+    const verify::HarmonicVerification &item = verify::record(motor_axis(motor)).direction[direction][harmonic];
+    if (!item.calibrated) {
+        return false;
+    }
+    snprintf(verification.data(), verification.size(), "{\"harmonic\":%u,\"kept\":%s,\"ratio\":[%s,%s],\"reason\":%u}",
+        static_cast<unsigned>(harmonic), item.kept ? "true" : "false",
+        format_number(item.ratio[0]).data(), format_number(item.ratio[1]).data(), static_cast<unsigned>(item.reason));
+    return true;
+}
+
 JsonResult PhaseSteppingRenderer::renderState(size_t resume_point, JsonOutput &output, PhaseSteppingRenderState &state) const {
     // clang-format off
     JSON_START;
     JSON_OBJ_START;
         JSON_FIELD_BOOL("speed_model_enabled", state.speed_model_enabled) JSON_COMMA;
+        JSON_FIELD_INT("calibration_version", state.calibration_version) JSON_COMMA;
         JSON_FIELD_OBJ("isr");
             JSON_FIELD_INT("max_cycles", state.isr_max_cycles) JSON_COMMA;
             JSON_FIELD_INT("mean_cycles", state.isr_mean_cycles) JSON_COMMA;
@@ -111,6 +129,29 @@ JsonResult PhaseSteppingRenderer::renderState(size_t resume_point, JsonOutput &o
                         JSON_ARR_END;
                     }
                     state.direction = 0;
+                    JSON_COMMA;
+                    JSON_FIELD_OBJ("verification");
+                        for (; state.direction < DIRECTION_COUNT; state.direction++) {
+                            if (state.direction != 0) {
+                                JSON_COMMA;
+                            }
+                            JSON_FIELD_ARR(state.direction == 0 ? "forward" : "backward");
+                            for (; state.harmonic < HARMONIC_COUNT; state.harmonic++) {
+                                if (!state.load_verification()) {
+                                    continue;
+                                }
+                                if (state.verification_emitted) {
+                                    JSON_COMMA;
+                                }
+                                JSON_CUSTOM("%s", state.verification.data());
+                                state.verification_emitted = true;
+                            }
+                            state.harmonic = 0;
+                            state.verification_emitted = false;
+                            JSON_ARR_END;
+                        }
+                        state.direction = 0;
+                    JSON_OBJ_END;
                 JSON_OBJ_END;
             }
         JSON_ARR_END;

@@ -17,6 +17,7 @@
 #include <module/prusa/accelerometer.h>
 #include <core/types.h>
 #include <accelerometer/common_structs.hpp>
+#include <option/has_indx.h>
 
 namespace phase_stepping {
 
@@ -103,6 +104,14 @@ public:
      * Report result in percents for given calibration phase. Lower = better.
      */
     virtual void on_calibration_phase_result(float forward_score, float backward_score) = 0;
+
+#if HAS_INDX()
+    /**
+     * Report that the verification of @p harmonic is done; its result is in
+     * calibration_verify::record() of the calibrated axis.
+     */
+    virtual void on_harmonic_verified([[maybe_unused]] int harmonic) {}
+#endif
 
     /**
      * Report calibration termination

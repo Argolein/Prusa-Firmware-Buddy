@@ -22,6 +22,7 @@
 #include <option/has_indx.h>
 #if HAS_INDX()
     #include "diagnostics.hpp"
+    #include "calibration_verify.hpp"
 #endif
 
 using namespace phase_stepping;
@@ -1547,7 +1548,12 @@ static std::expected<float, CalibrateAxisError> find_approx_mag(AxisEnum axis,
     SignalContainer samples;
     samples.reserve(static_cast<size_t>(MAX_ACC_SAMPLING_RATE * SAMPLE_BUFFER_MARGIN * move_characteristics.duration));
 
-    while (magnitude < calib_config.max_magnitude) {
+#if HAS_INDX()
+    const float max_magnitude = std::min(calib_config.max_magnitude, calibration_verify::MAX_SEARCH_MAGNITUDE);
+#else
+    const float max_magnitude = calib_config.max_magnitude;
+#endif
+    while (magnitude < max_magnitude) {
         ABORT_CHECK();
 
         log_info(PhaseStepping, "Estimating magnitude %f (%d, %f)", magnitude,
@@ -1742,18 +1748,23 @@ std::expected<std::array<MagCalibResult, 2>, CalibrateAxisError> find_best_mag(A
     const AxisCalibrationConfig &calib_config, int harmonic, float nominal_calib_speed,
     float forward_pha, float backward_pha, float guessed_magnitude,
     AbortFun should_abort) {
+#if HAS_INDX()
+    const float mag_end = std::min(2 * guessed_magnitude, calibration_verify::MAX_SEARCH_MAGNITUDE);
+#else
+    const float mag_end = 2 * guessed_magnitude;
+#endif
     const SweepParams f_params = {
         .pha_start = forward_pha,
         .pha_end = forward_pha,
         .mag_start = 0,
-        .mag_end = 2 * guessed_magnitude
+        .mag_end = mag_end
     };
 
     const SweepParams b_params = {
         .pha_start = backward_pha,
         .pha_end = backward_pha,
         .mag_start = 0,
-        .mag_end = 2 * guessed_magnitude
+        .mag_end = mag_end
     };
 
     const float speed = nominal_calib_speed * calib_config.peak_speed_shift;
@@ -1772,7 +1783,7 @@ std::expected<std::array<MagCalibResult, 2>, CalibrateAxisError> find_best_mag(A
 
         // There should be only a single peak in the response:
         auto max_it = std::max_element(response.begin(), response.end());
-        float best_magnitude = std::distance(response.begin(), max_it) * 2 * guessed_magnitude / (response.size() - 1);
+        float best_magnitude = std::distance(response.begin(), max_it) * mag_end / (response.size() - 1);
 
         auto baseline_it = std::min_element(response.begin(), max_it);
 
@@ -1819,6 +1830,123 @@ calibrate_single_harmonic(AxisEnum axis, const AxisCalibrationConfig &calib_conf
         CalibrationResult { backward_mag.mag_value, backward_pha, backward_mag.score } } };
 }
 
+#if HAS_INDX()
+// Mean magnitude of the harmonic over one constant-parameter move with the
+// correction tables as they are: the live calibration harmonic stays at zero,
+// so the move runs exactly what printing will run.
+static std::expected<float, CalibrateAxisError> measure_residual(AxisEnum axis,
+    const AxisCalibrationConfig &calib_config, int harmonic, float speed, float revs,
+    SignalContainer &samples, AbortFun should_abort) {
+    samples.clear();
+    const SweepParams params { .pha_start = 0, .pha_end = 0, .mag_start = 0, .mag_end = 0 };
+    auto annotation = capture_param_sweep_samples(axis, speed, revs, harmonic, params, [&](AccelerometerSample sample) {
+        samples.push_back(sample);
+    });
+    if (!annotation.movement_ok || annotation.accel_error != accelerometer::Error::none) {
+        log_error(PhaseStepping, "Verification movement failed: acc_error %u, movement_ok %d",
+            static_cast<unsigned>(annotation.accel_error), annotation.movement_ok);
+        return std::unexpected(CalibrateAxisError::param_sweep_movement_failed);
+    }
+    ABORT_CHECK();
+
+    auto signal = locate_signal(annotation, samples);
+    int analysis_step = std::max(1, static_cast<int>(std::fabs(revs) * get_motor_steps(axis) / 4 / calib_config.param_sweep_bins));
+    auto analysis = motor_harmonic_dft_sweep(signal, annotation.sampling_freq,
+        speed, get_motor_steps(axis), harmonic, calib_config.analysis_window_periods, analysis_step);
+    diagnostics::sample_calibration_heap();
+
+    const int margin = analysis.samples.size() / 10;
+    const int count = static_cast<int>(analysis.samples.size()) - 2 * margin;
+    if (count <= 0) {
+        return std::unexpected(CalibrateAxisError::param_sweep_movement_failed);
+    }
+    float sum = 0;
+    for (auto it = analysis.samples.begin() + margin; it != analysis.samples.end() - margin; ++it) {
+        sum += *it;
+    }
+    return sum / count;
+}
+
+// Measure the tuned correction of a harmonic against zero through the
+// correction tables, record the verdict and return the results to apply:
+// tuned values where kept, zero (score 1) otherwise. Fails only when aborted.
+static std::expected<std::array<CalibrationResult, 2>, CalibrateAxisError> verify_harmonic(AxisEnum axis,
+    const AxisCalibrationConfig &calib_config, int harmonic, float nominal_calib_speed,
+    std::array<CalibrationResult, 2> tuned, AbortFun should_abort) {
+    namespace verify = calibration_verify;
+
+    // [direction][run]
+    std::array<std::array<float, verify::VERIFY_RUNS>, 2> ratio;
+    for (auto &r : ratio) {
+        r.fill(NAN);
+    }
+    bool measured = true;
+
+    if (std::any_of(tuned.begin(), tuned.end(), [](const CalibrationResult &r) { return r.params.mag >= verify::MIN_CORRECTION_RAD; })) {
+        const float speed = nominal_calib_speed * calib_config.peak_speed_shift;
+        const float duration = calib_config.fine_movement_duration / 2;
+        const MotionCharacteristics motion = characterize_param_sweep(speed, duration);
+        move_to_measurement_start(axis, motion);
+
+        SignalContainer samples;
+        samples.reserve(static_cast<size_t>(MAX_ACC_SAMPLING_RATE * SAMPLE_BUFFER_MARGIN * motion.duration));
+
+        auto set_tables = [&](bool corrected) {
+            axis_states[axis].forward_current.modify_correction_table([&](auto &table) {
+                table[harmonic] = corrected ? tuned[0].params : SpectralItem {};
+            });
+            axis_states[axis].backward_current.modify_correction_table([&](auto &table) {
+                table[harmonic] = corrected ? tuned[1].params : SpectralItem {};
+            });
+        };
+
+        // Moves alternate direction so the head stays around the start.
+        for (int run = 0; run < verify::VERIFY_RUNS && measured; run++) {
+            std::array<std::array<float, 2>, 2> residual {}; // [zeroed][direction]
+            for (int zeroed = 0; zeroed < 2 && measured; zeroed++) {
+                set_tables(zeroed == 0);
+                for (int dir = 0; dir < 2; dir++) {
+                    const float revs = (dir == 0 ? 1 : -1) * duration * speed;
+                    auto r = measure_residual(axis, calib_config, harmonic, speed, revs, samples, should_abort);
+                    if (!r && r.error() == CalibrateAxisError::aborted) {
+                        set_tables(false);
+                        return std::unexpected(r.error());
+                    }
+                    if (!r) {
+                        measured = false;
+                        break;
+                    }
+                    residual[zeroed][dir] = *r;
+                }
+            }
+            if (measured) {
+                for (int dir = 0; dir < 2; dir++) {
+                    ratio[dir][run] = residual[0][dir] / residual[1][dir];
+                }
+            }
+        }
+        set_tables(false);
+    }
+
+    std::array<verify::HarmonicVerification, 2> verdict;
+    for (int dir = 0; dir < 2; dir++) {
+        const float mag = tuned[dir].params.mag;
+        if (measured || mag < verify::MIN_CORRECTION_RAD) {
+            verdict[dir] = verify::judge(mag, ratio[dir]);
+        } else {
+            verdict[dir] = { .calibrated = true, .reason = verify::Reason::verification_error };
+        }
+        log_info(PhaseStepping, "Harmonic %d dir %d: mag %f, ratios %f %f, kept %d",
+            harmonic, dir, mag, ratio[dir][0], ratio[dir][1], verdict[dir].kept);
+        if (!verdict[dir].kept) {
+            tuned[dir] = { .params = {}, .score = 1.f };
+        }
+    }
+    verify::set(axis, harmonic, verdict[0], verdict[1]);
+    return tuned;
+}
+#endif
+
 static bool makes_improvement(const CalibrationResult &r) {
     return r.score <= 1.f;
 }
@@ -1858,6 +1986,10 @@ static void calibrate_axis_body(AxisEnum axis, CalibrateAxisHooks &hooks, Calibr
 
     auto &ok_result = result.emplace();
     int current_phase = 0;
+#if HAS_INDX()
+    bool tuned_any = false;
+    CalibrateAxisError last_error = CalibrateAxisError::no_peaks_found;
+#endif
     // We first calibrate even harmonics, then odd harmonics
     for (int parity = 0; parity < 2; parity++) {
         for (const auto &harmonic_speed : *speed_analysis) {
@@ -1870,6 +2002,20 @@ static void calibrate_axis_body(AxisEnum axis, CalibrateAxisHooks &hooks, Calibr
                 return calibrate_single_harmonic(axis, calib_config,
                     harmonic_speed.harmonic, harmonic_speed.value, should_abort);
             });
+#if HAS_INDX()
+            // A harmonic that cannot be tuned is stored as zero; the axis fails
+            // only when no harmonic can be tuned at all.
+            if (calib_res) {
+                tuned_any = true;
+                calib_res = verify_harmonic(axis, calib_config, harmonic_speed.harmonic, harmonic_speed.value, *calib_res, should_abort);
+            } else if (calib_res.error() != CalibrateAxisError::aborted) {
+                log_error(PhaseStepping, "Harmonic %d stored as zero: %s", harmonic_speed.harmonic, to_string(calib_res.error()));
+                last_error = calib_res.error();
+                const calibration_verify::HarmonicVerification failed { .calibrated = true, .reason = calibration_verify::Reason::tuning_error };
+                calibration_verify::set(axis, harmonic_speed.harmonic, failed, failed);
+                calib_res = std::array<CalibrationResult, 2> { { { .params = {}, .score = 1.f }, { .params = {}, .score = 1.f } } };
+            }
+#endif
             if (!calib_res) {
                 log_error(PhaseStepping, "Calibration failed: %s", to_string(calib_res.error()));
                 result = std::unexpected(calib_res.error());
@@ -1890,6 +2036,9 @@ static void calibrate_axis_body(AxisEnum axis, CalibrateAxisHooks &hooks, Calibr
             ok_result[0][harmonic_speed.harmonic] = f_result.params;
             ok_result[1][harmonic_speed.harmonic] = b_result.params;
             hooks.on_calibration_phase_result(f_result.score, b_result.score);
+#if HAS_INDX()
+            hooks.on_harmonic_verified(harmonic_speed.harmonic);
+#endif
 
             // Apply the correction to the motor
             phase_stepping::axis_states[axis].forward_current.modify_correction_table([&](auto &table) {
@@ -1901,6 +2050,14 @@ static void calibrate_axis_body(AxisEnum axis, CalibrateAxisHooks &hooks, Calibr
         }
     }
 
+#if HAS_INDX()
+    if (phases_count > 0 && !tuned_any) {
+        log_error(PhaseStepping, "No harmonic could be tuned: %s", to_string(last_error));
+        result = std::unexpected(last_error);
+        return;
+    }
+#endif
+
     hooks.on_termination();
 }
 
@@ -1908,6 +2065,7 @@ void phase_stepping::calibrate_axis(AxisEnum axis, CalibrateAxisHooks &hooks, Ca
     mapi::ensure_tool_with_accelerometer_picked();
 #if HAS_INDX()
     diagnostics::begin_calibration_heap();
+    calibration_verify::begin(axis);
 #endif
     calibrate_axis_body(axis, hooks, result); // body extracted to delay stack allocation
 }

@@ -3,7 +3,9 @@
 #include "round_fixed.hpp"
 
 #include <buddy/phase_stepping_opts.h>
+#include <option/has_indx.h>
 
+#include <algorithm>
 #include <array>
 #include <numbers>
 #include <cstdint>
@@ -87,12 +89,23 @@ void CorrectedCurrentLut::_update_phase_shift() {
 
     for (size_t i = 0; i != _phase_shift.size(); i++) {
         int item_phase = i * SIN_FRACTION;
+#if HAS_INDX()
+        // Wide sum and saturation: a large total correction must clip at the
+        // int8 range instead of wrapping to the opposite sign.
+        int64_t phase_shift = 0;
+        for (size_t n = 0; n != fixed_spectrum.size(); n++) {
+            const auto &s = fixed_spectrum[n];
+            phase_shift += static_cast<int64_t>(s.mag) * sin_lut(n * item_phase + s.pha);
+        }
+        _phase_shift[i] = std::clamp<int64_t>(round_fixed(phase_shift, SIN_LUT_FRACTIONAL + MAG_FRACTIONAL), -127, 127);
+#else
         int phase_shift = 0;
         for (size_t n = 0; n != fixed_spectrum.size(); n++) {
             const auto &s = fixed_spectrum[n];
             phase_shift += s.mag * sin_lut(n * item_phase + s.pha);
         }
         _phase_shift[i] = round_fixed(phase_shift, SIN_LUT_FRACTIONAL + MAG_FRACTIONAL);
+#endif
     }
 }
 

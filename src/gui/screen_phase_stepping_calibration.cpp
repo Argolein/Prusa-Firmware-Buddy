@@ -13,6 +13,13 @@
 #include <common/utils/string_builder.hpp>
 #include <Marlin/src/feature/phase_stepping/calibration.hpp>
 #include <bsod/bsod.h>
+#include <option/has_indx.h>
+#if HAS_INDX()
+    #include <Marlin/src/feature/phase_stepping/calibration_verify.hpp>
+    #include <algorithm>
+    #include <cmath>
+    #include <span>
+#endif
 
 namespace {
 
@@ -104,14 +111,57 @@ namespace frame {
             height(GuiDefaults::DefaultFont),
         };
 
+#if HAS_INDX()
+        AxisEnum axis;
+        window_text_t verification;
+        std::array<char, 64> verification_buffer;
+
+        static constexpr Rect16 verification_rect {
+            text_rect.Left(),
+            phase_x_of_y_rect.Bottom() + padding,
+            text_rect.Width(),
+            height(GuiDefaults::DefaultFont),
+        };
+        static_assert(verification_rect.Bottom() < rect_radio.Top(), "verification line overlaps the buttons");
+
+        // "45%" (kept, worst residual ratio), "0 (82%)" (zero stored after
+        // measuring) or "0" (zero stored, nothing measured).
+        static void format_direction(const phase_stepping::calibration_verify::HarmonicVerification &item, std::span<char> out) {
+            if (!std::isfinite(item.ratio[0]) || !std::isfinite(item.ratio[1])) {
+                snprintf(out.data(), out.size(), "0");
+                return;
+            }
+            const int percent = std::clamp(std::lround(100 * std::max(item.ratio[0], item.ratio[1])), 0L, 999L);
+            snprintf(out.data(), out.size(), item.kept ? "%d%%" : "0 (%d%%)", percent);
+        }
+
+        void update_verification(int harmonic) {
+            const auto &record = phase_stepping::calibration_verify::record(axis);
+            std::array<char, 20> forward, backward;
+            format_direction(record.direction[0][harmonic], forward);
+            format_direction(record.direction[1][harmonic], backward);
+            snprintf(verification_buffer.data(), verification_buffer.size(), "H%d  F %s  B %s", harmonic, forward.data(), backward.data());
+            verification.SetText(string_view_utf8::MakeRAM(verification_buffer.data()));
+            verification.Invalidate();
+        }
+#endif
+
     public:
-        CalibratingMotor(window_t *parent, const string_view_utf8 &txt)
+        CalibratingMotor(window_t *parent, const string_view_utf8 &txt, [[maybe_unused]] AxisEnum calibrated_axis)
             : text { parent, text_rect, is_multiline::yes, is_closed_on_click_t::no, _(txt_calibrating) }
             , title { parent, title_rect, is_multiline::no, is_closed_on_click_t::no, txt }
             , progress_bar { parent, progress_bar_rect, COLOR_BRAND, COLOR_DARK_GRAY }
-            , phase_x_of_y { parent, phase_x_of_y_rect, is_multiline::no, is_closed_on_click_t::no } {
+            , phase_x_of_y { parent, phase_x_of_y_rect, is_multiline::no, is_closed_on_click_t::no }
+#if HAS_INDX()
+            , axis { calibrated_axis }
+            , verification { parent, verification_rect, is_multiline::no, is_closed_on_click_t::no }
+#endif
+        {
             title.SetAlignment(Align_t::Center());
             phase_x_of_y.SetAlignment(Align_t::Center());
+#if HAS_INDX()
+            verification.SetAlignment(Align_t::Center());
+#endif
         }
 
         void update(const fsm::PhaseData &data) {
@@ -128,6 +178,11 @@ namespace frame {
                 phase_x_of_y.Invalidate();
                 progress_bar.set_progress_percent(0);
             }
+#if HAS_INDX()
+            if (const uint8_t verified_harmonic = data[2]; verified_harmonic != 0 && verified_harmonic <= phase_stepping::opts::CORRECTION_HARMONICS) {
+                update_verification(verified_harmonic);
+            }
+#endif
         }
     };
 
@@ -161,14 +216,14 @@ namespace frame {
     class CalibratingX final : public CalibratingMotor {
     public:
         explicit CalibratingX(window_t *parent)
-            : CalibratingMotor { parent, _(txt_calibrating_x) } {
+            : CalibratingMotor { parent, _(txt_calibrating_x), AxisEnum::X_AXIS } {
         }
     };
 
     class CalibratingY final : public CalibratingMotor {
     public:
         explicit CalibratingY(window_t *parent)
-            : CalibratingMotor { parent, _(txt_calibrating_y) } {
+            : CalibratingMotor { parent, _(txt_calibrating_y), AxisEnum::Y_AXIS } {
         }
     };
 

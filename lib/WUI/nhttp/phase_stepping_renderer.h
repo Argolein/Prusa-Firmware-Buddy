@@ -22,6 +22,8 @@ public:
     PhaseSteppingRenderState();
 
     bool speed_model_enabled;
+    /// Highest version of the calibration records in RAM, 0 = none.
+    uint16_t calibration_version;
     uint32_t isr_max_cycles;
     uint32_t isr_mean_cycles;
     uint32_t isr_samples;
@@ -37,6 +39,8 @@ public:
     uint32_t motor_missed_tx = 0;
     phase_stepping::MotorPhaseCorrection spectrum {};
     std::array<char, 40> pair {}; ///< formatted current `[mag,pha]`
+    std::array<char, 96> verification {}; ///< formatted current verification entry
+    bool verification_emitted = false; ///< an entry of the current array is out
 
     /// Reads the current motor's enabled flag and missed TX count.
     void load_motor();
@@ -44,6 +48,9 @@ public:
     void load_spectrum();
     /// Formats the current harmonic of `spectrum` into `pair`.
     void load_pair();
+    /// Formats the verification of the current motor, direction and harmonic
+    /// into `verification`. False when that harmonic was not calibrated.
+    bool load_verification();
 };
 
 class PhaseSteppingRenderer final : public json::JsonRenderer<PhaseSteppingRenderState> {

@@ -237,7 +237,10 @@ if(BOARD_IS_MASTER_BOARD)
     endif()
 
     if(HAS_INDX)
-      target_sources(Marlin PRIVATE Marlin/Marlin/src/feature/phase_stepping/diagnostics.cpp)
+      target_sources(
+        Marlin PRIVATE Marlin/Marlin/src/feature/phase_stepping/calibration_verify.cpp
+                       Marlin/Marlin/src/feature/phase_stepping/diagnostics.cpp
+        )
     endif()
   endif()
 

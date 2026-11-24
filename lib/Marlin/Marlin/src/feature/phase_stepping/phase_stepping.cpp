@@ -33,6 +33,7 @@
 #include <option/has_indx.h>
 #if HAS_INDX()
     #include "diagnostics.hpp"
+    #include "calibration_verify.hpp"
     #include <device/cmsis.h>
 #endif
 
@@ -1051,12 +1052,18 @@ void save_to_persistent_storage_without_enabling(AxisEnum axis) {
     debug_assert(axis < SUPPORTED_AXIS_COUNT);
     save_correction_to_file(axis_states[axis].forward_current, get_correction_file_path(axis, CorrectionType::forward));
     save_correction_to_file(axis_states[axis].backward_current, get_correction_file_path(axis, CorrectionType::backward));
+#if HAS_INDX()
+    calibration_verify::save(axis);
+#endif
 }
 
 void load_from_persistent_storage(AxisEnum axis) {
     debug_assert(axis < SUPPORTED_AXIS_COUNT);
     load_correction_from_file(axis_states[axis].forward_current, get_correction_file_path(axis, CorrectionType::forward));
     load_correction_from_file(axis_states[axis].backward_current, get_correction_file_path(axis, CorrectionType::backward));
+#if HAS_INDX()
+    calibration_verify::load(axis);
+#endif
 
     phase_stepping::enable(axis, config_store().get_phase_stepping_enabled(axis));
 }
@@ -1074,6 +1081,9 @@ void remove_from_persistent_storage(AxisEnum axis, CorrectionType lut_type) {
 void remove_from_persistent_storage(AxisEnum axis) {
     remove_from_persistent_storage(axis, phase_stepping::CorrectionType::forward);
     remove_from_persistent_storage(axis, phase_stepping::CorrectionType::backward);
+#if HAS_INDX()
+    calibration_verify::remove(axis);
+#endif
 }
 
 void remove_from_persistent_storage() {

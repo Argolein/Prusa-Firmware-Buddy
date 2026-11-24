@@ -10,6 +10,7 @@
 #include <Marlin/src/feature/phase_stepping/calibration.hpp>
 #include <Marlin/src/gcode/gcode.h>
 #include <option/developer_mode.h>
+#include <option/has_indx.h>
 #include <selftest/selftest_invocation.hpp>
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
@@ -63,6 +64,9 @@ public:
         : phase { phase } {
         data[0] = 0;
         data[1] = 0;
+#if HAS_INDX()
+        data[2] = 0; // no harmonic verified yet
+#endif
     }
 
     void on_motor_characterization_start() override {
@@ -83,6 +87,14 @@ public:
     void on_calibration_phase_result(float forward_score, float backward_score) override {
         calibration_result[current_calibration_phase] = { forward_score, backward_score };
     }
+
+#if HAS_INDX()
+    void on_harmonic_verified(int harmonic) override {
+        // The screen reads the result from the calibration record.
+        data[2] = harmonic;
+        marlin_server::fsm_change(phase, data);
+    }
+#endif
 
     void on_termination() override {
         state = State::finished;
