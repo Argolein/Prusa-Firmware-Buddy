@@ -207,21 +207,23 @@ allocates (stock move lengths; repeats are averaged by result, not by samples).
 Calibration:
 - Keep the stock speed sweep and the tuning at the resonance speed (best signal).
 - Add a **phase-versus-speed sweep** per calibrated harmonic and direction over the
-  observable band (harmonic 4 up to 1.6 rev/s, harmonic 2 up to 3.2 rev/s), at 4 speeds per
-  harmonic, each twice, with stock-length moves. Speeds are chosen at run time from the
-  measured `sampling_freq` so that no harmonic m ≤ 16 folds within 30 Hz of the target
-  (`|m·f_e mod f_s|`, folded); the defaults (harmonic 2: 1, 1.5, 2.5, 3 rev/s; harmonic 4:
-  0.5, 0.8, 1.2, 1.5 rev/s) are moved slightly where they fail that check.
+  observable band (harmonic 4 up to 1.6 rev/s, harmonic 2 up to 3.2 rev/s), at 3 speeds per
+  harmonic (harmonic 2: 1, 2, 3 rev/s; harmonic 4: 0.5, 1.0, 1.5 rev/s), each twice. Speeds
+  are chosen at run time from the measured `sampling_freq` so that no harmonic m ≤ 16 folds
+  within 30 Hz of the target (`|m·f_e mod f_s|`, folded); a default that fails is moved by up
+  to ±0.2 rev/s. Every move, ramps and settling included, stays within the stock
+  `max_movement_revs` (5 revs): the constant-speed part is shortened at high speed, with a
+  floor of 2 revs (20 analysis windows); a speed that cannot meet it is skipped.
 - Speed models use |v| per direction (`physical_speed` is signed). Calibration runs with all
   speed models off.
-- Fit per motor, direction and harmonic: slope sₙ with its standard error σₛ, and a size
-  slope (harmonic 4 by default).
+- Fit per motor, direction and harmonic: slope sₙ with its standard error σₛ; a size slope
+  for harmonic 4 only, from one magnitude search at the top speed.
 - **Self-gate:** apply the model for a harmonic only if (a) the phase change it predicts
   across the band exceeds twice the spread of the repeated measurements, and (b) a
   verification move at the top band speed with the model beats the stock table at that
   speed. Otherwise sₙ = 0 and that harmonic behaves exactly like stock.
-- Expected total time ≈ 8–12 min for both motors (stock ≈ 3 min, estimate; accepted by
-  Owner).
+- Expected total time ≈ 11.6 min for both motors (stock ≈ 3 + verification ≈ 1.5 + speed
+  model ≈ 7.2; estimate, not measured; Owner accepted 8–12 min).
 
 Data:
 - New file per motor `/system/phase_step_{x,y}_speed` with a version tag, v₀, sₙ, σₛ, size
@@ -230,8 +232,11 @@ Data:
   loads them and ignores the new file.
 
 Runtime (ISR):
-- **Tables (default):** one int8 table per speed-modelled harmonic and direction (1024 B
-  each; at most 2 harmonics × 2 directions × 2 motors = 8 KB, normal RAM). The stock summed
+- **Tables (default):** one int8 table per speed-modelled harmonic and direction, stored
+  doubled (2048 B) so the ISR reads it without index wrapping; allocated on the heap with
+  `malloc_fallible` only while a model is active (at most 2 harmonics × 2 directions × 2
+  motors = 16 KB). If an allocation fails, that harmonic stays in the summed table (stock
+  behaviour). The stock summed
   table is rebuilt **without** those harmonics, so none is applied twice. Per update:
   `shift = base[idx] + Σₕ gₕ(v)·tblₕ[(idx − offₕ(v)) & 1023]`, with
   `offₕ(v) = sₕ·(|v| − v₀)·1024 / (2π·h)` (sign and scale checked) and gₕ the size factor
@@ -243,8 +248,11 @@ Runtime (ISR):
 - Extrapolation above the band edge v_e: continue with slope c·sₙ, c = clamp(1 − 2σₛ/|sₙ|,
   0, 1), hold the value from 6 rev/s up (current reduction starts there), and clamp the
   shift to 1.5× the largest measured.
-- Budget: the Phase 0 ISR timing before and after; at most +0.25 µs per ISR (42 cycles,
-  1 % CPU at 40 kHz).
+- Budget: the Phase 0 ISR timing before and after; at most +0.25 µs per ISR (42 cycles at
+  168 MHz, 1 % CPU at 40 kHz). Built result (`abd5733b9`, counted from the ELF, not
+  measured): model off ≈ 5 cycles (load, compare, branch); one active harmonic ≈ 37 cycles,
+  two ≈ 38–42; recompute out of line only when |v| moves by more than 0.05 rev/s. The dump's
+  ISR timing shows the real cost on the printer.
 
 Fallback if the phase does not follow a smooth curve: 3 speed-binned tables per harmonic and
 direction, blended linearly between neighbouring bins (same file versioning).
@@ -271,6 +279,13 @@ direction, blended linearly between neighbouring bins (same file versioning).
 
 What only the printer can prove (not provable in this repo): the benefit at print speed,
 which lies above the accelerometer band.
+
+## Built (2026-11-24)
+
+Commits on `v8.0.1-Argo-stable`: gate `01e3af829`, `f04fffe0a`; diagnostics `2396ef314`;
+instruments `04bad5639`; dump `e154266bc`; page `9d550d703`; sound test `98982486e`;
+verified calibration `5d5a66e32`; speed model `abd5733b9`. Unit tests and the
+`coreone_indx -Werror` build are green; nothing has run on a printer yet.
 
 ## Answers (Owner, 2026-11-24)
 
